@@ -507,7 +507,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <div class="card"><div class="ch"><span class="ct">Por estado</span></div><div class="cb" id="dash-est"></div></div>
   </div>
   <div class="two">
-    <div class="card admin-sup"><div class="ch"><span class="ct">Por asesor</span></div><div class="cb" id="dash-ase"></div></div>
+    <div class="card admin-sup"><div class="ch"><span class="ct">Performance por asesor</span><button class="btn bo bsm" style="font-size:10px" onclick="openPerfConfig()">⚙️ Meta diaria</button></div><div class="cb" id="dash-ase"></div></div>
     <div class="card"><div class="ch"><span class="ct">Recordatorios urgentes</span><button class="btn bo bsm" onclick="goTab('recordatorios',null)">Ver todos</button></div><div class="cb" id="dash-rem"></div></div>
   </div>
 </div>
@@ -865,6 +865,17 @@ const DEF_LEADS=[
 let users=[...DEF_USERS], leads=[...DEF_LEADS];
 let driveConn={url:'',lastSync:null,autoSync:false};
 let impHist=[], syncLogs=[];
+// ── PERFORMANCE DIARIO ──
+let perfMeta={leads:30,gestiones:20};
+const _pm=lsG('tvs8_perfmeta',null);if(_pm)perfMeta=_pm;
+let perfGest=lsG('tvs8_perfgest',{});
+function todayGest(uid){const t=today();if(!perfGest[uid])perfGest[uid]={};return perfGest[uid][t]||0;}
+function addGest(uid,n){const t=today();if(!perfGest[uid])perfGest[uid]={};perfGest[uid][t]=(perfGest[uid][t]||0)+n;lsS('tvs8_perfgest',perfGest);}
+function todayLeads(uid){const t=today();return leads.filter(l=>l.uid===uid&&(l.fa===t||l.fu===t)).length;}
+function calcPerf(uid){const tl=todayLeads(uid),tg=todayGest(uid),pL=Math.min(Math.round(tl/perfMeta.leads*100),100),pG=Math.min(Math.round(tg/perfMeta.gestiones*100),100),tot=Math.round((pL+pG)/2);return{pLeads:pL,pGest:pG,total:tot,tl,tg};}
+function perfColor(p){return p>=81?'#16a34a':p>=60?'#ea580c':'#dc2626';}
+function perfBadge(p){const c=perfColor(p);return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:44px;padding:3px 8px;border-radius:20px;background:${c}18;color:${c};font-weight:700;font-size:12px">${p}%</span>`;}
+function perfBar(p){const c=perfColor(p);return `<div style="background:#e5e7eb;border-radius:4px;height:6px;overflow:hidden;flex:1"><div style="width:${p}%;background:${c};height:100%;border-radius:4px;transition:width .4s"></div></div>`;}
 let nuid=9, nlid=7;
 let CU=null, editL=null, editU=null, assignU=null, passU=null, remL=null;
 let bulkMode=false, selIds=new Set(), remFilter='all', pendRows=[], autoTimer=null;
@@ -1106,17 +1117,65 @@ function renderPipeline(){
 }
 function renderDashboard(){
   const arr=myLeads(),venta=arr.filter(l=>l.est==='VENTA').length,perdido=arr.filter(l=>l.est==='PERDIDO').length,proceso=arr.filter(l=>l.est==='PROCESO').length,pct=arr.length>0?Math.round(venta/arr.length*100):0;
+  // ── PERFORMANCE CARD ──
+  if(!isPriv()){
+    const p=calcPerf(CU.id);
+    const pc=perfColor(p.total);
+    const perfHtml=`<div style="background:#fff;border-radius:12px;border:2px solid ${pc}30;padding:1rem;margin-bottom:1rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
+        <span style="font-size:13px;font-weight:700;color:var(--navy)">⚡ Mi Performance Hoy</span>
+        ${perfBadge(p.total)}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;color:var(--mut);min-width:80px">Leads (${p.tl}/${perfMeta.leads})</span>
+          ${perfBar(p.pLeads)}
+          <span style="font-size:11px;font-weight:700;color:${perfColor(p.pLeads)};min-width:32px">${p.pLeads}%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;color:var(--mut);min-width:80px">Gestiones (${p.tg}/${perfMeta.gestiones})</span>
+          ${perfBar(p.pGest)}
+          <span style="font-size:11px;font-weight:700;color:${perfColor(p.pGest)};min-width:32px">${p.pGest}%</span>
+        </div>
+      </div>
+      <div style="margin-top:.75rem;display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;color:var(--mut)">Agregar gestiones manualmente:</span>
+        <button class="btn bp bsm" style="font-size:11px" onclick="openAddGest()">+ Gestiones</button>
+      </div>
+    </div>`;
+    const dg=document.getElementById('dash-perf-asesor');if(dg)dg.innerHTML=perfHtml;
+  }
   document.getElementById('dash-t').textContent=isPriv()?'Dashboard General':`Hola, ${CU.nombre.split(' ')[0]} 👋`;
   document.getElementById('dash-s').textContent=(isPriv()?'Vista global':arr.length+' leads asignados')+(useCloud?' · ☁️ Firebase':' · 📱 local');
   document.getElementById('dash-mets').innerHTML=`
-    <div class="met"><div class="ml">Total Leads</div><div class="mv">${arr.length}</div><div class="ms">${proceso} en proceso</div></div>
+    <div id="dash-perf-asesor"></div><div class="met"><div class="ml">Total Leads</div><div class="mv">${arr.length}</div><div class="ms">${proceso} en proceso</div></div>
     <div class="met grn"><div class="ml">Ventas</div><div class="mv">${venta}</div><div class="ms" style="color:#2e7d32">${pct}% cierre</div></div>
     <div class="met red"><div class="ml">Perdidos</div><div class="mv">${perdido}</div><div class="ms" style="color:var(--red)">${arr.length>0?Math.round(perdido/arr.length*100):0}%</div></div>
     <div class="met yel"><div class="ml">Recordatorios</div><div class="mv">${arr.filter(l=>l.reminder&&l.reminder.date&&l.reminder.date<=today()).length}</div><div class="ms">pendientes hoy</div></div>`;
   document.getElementById('dash-rec').innerHTML=arr.slice(0,6).map(l=>`<tr><td style="font-weight:600">${l.nom}</td><td>${oriBadge(l.ori)}</td><td style="font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.linea}</td><td>${eBadge(l.est)}</td></tr>`).join('');
   const sc={};ESTADOS.forEach(s=>sc[s]=0);arr.forEach(l=>sc[l.est]=(sc[l.est]||0)+1);
   document.getElementById('dash-est').innerHTML=`<div class="bw">${ESTADOS.map(s=>{const p=arr.length>0?Math.round(sc[s]/arr.length*100):0;return `<div class="br"><span class="bl">${s}</span><div class="bt"><div class="bf" style="width:${p}%;background:${EC[s]}"></div></div><span class="bv">${sc[s]}</span></div>`;}).join('')}</div>`;
-  const da=document.getElementById('dash-ase');if(da&&isPriv())da.innerHTML=users.filter(u=>u.rol!=='admin').map(u=>{const ul=leads.filter(l=>l.uid===u.id),uv=ul.filter(l=>l.est==='VENTA').length;return `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bd)"><div style="display:flex;align-items:center;gap:8px">${avU(u)}<div><div style="font-size:12px;font-weight:600">${u.nombre}</div><div style="font-size:10px;color:var(--mut)">${u.rol}${u.zona?' · '+u.zona:''}</div></div></div><div style="text-align:right"><div style="font-weight:700;color:var(--navy)">${ul.length}</div><div style="font-size:10px;color:var(--mut)">${uv} ventas</div></div></div>`;}).join('');
+  const da=document.getElementById('dash-ase');if(da&&isPriv())da.innerHTML=users.filter(u=>u.rol!=='admin').map(u=>{
+    const ul=leads.filter(l=>l.uid===u.id),uv=ul.filter(l=>l.est==='VENTA').length,p=calcPerf(u.id);
+    return `<div style="padding:9px 0;border-bottom:1px solid var(--bd)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <div style="display:flex;align-items:center;gap:8px">${avU(u)}<div>
+          <div style="font-size:12px;font-weight:600">${u.nombre}</div>
+          <div style="font-size:10px;color:var(--mut)">${ul.length} leads · ${uv} ventas</div>
+        </div></div>
+        ${perfBadge(p.total)}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;padding-left:36px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:10px;color:var(--mut);min-width:72px">Leads ${p.tl}/${perfMeta.leads}</span>
+          ${perfBar(p.pLeads)}
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:10px;color:var(--mut);min-width:72px">Gest. ${p.tg}/${perfMeta.gestiones}</span>
+          ${perfBar(p.pGest)}
+        </div>
+      </div>
+    </div>`;}).join('');
   const t=today(),due=myLeads().filter(l=>l.reminder&&l.reminder.date&&l.reminder.date<=t).slice(0,3);
   const dr=document.getElementById('dash-rem');if(dr){if(due.length===0){dr.innerHTML='<div style="color:var(--mut);font-size:12px;text-align:center;padding:1rem">Sin recordatorios urgentes</div>';}else dr.innerHTML=due.map(l=>{const s=remSt(l.reminder);return `<div class="rc ${s==='overdue'?'ov2':s==='today'?'tod':'upc'}" onclick="openDet(${l.id})" style="cursor:pointer"><div style="font-size:20px">${s==='overdue'?'🔴':s==='today'?'🟡':'🟢'}</div><div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--navy)">${l.nom}</div><div style="font-size:11px;color:var(--mut)">${l.reminder.note||l.linea}</div><div style="font-size:10px;font-weight:600;margin-top:3px;color:${s==='overdue'?'var(--red)':s==='today'?'#EAB308':'var(--green)'}">${l.reminder.date} ${l.reminder.time||''}</div></div></div>`;}).join('');}
 }
@@ -1188,7 +1247,8 @@ function openDet(id){
   openM('m-det');
 }
 function renderNotas(l){if(!l.notas||l.notas.length===0)return `<div style="color:var(--mut);font-size:12px;text-align:center;padding:.75rem">Sin comentarios</div>`;return l.notas.map((n,i)=>`<div class="ni2"><div class="nt">${n.txt}</div><div class="nm"><span>✍️ ${n.by||'Asesor'}</span><span>${n.ts||''}</span></div><button class="nd" onclick="delNota(${l.id},${i})">✕</button></div>`).join('');}
-function addNota(lid){const txt=document.getElementById('new-nota')?.value?.trim();if(!txt){toast('Escribe algo');return;}const l=leads.find(x=>x.id===lid);if(!l.notas)l.notas=[];l.notas.push({txt,by:CU.nombre,ts:new Date().toLocaleString()});l.fu=today();document.getElementById('new-nota').value='';document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);renderAll();toast('Comentario agregado ✓');}
+function addNota(lid){const txt=document.getElementById('new-nota')?.value?.trim();if(!txt){toast('Escribe algo');return;}const l=leads.find(x=>x.id===lid);if(!l.notas)l.notas=[];l.notas.push({txt,by:CU.nombre,ts:new Date().toLocaleString()});l.fu=today();document.getElementById('new-nota').value='';document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);renderAll();toast('Comentario agregado ✓');// contar gestión del asesor asignado
+const gestUid=l.uid||CU.id;addGest(gestUid,1);}
 function delNota(lid,idx){if(!confirm('¿Eliminar?'))return;const l=leads.find(x=>x.id===lid);l.notas.splice(idx,1);document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);toast('Eliminado');}
 function saveDet(id){const l=leads.find(x=>x.id===id);l.est=document.getElementById('ds-est').value;l.tp=document.getElementById('ds-tp').value;l.fu=today();if(isPriv()){const v=document.getElementById('ds-ase')?.value;l.uid=v?parseInt(v):null;if(l.uid){const u=users.find(x=>x.id===l.uid);if(u)l.anom=u.nombre;}}persist();cloudSaveLead(l);closeM('m-det');renderAll();toast('Lead actualizado ✓');}
 
@@ -1248,6 +1308,7 @@ function renderUsers(){
     return `<div class="uc"><div style="display:flex;align-items:center;gap:10px;margin-bottom:.85rem">${avU(u,'av-lg')}<div style="flex:1"><div style="font-size:14px;font-weight:700;color:var(--navy)">${u.nombre}</div><span class="badge ${u.rol==='admin'?'e-seg':u.rol==='supervisor'?'e-proc':'e-venta'}" style="font-size:10px;margin-top:2px;display:inline-block">${u.rol.toUpperCase()}</span><div style="font-size:11px;color:var(--mut);margin-top:2px">@${u.user}</div></div></div>
     <div class="us"><span class="usl">Leads asignados</span><span class="usv">${ul.length}</span></div>
     <div class="us"><span class="usl">Ventas</span><span class="usv" style="color:#1B5E20">${uv}</span></div>
+    <div class="us" style="align-items:center"><span class="usl">Performance hoy</span><span class="usv">${(()=>{const p=calcPerf(u.id);return perfBadge(p.total)+' <span style=\'font-size:10px;color:var(--mut)\'>(L:'+p.pLeads+'% G:'+p.pGest+'%)</span>';})()}</span></div>
     <div class="us"><span class="usl">Zona</span><span class="usv">${u.zona||'—'}</span></div>
     <div class="us"><span class="usl">Nombre en leads</span><span class="usv" style="font-size:11px">${u.leadsname||'—'}</span></div>
     <div style="display:flex;gap:5px;margin-top:.8rem;flex-wrap:wrap">
@@ -1278,6 +1339,77 @@ function openPass(id){passU=id;document.getElementById('pm-p1').value='';documen
 function doChgPass(){const p1=document.getElementById('pm-p1').value,p2=document.getElementById('pm-p2').value,err=document.getElementById('pm-err');if(p1.length<6){err.textContent='Mínimo 6';err.style.display='block';return;}if(p1!==p2){err.textContent='No coinciden';err.style.display='block';return;}users.find(x=>x.id===passU).pass=p1;persist();closeM('m-pass');toast('Contraseña actualizada ✓');}
 function changeMyPass(){const old=document.getElementById('pf-old').value,n=document.getElementById('pf-new').value,n2=document.getElementById('pf-new2').value,err=document.getElementById('pf-err');if(CU.pass!==old){err.textContent='Contraseña actual incorrecta';err.style.display='block';return;}if(n.length<6){err.textContent='Mínimo 6';err.style.display='block';return;}if(n!==n2){err.textContent='No coinciden';err.style.display='block';return;}CU.pass=n;users.find(x=>x.id===CU.id).pass=n;err.style.display='none';persist();toast('Contraseña actualizada ✓');['pf-old','pf-new','pf-new2'].forEach(i=>document.getElementById(i).value='');}
 function renderPerfil(){const mine=myLeads(),uv=mine.filter(l=>l.est==='VENTA').length;document.getElementById('perf-body').innerHTML=`<div style="display:flex;align-items:center;gap:11px;margin-bottom:1rem">${avU(CU,'av-lg')}<div><div style="font-size:17px;font-weight:700;color:var(--navy)">${CU.nombre}</div><div style="font-size:12px;color:var(--mut)">${CU.rol} · @${CU.user}</div></div></div><div class="dr"><span class="dl">Email</span><span class="dv">${CU.email||'—'}</span></div><div class="dr"><span class="dl">WhatsApp</span><span class="dv">${CU.tel||'—'}</span></div><div class="dr"><span class="dl">Zona</span><span class="dv">${CU.zona||'—'}</span></div><div class="dr"><span class="dl">Mis leads</span><span class="dv" style="font-weight:700">${mine.length}</span></div><div class="dr"><span class="dl">Ventas</span><span class="dv" style="color:#1B5E20;font-weight:700">${uv}</span></div><div class="dr"><span class="dl">Sincronización</span><span class="dv">${useCloud?'☁️ Firebase Firestore':'📱 Solo este dispositivo'}</span></div>`;}
+
+// ── GESTIONES MANUALES ──
+function openAddGest(){
+  const existing=document.getElementById('m-addgest');
+  if(existing){existing.remove();}
+  const div=document.createElement('div');
+  div.id='m-addgest';
+  div.className='ov';
+  div.innerHTML=`<div class="mo msm" style="max-width:320px">
+    <div class="mh"><span class="mt2">➕ Agregar Gestiones</span><button class="xb" onclick="closeM('m-addgest')">×</button></div>
+    <div class="mb2">
+      <div style="font-size:12px;color:var(--mut);margin-bottom:12px">Registra gestiones realizadas hoy (llamadas, WhatsApps, seguimientos).</div>
+      <div class="fg"><label class="fl">Cantidad de gestiones *</label>
+        <input class="fc" type="number" id="gest-n" min="1" max="100" value="1" style="font-size:16px;text-align:center;font-weight:700">
+      </div>
+      <div id="gest-cur" style="font-size:11px;color:var(--mut);text-align:center;margin-top:4px"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+        <button class="btn bo" onclick="closeM('m-addgest')">Cancelar</button>
+        <button class="btn bp" onclick="saveAddGest()">Guardar</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+  const p=calcPerf(CU.id);
+  const gc=document.getElementById('gest-cur');
+  if(gc)gc.textContent=`Tienes ${p.tg} gestión(es) hoy de ${perfMeta.gestiones} meta`;
+  openM('m-addgest');
+}
+function saveAddGest(){
+  const n=parseInt(document.getElementById('gest-n')?.value)||0;
+  if(n<1){toast('Ingresa al menos 1');return;}
+  addGest(CU.id,n);
+  closeM('m-addgest');
+  renderDashboard();
+  toast(`${n} gestión(es) registrada(s) ✓`);
+}
+// ── CONFIG METAS (solo admin) ──
+function openPerfConfig(){
+  const existing=document.getElementById('m-perfcfg');
+  if(existing){existing.remove();}
+  const div=document.createElement('div');
+  div.id='m-perfcfg';
+  div.className='ov';
+  div.innerHTML=`<div class="mo msm" style="max-width:340px">
+    <div class="mh"><span class="mt2">⚙️ Meta Diaria</span><button class="xb" onclick="closeM('m-perfcfg')">×</button></div>
+    <div class="mb2">
+      <div class="fg"><label class="fl">Meta de Leads por día</label>
+        <input class="fc" type="number" id="cfg-meta-l" min="1" value="${perfMeta.leads}">
+      </div>
+      <div class="fg"><label class="fl">Meta de Gestiones por día</label>
+        <input class="fc" type="number" id="cfg-meta-g" min="1" value="${perfMeta.gestiones}">
+      </div>
+      <div style="font-size:11px;color:var(--mut);margin-top:4px">Verde ≥81% · Naranja 60-80% · Rojo ≤59%</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+        <button class="btn bo" onclick="closeM('m-perfcfg')">Cancelar</button>
+        <button class="btn bp" onclick="savePerfConfig()">Guardar</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+  openM('m-perfcfg');
+}
+function savePerfConfig(){
+  const l=parseInt(document.getElementById('cfg-meta-l')?.value)||30;
+  const g=parseInt(document.getElementById('cfg-meta-g')?.value)||20;
+  perfMeta={leads:Math.max(1,l),gestiones:Math.max(1,g)};
+  lsS('tvs8_perfmeta',perfMeta);
+  closeM('m-perfcfg');
+  renderAll();
+  toast('Meta actualizada ✓');
+}
 
 // ASSIGN
 function openAssign(uid){assignU=uid;const u=users.find(x=>x.id===uid);document.getElementById('ma-title').textContent='Asignar a '+u.nombre;document.getElementById('a-info').textContent=`Marca los leads a asignar a ${u.nombre}.`;document.getElementById('a-list').innerHTML=leads.map(l=>{const cur=l.uid&&l.uid!==uid?users.find(x=>x.id===l.uid)?.nombre.split(' ')[0]:'';return `<label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--bd);cursor:pointer"><input type="checkbox" value="${l.id}" ${l.uid===uid?'checked':''} style="width:15px;height:15px;accent-color:var(--navy)"><div style="flex:1"><div style="font-weight:600;font-size:12px">${l.nom}${cur?` <span style="font-size:10px;color:var(--orange)">(${cur})</span>`:''}</div><div style="font-size:10px;color:var(--mut)">${l.linea} · ${l.ubi}</div></div>${eBadge(l.est)}</label>`;}).join('');openM('m-assign');}
