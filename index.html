@@ -502,7 +502,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
 
 <!-- DASHBOARD -->
 <div id="tab-dashboard" class="tab active">
-  <div class="ph"><div><div class="pt" id="dash-t">Dashboard</div><div class="psb" id="dash-s">Resumen</div></div><button class="btn bp" onclick="openLM(null)">+ Nuevo Lead</button></div>
+  <div class="ph"><div><div class="pt" id="dash-t">Dashboard</div><div class="psb" id="dash-s">Resumen</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="date" id="perf-fecha-fil" class="fc" style="max-width:150px;font-size:12px" title="Filtrar performance por fecha" onchange="renderDashboard()"><button class="btn bo bsm" onclick="document.getElementById('perf-fecha-fil').value=today();renderDashboard()">Hoy</button></div><button class="btn bp" onclick="openLM(null)">+ Nuevo Lead</button></div>
   <div class="mets" id="dash-mets"></div>
   <div class="two">
     <div class="card"><div class="ch"><span class="ct">Leads recientes</span><button class="btn bo bsm" onclick="goTab('leads',null)">Ver todos</button></div><div class="tw"><table><thead><tr><th>Nombre</th><th>Origen</th><th>Línea</th><th>Estado</th></tr></thead><tbody id="dash-rec"></tbody></table></div></div>
@@ -904,11 +904,34 @@ let impHist=[], syncLogs=[];
 // ── PERFORMANCE DIARIO ──
 let perfMeta={leads:30,gestiones:20};
 const _pm=lsG('tvs8_perfmeta',null);if(_pm)perfMeta=_pm;
-let perfGest=lsG('tvs8_perfgest',{});
-function todayGest(uid){const t=today();if(!perfGest[uid])perfGest[uid]={};return perfGest[uid][t]||0;}
-function addGest(uid,n){const t=today();if(!perfGest[uid])perfGest[uid]={};perfGest[uid][t]=(perfGest[uid][t]||0)+n;lsS('tvs8_perfgest',perfGest);}
-function todayLeads(uid){const t=today();return leads.filter(l=>l.uid===uid&&(l.fa===t||l.fu===t)).length;}
-function calcPerf(uid){const tl=todayLeads(uid),tg=todayGest(uid),pL=Math.min(Math.round(tl/perfMeta.leads*100),100),pG=Math.min(Math.round(tg/perfMeta.gestiones*100),100),tot=Math.round((pL+pG)/2);return{pLeads:pL,pGest:pG,total:tot,tl,tg};}
+
+// ── PERFORMANCE BASADO EN LEADS (visible desde cualquier dispositivo) ──
+// perfFecha: fecha a usar para calcular (default = hoy, puede filtrarse)
+let perfFecha=today(); // se puede cambiar con el filtro de fecha
+
+function leadsEnFecha(uid,fecha){
+  // Leads cuya fa (actividad) o fu (actualización) coincide con la fecha
+  return leads.filter(l=>l.uid===uid&&(parseFecha(l.fa||'')===fecha||parseFecha(l.fu||'')===fecha));
+}
+function gestionesEnFecha(uid,fecha){
+  // Gestiones = leads que fueron actualizados (fu) en la fecha, independiente de fa
+  return leads.filter(l=>l.uid===uid&&parseFecha(l.fu||'')===fecha).length;
+}
+function todayLeads(uid){return leadsEnFecha(uid,perfFecha).length;}
+function todayGest(uid){return gestionesEnFecha(uid,perfFecha);}
+function addGest(uid,n){
+  // Ya no necesitamos localStorage, las gestiones se calculan desde leads
+  // Pero actualizamos fu del lead para que cuente
+}
+function calcPerf(uid,fecha){
+  const f=fecha||perfFecha;
+  const tl=leadsEnFecha(uid,f).length;
+  const tg=gestionesEnFecha(uid,f);
+  const pL=Math.min(Math.round(tl/perfMeta.leads*100),100);
+  const pG=Math.min(Math.round(tg/perfMeta.gestiones*100),100);
+  const tot=Math.round((pL+pG)/2);
+  return{pLeads:pL,pGest:pG,total:tot,tl,tg};
+}
 function perfColor(p){return p>=81?'#16a34a':p>=60?'#ea580c':'#dc2626';}
 function perfBadge(p){const c=perfColor(p);return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:44px;padding:3px 8px;border-radius:20px;background:${c}18;color:${c};font-weight:700;font-size:12px">${p}%</span>`;}
 function perfBar(p){const c=perfColor(p);return `<div style="background:#e5e7eb;border-radius:4px;height:6px;overflow:hidden;flex:1"><div style="width:${p}%;background:${c};height:100%;border-radius:4px;transition:width .4s"></div></div>`;}
@@ -1072,6 +1095,9 @@ function isPriv(){return CU&&(CU.rol==='admin'||CU.rol==='supervisor'||CU.rol===
 function isAdmin(){return CU&&CU.rol==='admin';}
 function isGerencia(){return CU&&(CU.rol==='gerencia'||CU.rol==='admin');}
 function setupUI(){
+  // Inicializar filtro de fecha del dashboard con hoy
+  const pfEl=document.getElementById('perf-fecha-fil');
+  if(pfEl&&!pfEl.value)pfEl.value=today();
   document.querySelectorAll('.admin-sup').forEach(el=>el.style.display=isPriv()?'':'none');
   document.querySelectorAll('.admin-only').forEach(el=>{el.style.display=isAdmin()?'':'none';});
   const av=document.getElementById('tb-av');av.textContent=ini(CU.nombre);av.style.background=CU.color+'20';av.style.color=CU.color;
@@ -1205,6 +1231,9 @@ function renderDashboard(){
     </div>`;
     const dg=document.getElementById('dash-perf-asesor');if(dg)dg.innerHTML=perfHtml;
   }
+  // Actualizar perfFecha con el filtro seleccionado
+  const pfEl=document.getElementById('perf-fecha-fil');
+  if(pfEl)perfFecha=pfEl.value||today();
   document.getElementById('dash-t').textContent=isGerencia()?'Dashboard Gerencial':isPriv()?'Dashboard General':`Hola, ${CU.nombre.split(' ')[0]} 👋`;
   document.getElementById('dash-s').textContent=(isPriv()?'Vista global':arr.length+' leads asignados')+(useCloud?' · ☁️ Firebase':' · 📱 local');
   document.getElementById('dash-mets').innerHTML=`
