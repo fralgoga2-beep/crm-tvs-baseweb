@@ -1690,15 +1690,16 @@ window.addEventListener('pagehide',persist);window.addEventListener('beforeunloa
 setInterval(()=>{if(CU)updRemBadge();},60000);
 
 // AUTO-CONNECT
-(function(){
+function doAutoConnect(){
   const saved=lsG('tvs8_fbcfg',null);
-  if(saved&&saved.apiKey&&saved.projectId){
+  if(saved&&saved.apiKey&&saved.projectId&&window._fb){
     ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{const el=document.getElementById('cfg-'+k.replace('Storage','').toLowerCase().replace('messaging','ms').replace('app','app').replace('auth','auth'));if(el&&saved[k])el.value=saved[k];});
     const ok=window._fb.init(saved);
     if(ok){useCloud=true;showLoginScreen(true);initRealtimeSync();}
     else{showLoginScreen(false);}
   }else{showLoginScreen(false);}
-})();
+}
+if(window._fb){doAutoConnect();}else{setTimeout(doAutoConnect,300);}
 if(impHist.length>0)renderImpHist();
 </script>
 </body>
