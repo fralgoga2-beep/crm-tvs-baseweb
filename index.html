@@ -381,7 +381,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
 <!-- ══════════════════════════════════════════════
      PASO 1: CONFIGURAR FIREBASE
 ═══════════════════════════════════════════════ -->
-<div id="setup-screen">
+<div id="setup-screen" style="display:none">
   <div class="setup-card">
     <div style="text-align:center;margin-bottom:1.2rem">
       <img src="data:image/webp;base64,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" style="height:46px;display:block;margin:0 auto 1rem">
@@ -531,6 +531,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <button class="btn bsm" style="background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.25)" onclick="bulkNone()">☐ Ninguno</button>
       <select id="blk-est" class="btn bsm" style="background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.25);font-family:inherit"><option value="">Cambiar estado...</option><option>PROCESO</option><option>VENTA</option><option>PERDIDO</option><option>SEGUIMIENTO</option><option>PENDIENTE</option><option>CITA</option><option>NUEVO</option><option>PRECALIFICADO</option></select>
       <button class="btn bsm" style="background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.25)" onclick="bulkEst()">✓ Aplicar</button>
+      <button id="btn-bulk-assign" class="btn bsm" style="background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.25);display:none" onclick="openBulkAssign()">👤 Asignar</button>
       <button class="btn bsm" style="background:rgba(200,16,46,.85);color:white" onclick="bulkDel()">🗑 Eliminar</button>
       <button class="btn bsm" style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.2)" onclick="exitBulk()">✕</button>
     </div>
@@ -540,7 +541,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <select class="fc" id="q-est" onchange="renderLeads()" style="flex:1;min-width:110px;max-width:135px"><option value="">Todos estados</option><option>PROCESO</option><option>VENTA</option><option>PERDIDO</option><option>SEGUIMIENTO</option><option>PENDIENTE</option><option>CITA</option><option>NUEVO</option><option>PRECALIFICADO</option></select>
     <select class="fc" id="q-ori" onchange="renderLeads()" style="flex:1;min-width:110px;max-width:130px"><option value="">Todos orígenes</option><option>Pauta</option><option>Hubspot</option><option>Call Bell</option><option>Extra Leads</option><option>Pagina Web</option><option>Otro</option></select>
     <select class="fc" id="q-tp" onchange="renderLeads()" style="flex:1;min-width:110px;max-width:130px"><option value="">Tipo pago</option><option>Contado</option><option>Visa Cuotas</option><option>Crédito</option><option>Otro</option></select>
-    <select class="fc admin-sup" id="q-ase" onchange="renderLeads()" style="flex:1;min-width:120px;max-width:150px"><option value="">Todos asesores</option></select>
+    <select class="fc admin-sup" id="q-ase" onchange="renderLeads()" style="flex:1;min-width:120px;max-width:150px"><option value="">Todos asesores</option><option value="__unassigned__">— Sin asignar —</option></select>
     <select class="fc" id="q-mes" onchange="renderLeads()" style="flex:1;min-width:100px;max-width:120px">
       <option value="">Todos meses</option>
       <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
@@ -1097,11 +1098,11 @@ function filteredLeads(){
   const q=(document.getElementById('q-s')?.value||'').toLowerCase(),est=document.getElementById('q-est')?.value||'',ori=document.getElementById('q-ori')?.value||'',tp=document.getElementById('q-tp')?.value||'',ase=document.getElementById('q-ase')?.value||'',mes=document.getElementById('q-mes')?.value||'',ano=document.getElementById('q-ano')?.value||'';
   if(q)arr=arr.filter(l=>l.nom.toLowerCase().includes(q)||l.tel.includes(q));
   if(est)arr=arr.filter(l=>l.est===est);if(ori)arr=arr.filter(l=>l.ori===ori);
-  if(tp)arr=arr.filter(l=>l.tp===tp);if(ase==='__unassigned__')arr=arr.filter(l=>!l.uid);else if(ase)arr=arr.filter(l=>String(l.uid)===ase);
+  if(tp)arr=arr.filter(l=>l.tp===tp);
+  if(ase==='__unassigned__')arr=arr.filter(l=>!l.uid);else if(ase)arr=arr.filter(l=>String(l.uid)===ase);
   if(ano)arr=arr.filter(l=>(l.fa||l.fu||'').startsWith(ano));
   if(mes&&ano)arr=arr.filter(l=>(l.fa||l.fu||'').startsWith(ano+'-'+mes));
   else if(mes)arr=arr.filter(l=>{const f=l.fa||l.fu||'';return f.length>=7&&f.substring(5,7)===mes;});
-  // Ordenar de más nuevo a más antiguo
   arr.sort((a,b)=>{const fa=a.fa||a.fu||'',fb=b.fa||b.fu||'';return fb.localeCompare(fa);});
   return arr;
 }
@@ -1243,7 +1244,7 @@ function saveRemind(){const d=document.getElementById('rm-d').value;if(!d){toast
 // ═══════════════════════════════════════
 function openDet(id){
   const l=leads.find(x=>x.id===id),priv=isPriv();
-  const aseSel=priv?`<select class="fc" id="ds-ase" style="font-size:12px"><option value="">— Sin asignar</option>${users.map(u=>`<option value="${u.id}" ${u.id===l.uid?'selected':''}>${u.nombre}</option>`).join('')}</select>`:`<div style="display:flex;align-items:center;gap:6px">${atag(l.uid)}<button class="btn bo bsm" style="font-size:10px" onclick="openQuickAssign(${l.id})">✏️ Asignar</button></div>`;
+  const aseSel=priv?`<select class="fc" id="ds-ase" style="font-size:12px"><option value="">— Sin asignar</option>${users.map(u=>`<option value="${u.id}" ${u.id===l.uid?'selected':''}>${u.nombre}</option>`).join('')}</select>`:`<div style="display:flex;align-items:center;gap:6px">${atag(l.uid)}${isAdmin()?`<button class="btn bo bsm" style="font-size:10px" onclick="openQuickAssign(${l.id})">✏️ Asignar</button>`:''}</div>`;
   const rs=remSt(l.reminder);
   document.getElementById('det-body').innerHTML=`
     <div style="display:flex;align-items:center;gap:11px;margin-bottom:1.1rem">${avH(l.nom,'#1B2F6E','av-lg')}<div style="flex:1"><div style="font-size:17px;font-weight:700;color:var(--navy)">${l.nom}</div><div style="font-size:12px;color:var(--mut)">📞 ${l.tel}</div></div><div style="display:flex;gap:5px;flex-wrap:wrap">${oriBadge(l.ori)}${eBadge(l.est)}${tpBadge(l.tp)}</div></div>
@@ -1320,7 +1321,7 @@ const _charts={};
 function mkChart(id,type,labels,datasets,opts={}){
   const el=document.getElementById(id);if(!el)return;
   if(_charts[id]){_charts[id].destroy();}
-  _charts[id]=new Chart(el,{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:opts.legend!==false,position:'bottom',labels:{font:{size:10},boxWidth:12}},tooltip:{callbacks:{label:ctx=>` ${ctx.parsed.y??ctx.parsed}  (${ctx.label})`}}},scales:type==='pie'||type==='doughnut'?{}:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:10}}}}},...opts.extra||{}});
+  _charts[id]=new Chart(el,{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:opts.legend!==false,position:'bottom',labels:{font:{size:10},boxWidth:12}}},scales:type==='pie'||type==='doughnut'?{}:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:10},maxRotation:45}}}}});
 }
 function renderReportes(){
   if(!isPriv())return;
@@ -1339,44 +1340,33 @@ function renderReportes(){
     <div class="met org"><div class="ml">En proceso</div><div class="mv">${proceso}</div></div>`;
   function bars(data,colors){const mx=Math.max(...data.map(d=>d.v),1);return data.map((d,i)=>`<div class="br"><span class="bl" title="${d.k}">${d.k}</span><div class="bt"><div class="bf" style="width:${Math.round(d.v/mx*100)}%;background:${Array.isArray(colors)?colors[i%colors.length]:colors}"></div></div><span class="bv">${d.v}</span></div>`).join('');}
   const ases=users.filter(u=>u.rol!=='admin');
-
-  // ── Gráfica: Leads por asesor (barras) ──
+  // Gráfica barras: leads por asesor
   const aseData=ases.map(u=>({k:u.nombre.split(' ')[0],v:arr.filter(l=>l.uid===u.id).length})).sort((a,b)=>b.v-a.v);
   mkChart('chart-ase','bar',aseData.map(d=>d.k),[{label:'Leads',data:aseData.map(d=>d.v),backgroundColor:'#F47920',borderRadius:4}]);
-
-  // ── Gráfica: Estado de leads (dona) ──
+  // Gráfica dona: estado
   const estLabels=ESTADOS.filter(s=>arr.some(l=>l.est===s));
-  const estVals=estLabels.map(s=>arr.filter(l=>l.est===s).length);
-  const estColors=estLabels.map(s=>EC[s]||'#999');
-  mkChart('chart-est','doughnut',estLabels,[{data:estVals,backgroundColor:estColors}],{legend:true});
-
-  // ── Gráfica: Canal de ingreso (barras) ──
+  mkChart('chart-est','doughnut',estLabels,[{data:estLabels.map(s=>arr.filter(l=>l.est===s).length),backgroundColor:estLabels.map(s=>EC[s]||'#999')}],{legend:true});
+  // Gráfica barras: canal
   const om={};arr.forEach(l=>om[l.ori||'Otro']=(om[l.ori||'Otro']||0)+1);
   const oriData=Object.entries(om).sort((a,b)=>b[1]-a[1]);
   mkChart('chart-ori','bar',oriData.map(d=>d[0]),[{label:'Leads',data:oriData.map(d=>d[1]),backgroundColor:'#7C3AED',borderRadius:4}]);
-
-  // ── Gráfica: Ingreso por día (línea) ──
+  // Gráfica línea: ingreso por día (últimos 30)
   const dm={};arr.forEach(l=>{const f=l.fa||l.fu||'';if(f)dm[f]=(dm[f]||0)+1;});
   const diasKeys=Object.keys(dm).sort().slice(-30);
   mkChart('chart-dia','line',diasKeys,[{label:'Leads',data:diasKeys.map(k=>dm[k]),borderColor:'#1B2F6E',backgroundColor:'rgba(27,47,110,.1)',fill:true,tension:.3,pointRadius:3}]);
-
-  // ── Barras simples: tipo pago y líneas ──
+  // Barras simples
   const tpm={};arr.forEach(l=>tpm[l.tp||'Otro']=(tpm[l.tp||'Otro']||0)+1);
   document.getElementById('rep-tp').innerHTML=bars(Object.entries(tpm).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v),['#C8E6C9','#BBDEFB','#FFE082','#ccc']);
   const lm={};arr.forEach(l=>lm[l.linea]=(lm[l.linea]||0)+1);
   document.getElementById('rep-lin').innerHTML=bars(Object.entries(lm).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v).slice(0,10),'#1B2F6E');
-
-  // ── Ranking ──
   document.getElementById('rep-rank').innerHTML=ases.map((u,i)=>{const ul=arr.filter(l=>l.uid===u.id),uv=ul.filter(l=>l.est==='VENTA').length,up=ul.filter(l=>l.est==='PERDIDO').length,uu=ul.filter(l=>l.est==='PROCESO').length,pp=ul.length>0?Math.round(uv/ul.length*100):0;return `<tr><td style="font-weight:700;color:var(--navy)">${i+1}</td><td><div style="display:flex;align-items:center;gap:7px">${avU(u)}<span style="font-weight:600">${u.nombre}</span></div></td><td style="font-weight:700">${ul.length}</td><td>${uu}</td><td style="color:#1B5E20;font-weight:700">${uv}</td><td style="color:var(--red)">${up}</td><td style="font-weight:700;color:${pp>=30?'#1B5E20':'var(--red)'}">${pp}%</td></tr>`;}).join('');
 }
 
-// ── Descargar dashboard como imagen ──
 function descargarDashboard(){
   const mes=document.getElementById('rep-mes')?.value||'';
   const ano=document.getElementById('rep-ano')?.value||'';
   const periodo=mes&&ano?`${mes}-${ano}`:ano||'todo';
-  // Crear ventana de impresión con los datos
-  const w=window.open('','_blank','width=900,height=700');
+  const w=window.open('','_blank','width=950,height=750');
   if(!w)return toast('Permite popups para descargar');
   const dias=parseInt(document.getElementById('rep-per')?.value||'0');
   let arr=dias>0?leads.filter(l=>{try{return(Date.now()-new Date(l.fa).getTime())<=dias*86400000;}catch(e){return true;}}): [...leads];
@@ -1389,18 +1379,19 @@ function descargarDashboard(){
   const estRows=Object.entries(arr.reduce((a,l)=>{a[l.est]=(a[l.est]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td><td>${arr.length>0?Math.round(v/arr.length*100):0}%</td></tr>`).join('');
   const oriRows=Object.entries(arr.reduce((a,l)=>{a[l.ori||'Otro']=(a[l.ori||'Otro']||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Dashboard TVS - ${periodo}</title>
-  <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;padding:20px;color:#1B2F6E}
-  h1{font-size:22px;margin-bottom:4px}h2{font-size:14px;color:#666;font-weight:400;margin-bottom:20px}
-  .mets{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
-  .met{background:#f5f7ff;border-radius:8px;padding:14px;text-align:center}
-  .mv{font-size:28px;font-weight:800;color:#1B2F6E}.ml{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+  <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#1B2F6E;background:#f5f7ff}
+  h1{font-size:22px;margin-bottom:4px}h2{font-size:13px;color:#666;font-weight:400;margin-bottom:20px}
+  .mets{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+  .met{background:#fff;border-radius:10px;padding:16px;text-align:center;border:1px solid #e5e7eb}
+  .mv{font-size:30px;font-weight:800;color:#1B2F6E}.ml{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
   .grn .mv{color:#1B5E20}.red .mv{color:#C8102E}.org .mv{color:#F47920}
-  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
-  .card{background:#f9fafb;border-radius:8px;padding:14px}h3{font-size:13px;font-weight:700;margin-bottom:10px;color:#1B2F6E}
-  table{width:100%;border-collapse:collapse}th{background:#1B2F6E;color:white;padding:7px 10px;font-size:11px;text-align:left}
-  td{padding:6px 10px;font-size:12px;border-bottom:1px solid #eee}tr:nth-child(even)td{background:#f5f7ff}
-  .footer{margin-top:20px;font-size:10px;color:#aaa;text-align:center}
-  @media print{button{display:none}}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+  .card{background:#fff;border-radius:10px;padding:16px;border:1px solid #e5e7eb}h3{font-size:13px;font-weight:700;margin-bottom:10px;color:#1B2F6E;border-bottom:2px solid #1B2F6E;padding-bottom:6px}
+  table{width:100%;border-collapse:collapse}th{background:#1B2F6E;color:white;padding:8px 10px;font-size:11px;text-align:left}
+  td{padding:7px 10px;font-size:12px;border-bottom:1px solid #eee}tr:nth-child(even)td{background:#f9fafb}
+  .footer{margin-top:20px;font-size:10px;color:#aaa;text-align:center;padding-top:10px;border-top:1px solid #eee}
+  .btn-p{display:inline-block;margin-top:16px;padding:10px 24px;background:#1B2F6E;color:white;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600}
+  @media print{.btn-p{display:none}body{background:white}}
   </style></head><body>
   <h1>📊 Dashboard TVS Motos — CRM</h1>
   <h2>Período: ${periodo==='todo'?'Todo el tiempo':periodo} · Generado: ${new Date().toLocaleString()}</h2>
@@ -1411,12 +1402,12 @@ function descargarDashboard(){
     <div class="met org"><div class="ml">% Cierre</div><div class="mv">${arr.length>0?Math.round(venta/arr.length*100):0}%</div></div>
   </div>
   <div class="two">
-    <div class="card"><h3>Leads por asesor</h3><table><thead><tr><th>Asesor</th><th>Leads</th><th>Ventas</th><th>%</th></tr></thead><tbody>${aseRows}</tbody></table></div>
-    <div class="card"><h3>Estado de leads</h3><table><thead><tr><th>Estado</th><th>Cantidad</th><th>%</th></tr></thead><tbody>${estRows}</tbody></table></div>
+    <div class="card"><h3>Leads por asesor</h3><table><thead><tr><th>Asesor</th><th>Leads</th><th>Ventas</th><th>% Cierre</th></tr></thead><tbody>${aseRows||'<tr><td colspan=4 style=text-align:center;color:#aaa;padding:12px>Sin datos</td></tr>'}</tbody></table></div>
+    <div class="card"><h3>Estado de leads</h3><table><thead><tr><th>Estado</th><th>Cantidad</th><th>%</th></tr></thead><tbody>${estRows||'<tr><td colspan=3 style=text-align:center;color:#aaa;padding:12px>Sin datos</td></tr>'}</tbody></table></div>
   </div>
-  <div class="card"><h3>Canal de ingreso</h3><table><thead><tr><th>Canal</th><th>Leads</th></tr></thead><tbody>${oriRows}</tbody></table></div>
+  <div class="card"><h3>Canal de ingreso</h3><table><thead><tr><th>Canal</th><th>Leads</th></tr></thead><tbody>${oriRows||'<tr><td colspan=2 style=text-align:center;color:#aaa;padding:12px>Sin datos</td></tr>'}</tbody></table></div>
   <div class="footer">TVS Motos CRM · Dashboard generado automáticamente</div>
-  <br><button onclick="window.print()" style="padding:10px 20px;background:#1B2F6E;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px">🖨️ Imprimir / Guardar PDF</button>
+  <button class="btn-p" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
   </body></html>`);
   w.document.close();
 }
@@ -1538,12 +1529,48 @@ function savePerfConfig(){
   toast('Meta actualizada ✓');
 }
 
-// QUICK ASSIGN desde detalle de lead
+// ASSIGN
+function openAssign(uid){assignU=uid;const u=users.find(x=>x.id===uid);document.getElementById('ma-title').textContent='Asignar a '+u.nombre;document.getElementById('a-info').textContent=`Marca los leads a asignar a ${u.nombre}.`;document.getElementById('a-list').innerHTML=leads.map(l=>{const cur=l.uid&&l.uid!==uid?users.find(x=>x.id===l.uid)?.nombre.split(' ')[0]:'';return `<label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--bd);cursor:pointer"><input type="checkbox" value="${l.id}" ${l.uid===uid?'checked':''} style="width:15px;height:15px;accent-color:var(--navy)"><div style="flex:1"><div style="font-weight:600;font-size:12px">${l.nom}${cur?` <span style="font-size:10px;color:var(--orange)">(${cur})</span>`:''}</div><div style="font-size:10px;color:var(--mut)">${l.linea} · ${l.ubi}</div></div>${eBadge(l.est)}</label>`;}).join('');openM('m-assign');}
+async function saveAssign(){const checked=[...document.querySelectorAll('#a-list input:checked')].map(c=>parseInt(c.value));leads.forEach(l=>{if(checked.includes(l.id)){l.uid=assignU;const u=users.find(x=>x.id===assignU);if(u)l.anom=u.nombre;}else if(l.uid===assignU)l.uid=null;});persist();if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await window._fb.saveAllLeads(leads);setSyncStatus('ok');}closeM('m-assign');renderAll();toast('Asignación guardada ✓');}
+
+// BULK ASSIGN
+function openBulkAssign(){
+  if(!isAdmin()){toast('Solo el administrador puede asignar leads');return;}
+  if(selIds.size===0){toast('Selecciona al menos un lead');return;}
+  const existing=document.getElementById('m-bulkassign');if(existing)existing.remove();
+  const div=document.createElement('div');div.id='m-bulkassign';div.className='ov';
+  div.innerHTML=`<div class="mo msm" style="max-width:320px">
+    <div class="mh"><span class="mt2">👤 Asignar Asesor</span><button class="xb" onclick="closeM('m-bulkassign')">×</button></div>
+    <div class="mb2">
+      <div style="font-size:12px;color:var(--mut);margin-bottom:10px">${selIds.size} lead(s) seleccionado(s)</div>
+      <div class="fg"><label class="fl">Seleccionar asesor</label>
+        <select class="fc" id="ba-ase">
+          <option value="">— Sin asignar —</option>
+          ${users.map(u=>`<option value="${u.id}">${u.nombre} (${u.rol})</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+        <button class="btn bo" onclick="closeM('m-bulkassign')">Cancelar</button>
+        <button class="btn bp" onclick="saveBulkAssign()">Asignar</button>
+      </div>
+    </div></div>`;
+  document.body.appendChild(div);openM('m-bulkassign');
+}
+async function saveBulkAssign(){
+  const val=document.getElementById('ba-ase')?.value;
+  const uid=val?parseInt(val):null;const u=uid?users.find(x=>x.id===uid):null;
+  const n=selIds.size;
+  leads.forEach(l=>{if(selIds.has(l.id)){l.uid=uid;l.anom=u?u.nombre:'';l.fu=today();}});
+  persist();
+  if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all(leads.filter(l=>selIds.has(l.id)).map(l=>window._fb.saveLeadCloud(l)));setSyncStatus('ok');}
+  selIds.clear();closeM('m-bulkassign');exitBulk();renderAll();
+  toast(`${n} leads asignados a ${u?u.nombre:'Sin asesor'} ✓`);
+}
 function openQuickAssign(lid){
+  if(!isAdmin()){toast('Solo el administrador puede asignar leads');return;}
   const existing=document.getElementById('m-qassign');if(existing)existing.remove();
   const l=leads.find(x=>x.id===lid);if(!l)return;
-  const div=document.createElement('div');
-  div.id='m-qassign';div.className='ov';
+  const div=document.createElement('div');div.id='m-qassign';div.className='ov';
   div.innerHTML=`<div class="mo msm" style="max-width:320px">
     <div class="mh"><span class="mt2">👤 Asignar Asesor</span><button class="xb" onclick="closeM('m-qassign')">×</button></div>
     <div class="mb2">
@@ -1551,38 +1578,28 @@ function openQuickAssign(lid){
       <div class="fg"><label class="fl">Seleccionar asesor</label>
         <select class="fc" id="qa-ase">
           <option value="">— Sin asignar —</option>
-          ${users.filter(u=>u.rol==='asesor'||u.rol==='supervisor').map(u=>`<option value="${u.id}" ${u.id===l.uid?'selected':''}>${u.nombre}</option>`).join('')}
+          ${users.map(u=>`<option value="${u.id}" ${u.id===l.uid?'selected':''}>${u.nombre} (${u.rol})</option>`).join('')}
         </select>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
         <button class="btn bo" onclick="closeM('m-qassign')">Cancelar</button>
         <button class="btn bp" onclick="saveQuickAssign(${lid})">Guardar</button>
       </div>
-    </div>
-  </div>`;
-  document.body.appendChild(div);
-  openM('m-qassign');
+    </div></div>`;
+  document.body.appendChild(div);openM('m-qassign');
 }
-function saveQuickAssign(lid){
+async function saveQuickAssign(lid){
   const l=leads.find(x=>x.id===lid);if(!l)return;
   const val=document.getElementById('qa-ase')?.value;
   l.uid=val?parseInt(val):null;
-  if(l.uid){const u=users.find(x=>x.id===l.uid);if(u)l.anom=u.nombre;}
-  else l.anom='';
-  l.fu=today();
-  persist();cloudSaveLead(l);
-  closeM('m-qassign');
-  closeM('m-det');
-  renderAll();
-  toast('Asesor asignado ✓');
+  if(l.uid){const u=users.find(x=>x.id===l.uid);if(u)l.anom=u.nombre;}else l.anom='';
+  l.fu=today();persist();
+  if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await window._fb.saveLeadCloud(l);setSyncStatus('ok');}
+  closeM('m-qassign');closeM('m-det');renderAll();toast('Asesor asignado ✓');
 }
 
-// ASSIGN
-function openAssign(uid){assignU=uid;const u=users.find(x=>x.id===uid);document.getElementById('ma-title').textContent='Asignar a '+u.nombre;document.getElementById('a-info').textContent=`Marca los leads a asignar a ${u.nombre}.`;document.getElementById('a-list').innerHTML=leads.map(l=>{const cur=l.uid&&l.uid!==uid?users.find(x=>x.id===l.uid)?.nombre.split(' ')[0]:'';return `<label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--bd);cursor:pointer"><input type="checkbox" value="${l.id}" ${l.uid===uid?'checked':''} style="width:15px;height:15px;accent-color:var(--navy)"><div style="flex:1"><div style="font-weight:600;font-size:12px">${l.nom}${cur?` <span style="font-size:10px;color:var(--orange)">(${cur})</span>`:''}</div><div style="font-size:10px;color:var(--mut)">${l.linea} · ${l.ubi}</div></div>${eBadge(l.est)}</label>`;}).join('');openM('m-assign');}
-async function saveAssign(){const checked=[...document.querySelectorAll('#a-list input:checked')].map(c=>parseInt(c.value));leads.forEach(l=>{if(checked.includes(l.id)){l.uid=assignU;const u=users.find(x=>x.id===assignU);if(u)l.anom=u.nombre;}else if(l.uid===assignU)l.uid=null;});persist();if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await window._fb.saveAllLeads(leads);setSyncStatus('ok');}closeM('m-assign');renderAll();toast('Asignación guardada ✓');}
-
 // BULK
-function enterBulk(){bulkMode=true;selIds.clear();document.getElementById('blk-bar').style.display='flex';document.getElementById('btn-bulk').style.display='none';renderLeads();}
+function enterBulk(){bulkMode=true;selIds.clear();document.getElementById('blk-bar').style.display='flex';document.getElementById('btn-bulk').style.display='none';const ba=document.getElementById('btn-bulk-assign');if(ba)ba.style.display=isAdmin()?'inline-flex':'none';renderLeads();}
 function exitBulk(){bulkMode=false;selIds.clear();document.getElementById('blk-bar').style.display='none';document.getElementById('btn-bulk').style.display='';document.getElementById('chk-all').checked=false;renderLeads();}
 function updBlk(){const arr=filteredLeads();document.getElementById('blk-cnt').textContent=selIds.size+' sel. de '+arr.length;document.getElementById('chk-all').checked=arr.length>0&&arr.every(l=>selIds.has(l.id));document.getElementById('chk-all').indeterminate=selIds.size>0&&!arr.every(l=>selIds.has(l.id));}
 function toggleAllChk(cb){const arr=filteredLeads();if(cb.checked)arr.forEach(l=>selIds.add(l.id));else arr.forEach(l=>selIds.delete(l.id));if(!bulkMode&&selIds.size>0)enterBulk();renderLeads();}
@@ -1639,7 +1656,6 @@ async function fullReset(){const conf=prompt('Reset total: borrará TODO en la n
 // NAV
 const TAB_LABELS={dashboard:'Dashboard',leads:'Leads',pipeline:'Pipeline',recordatorios:'Recordatorios',reportes:'Reportes',usuarios:'Usuarios',importar:'Importar / Vincular',storage:'Gestión de datos',perfil:'Mi Perfil'};
 function goTab(name,btn){
-  // Gerencia no puede acceder a usuarios, importar, storage
   if(['usuarios','importar','storage'].includes(name)&&!isAdmin()){toast('Acceso restringido');return;}
   if(name!=='leads'&&bulkMode)exitBulk();
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
@@ -1673,16 +1689,15 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('pagehide',persist);window.addEventListener('beforeunload',persist);
 setInterval(()=>{if(CU)updRemBadge();},60000);
 
-// AUTO-CONNECT: check if Firebase was previously configured
+// AUTO-CONNECT
 (function(){
   const saved=lsG('tvs8_fbcfg',null);
   if(saved&&saved.apiKey&&saved.projectId){
-    // Pre-fill form
     ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{const el=document.getElementById('cfg-'+k.replace('Storage','').toLowerCase().replace('messaging','ms').replace('app','app').replace('auth','auth'));if(el&&saved[k])el.value=saved[k];});
-    // Try auto-connect
     const ok=window._fb.init(saved);
     if(ok){useCloud=true;showLoginScreen(true);initRealtimeSync();}
-  }
+    else{showLoginScreen(false);}
+  }else{showLoginScreen(false);}
 })();
 if(impHist.length>0)renderImpHist();
 </script>
