@@ -11,6 +11,7 @@
 <link rel="manifest" id="pwa-manifest">
 <link rel="apple-touch-icon" id="apple-icon">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
 <!-- ═══ Firebase SDK ═══ -->
 <script type="module">
@@ -141,6 +142,7 @@ a{color:inherit;text-decoration:none}
 
 /* ── SETUP SCREEN ── */
 #setup-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#0d1f4e,#1B2F6E 55%,#152560);padding:1rem}
+.admin-only{display:none!important}
 .setup-card{background:white;border-radius:20px;padding:2rem;width:100%;max-width:520px;box-shadow:0 24px 60px rgba(0,0,0,.28)}
 .setup-stripe{height:4px;background:linear-gradient(90deg,var(--navy),var(--red),var(--orange),var(--green));border-radius:4px;margin-bottom:1.3rem}
 
@@ -467,9 +469,9 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   <div class="ns admin-sup" style="margin-top:.4rem">
     <div class="nl">Administración</div>
     <button class="ni" onclick="goTab('reportes',this)"><span class="nco">📈</span><span>Reportes</span></button>
-    <button class="ni" onclick="goTab('usuarios',this)"><span class="nco">🧑‍💼</span><span>Usuarios</span><span class="nc" id="nc-users">0</span></button>
-    <button class="ni" onclick="goTab('importar',this)"><span class="nco">📥</span><span>Importar / Vincular</span></button>
-    <button class="ni" onclick="goTab('storage',this)"><span class="nco">🗂</span><span>Gestión de datos</span></button>
+    <button class="ni admin-only" onclick="goTab('usuarios',this)"><span class="nco">🧑‍💼</span><span>Usuarios</span><span class="nc" id="nc-users">0</span></button>
+    <button class="ni admin-only" onclick="goTab('importar',this)"><span class="nco">📥</span><span>Importar / Vincular</span></button>
+    <button class="ni admin-only" onclick="goTab('storage',this)"><span class="nco">🗂</span><span>Gestión de datos</span></button>
   </div>
   <div class="ns" style="margin-top:.4rem">
     <div class="nl">Cuenta</div>
@@ -539,6 +541,17 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <select class="fc" id="q-ori" onchange="renderLeads()" style="flex:1;min-width:110px;max-width:130px"><option value="">Todos orígenes</option><option>Pauta</option><option>Hubspot</option><option>Call Bell</option><option>Extra Leads</option><option>Pagina Web</option><option>Otro</option></select>
     <select class="fc" id="q-tp" onchange="renderLeads()" style="flex:1;min-width:110px;max-width:130px"><option value="">Tipo pago</option><option>Contado</option><option>Visa Cuotas</option><option>Crédito</option><option>Otro</option></select>
     <select class="fc admin-sup" id="q-ase" onchange="renderLeads()" style="flex:1;min-width:120px;max-width:150px"><option value="">Todos asesores</option></select>
+    <select class="fc" id="q-mes" onchange="renderLeads()" style="flex:1;min-width:100px;max-width:120px">
+      <option value="">Todos meses</option>
+      <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
+      <option value="04">Abril</option><option value="05">Mayo</option><option value="06">Junio</option>
+      <option value="07">Julio</option><option value="08">Agosto</option><option value="09">Septiembre</option>
+      <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+    </select>
+    <select class="fc" id="q-ano" onchange="renderLeads()" style="flex:1;min-width:90px;max-width:110px">
+      <option value="">Todos años</option>
+      <option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option>
+    </select>
   </div>
   <div class="card"><div class="tw"><table>
     <thead><tr>
@@ -572,25 +585,40 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
 <!-- REPORTES -->
 <div id="tab-reportes" class="tab admin-sup">
   <div class="ph"><div><div class="pt">Reportes</div><div class="psb">Análisis del equipo</div></div>
-  <div class="ha"><select class="fc" id="rep-per" onchange="renderReportes()" style="max-width:135px"><option value="0">Todo el tiempo</option><option value="7">7 días</option><option value="30">30 días</option><option value="90">90 días</option></select><button class="btn bo" onclick="exportCSV()">⬇ CSV</button></div></div>
+  <div class="ha" style="flex-wrap:wrap;gap:6px">
+    <select class="fc" id="rep-mes" onchange="renderReportes()" style="max-width:120px">
+      <option value="">Todos meses</option>
+      <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
+      <option value="04">Abril</option><option value="05">Mayo</option><option value="06">Junio</option>
+      <option value="07">Julio</option><option value="08">Agosto</option><option value="09">Septiembre</option>
+      <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+    </select>
+    <select class="fc" id="rep-ano" onchange="renderReportes()" style="max-width:100px">
+      <option value="">Todos años</option>
+      <option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option>
+    </select>
+    <select class="fc" id="rep-per" onchange="renderReportes()" style="max-width:130px"><option value="0">Todo el tiempo</option><option value="7">7 días</option><option value="30">30 días</option><option value="90">90 días</option></select>
+    <button class="btn bo" onclick="exportCSV()">⬇ CSV</button>
+    <button class="btn bp" onclick="descargarDashboard()">📊 Descargar dashboard</button>
+  </div></div>
   <div class="mets" id="rep-mets"></div>
   <div class="two">
-    <div class="card"><div class="ch"><span class="ct">Por asesor</span></div><div class="cb"><div class="bw" id="rep-ase"></div></div></div>
-    <div class="card"><div class="ch"><span class="ct">Por origen</span></div><div class="cb"><div class="bw" id="rep-ori"></div></div></div>
+    <div class="card"><div class="ch"><span class="ct">Leads por asesor</span></div><div class="cb"><canvas id="chart-ase" height="220"></canvas></div></div>
+    <div class="card"><div class="ch"><span class="ct">Estado de leads</span></div><div class="cb"><canvas id="chart-est" height="220"></canvas></div></div>
   </div>
   <div class="two">
-    <div class="card"><div class="ch"><span class="ct">Por estado</span></div><div class="cb"><div class="bw" id="rep-est"></div></div></div>
+    <div class="card"><div class="ch"><span class="ct">Canal de ingreso</span></div><div class="cb"><canvas id="chart-ori" height="220"></canvas></div></div>
+    <div class="card"><div class="ch"><span class="ct">Ingreso por día</span></div><div class="cb"><canvas id="chart-dia" height="220"></canvas></div></div>
+  </div>
+  <div class="two">
     <div class="card"><div class="ch"><span class="ct">Tipo de pago</span></div><div class="cb"><div class="bw" id="rep-tp"></div></div></div>
-  </div>
-  <div class="two">
     <div class="card"><div class="ch"><span class="ct">Líneas de interés</span></div><div class="cb"><div class="bw" id="rep-lin"></div></div></div>
-    <div class="card"><div class="ch"><span class="ct">Por ubicación</span></div><div class="cb"><div class="bw" id="rep-ubi"></div></div></div>
   </div>
   <div class="card"><div class="ch"><span class="ct">Ranking asesores</span></div><div class="tw"><table><thead><tr><th>#</th><th>Asesor</th><th>Total</th><th>Proceso</th><th>Venta</th><th>Perdido</th><th>% Venta</th></tr></thead><tbody id="rep-rank"></tbody></table></div></div>
 </div>
 
 <!-- USUARIOS -->
-<div id="tab-usuarios" class="tab admin-sup">
+<div id="tab-usuarios" class="tab admin-only">
   <div class="ph"><div><div class="pt">Usuarios</div><div class="psb">Accesos al CRM</div></div><button class="btn bp" onclick="openUM(null)">+ Nuevo</button></div>
   <div class="wbox" id="pend-notice" style="display:none">⚠️ Asesores detectados sin acceso al CRM.</div>
   <div id="pend-ases" style="margin-bottom:1rem"></div>
@@ -598,7 +626,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
 </div>
 
 <!-- IMPORTAR -->
-<div id="tab-importar" class="tab admin-sup">
+<div id="tab-importar" class="tab admin-only">
   <div class="ph"><div><div class="pt">Importar / Vincular</div><div class="psb">CSV · Excel · Google Sheets · Forms</div></div></div>
   <div class="gbox">✅ Datos guardados en <strong>Firebase Firestore</strong> — sincronizados en todos tus dispositivos en tiempo real.</div>
   <div class="two">
@@ -654,7 +682,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
 </div>
 
 <!-- GESTIÓN DE DATOS -->
-<div id="tab-storage" class="tab admin-sup">
+<div id="tab-storage" class="tab admin-only">
   <div class="ph"><div><div class="pt">Gestión de datos</div><div class="psb">Liberar espacio · Eliminar datos</div></div></div>
   <div class="stb">
     <div style="font-size:26px">☁️</div>
@@ -739,9 +767,9 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
 <div class="mmenu" id="mmenu">
   <div class="mmi" onclick="goTab('pipeline',null);setMN('');toggleMM()">⚡ Pipeline</div>
   <div class="mmi admin-sup" onclick="goTab('reportes',null);setMN('');toggleMM()">📈 Reportes</div>
-  <div class="mmi admin-sup" onclick="goTab('usuarios',null);setMN('');toggleMM()">🧑‍💼 Usuarios</div>
-  <div class="mmi admin-sup" onclick="goTab('importar',null);setMN('');toggleMM()">📥 Importar</div>
-  <div class="mmi admin-sup" onclick="goTab('storage',null);setMN('');toggleMM()">🗂 Datos</div>
+  <div class="mmi admin-only" onclick="goTab('usuarios',null);setMN('');toggleMM()">🧑‍💼 Usuarios</div>
+  <div class="mmi admin-only" onclick="goTab('importar',null);setMN('');toggleMM()">📥 Importar</div>
+  <div class="mmi admin-only" onclick="goTab('storage',null);setMN('');toggleMM()">🗂 Datos</div>
   <div class="mmi" onclick="goTab('perfil',null);setMN('');toggleMM()">👤 Perfil</div>
   <div class="mmi" onclick="doLogout();toggleMM()">🚪 Cerrar sesión</div>
 </div>
@@ -795,7 +823,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <div class="fr"><div class="fg"><label class="fl">Nombre completo *</label><input class="fc" id="uf-nom" autocapitalize="words"></div><div class="fg"><label class="fl">Usuario (login) *</label><input class="fc" id="uf-usr" autocorrect="off" autocapitalize="off"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Contraseña *</label><input class="fc" type="password" id="uf-pw" placeholder="Mínimo 6 caracteres"></div><div class="fg"><label class="fl">Confirmar</label><input class="fc" type="password" id="uf-pw2"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Email</label><input class="fc" type="email" id="uf-em" autocapitalize="off"></div><div class="fg"><label class="fl">WhatsApp</label><input class="fc" type="tel" id="uf-tel"></div></div>
-      <div class="fr"><div class="fg"><label class="fl">Rol</label><select class="fc" id="uf-rol"><option value="asesor">Asesor</option><option value="supervisor">Supervisor</option><option value="admin">Administrador</option></select></div><div class="fg"><label class="fl">Zona</label><input class="fc" id="uf-zona"></div></div>
+      <div class="fr"><div class="fg"><label class="fl">Rol</label><select class="fc" id="uf-rol"><option value="asesor">Asesor</option><option value="supervisor">Supervisor</option><option value="gerencia">Gerencia</option><option value="admin">Administrador</option></select></div><div class="fg"><label class="fl">Zona</label><input class="fc" id="uf-zona"></div></div>
       <div class="fg"><label class="fl">Nombre exacto en los leads</label><input class="fc" id="uf-ln" placeholder="Igual que columna Asesor"></div>
       <div class="fg"><label class="fl">Mensaje WhatsApp</label><textarea class="fc" id="uf-wa" placeholder="Hola {nombre}, soy {asesor} de TVS Motos..."></textarea></div>
       <div id="uf-err" class="wbox" style="display:none"></div>
@@ -846,6 +874,7 @@ function lsS(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 const DEF_USERS=[
   {id:1,nombre:'Administrador',user:'admin',pass:'admin2025',email:'admin@tvsmotos.com',tel:'',rol:'admin',zona:'',leadsname:'',wa:'',color:'#1B2F6E'},
   {id:2,nombre:'Supervisor',user:'supervisor',pass:'sup2025',email:'',tel:'',rol:'supervisor',zona:'',leadsname:'',wa:'',color:'#F47920'},
+  {id:9,nombre:'Gerencia',user:'gerencia',pass:'gerencia2025',email:'gerencia@tvsmotos.com',tel:'',rol:'gerencia',zona:'',leadsname:'',wa:'',color:'#0891B2'},
   {id:3,nombre:'Nancy Garcia',user:'nancy.garcia',pass:'tvs2025',email:'',tel:'+502 5555-0001',rol:'asesor',zona:'Guatemala',leadsname:'Nancy Garcia',wa:'Hola {nombre}, soy Nancy de TVS Motos. Te contactamos sobre el {linea}.',color:'#C8102E'},
   {id:4,nombre:'Sofia Zarceño',user:'sofia.zarceno',pass:'tvs2025',email:'',tel:'+502 5555-0002',rol:'asesor',zona:'Guatemala',leadsname:'Sofia Zarceño',wa:'Hola {nombre}, te saluda Sofia de TVS Motos.',color:'#065F46'},
   {id:5,nombre:'Carlos Pinillos',user:'carlos.pinillos',pass:'tvs2025',email:'',tel:'+502 5555-0003',rol:'asesor',zona:'Escuintla',leadsname:'Carlos Pinillos',wa:'Hola {nombre}, soy Carlos de TVS Motos.',color:'#0891B2'},
@@ -1030,12 +1059,16 @@ function doLogin(){
 document.getElementById('lp').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('lu').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('lp').focus();});
 function doLogout(){persist();CU=null;document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('lu').value='';document.getElementById('lp').value='';closeSB();}
-function isPriv(){return CU&&(CU.rol==='admin'||CU.rol==='supervisor');}
+function isPriv(){return CU&&(CU.rol==='admin'||CU.rol==='supervisor'||CU.rol==='gerencia');}
+function isAdmin(){return CU&&CU.rol==='admin';}
+function isGerencia(){return CU&&(CU.rol==='gerencia'||CU.rol==='admin');}
 function setupUI(){
   document.querySelectorAll('.admin-sup').forEach(el=>el.style.display=isPriv()?'':'none');
+  document.querySelectorAll('.admin-only').forEach(el=>el.style.display=isAdmin()?'':'none');
   const av=document.getElementById('tb-av');av.textContent=ini(CU.nombre);av.style.background=CU.color+'20';av.style.color=CU.color;
   document.getElementById('tb-nm').textContent=CU.nombre.split(' ')[0];
-  document.getElementById('tb-rl').textContent=CU.rol.charAt(0).toUpperCase()+CU.rol.slice(1);
+  const rolLabel={admin:'Administrador',gerencia:'Gerencia',supervisor:'Supervisor',asesor:'Asesor'};
+  document.getElementById('tb-rl').textContent=rolLabel[CU.rol]||CU.rol;
   document.getElementById('nav-leads-lbl').textContent=isPriv()?'Todos los Leads':'Mis Leads';
   // PWA
   const man={name:'TVS CRM',short_name:'TVS CRM',start_url:'.',display:'standalone',background_color:'#1B2F6E',theme_color:'#1B2F6E'};
@@ -1061,15 +1094,20 @@ function waBtn(l){const u=users.find(x=>x.id===l.uid);if(!u||!u.tel)return '';co
 function myLeads(){if(isPriv())return leads;return leads.filter(l=>l.uid===CU.id||(CU.leadsname&&l.nom&&l.nom.trim().toLowerCase()===CU.leadsname.trim().toLowerCase()));}
 function filteredLeads(){
   let arr=myLeads();
-  const q=(document.getElementById('q-s')?.value||'').toLowerCase(),est=document.getElementById('q-est')?.value||'',ori=document.getElementById('q-ori')?.value||'',tp=document.getElementById('q-tp')?.value||'',ase=document.getElementById('q-ase')?.value||'';
+  const q=(document.getElementById('q-s')?.value||'').toLowerCase(),est=document.getElementById('q-est')?.value||'',ori=document.getElementById('q-ori')?.value||'',tp=document.getElementById('q-tp')?.value||'',ase=document.getElementById('q-ase')?.value||'',mes=document.getElementById('q-mes')?.value||'',ano=document.getElementById('q-ano')?.value||'';
   if(q)arr=arr.filter(l=>l.nom.toLowerCase().includes(q)||l.tel.includes(q));
   if(est)arr=arr.filter(l=>l.est===est);if(ori)arr=arr.filter(l=>l.ori===ori);
-  if(tp)arr=arr.filter(l=>l.tp===tp);if(ase)arr=arr.filter(l=>String(l.uid)===ase);
+  if(tp)arr=arr.filter(l=>l.tp===tp);if(ase==='__unassigned__')arr=arr.filter(l=>!l.uid);else if(ase)arr=arr.filter(l=>String(l.uid)===ase);
+  if(ano)arr=arr.filter(l=>(l.fa||l.fu||'').startsWith(ano));
+  if(mes&&ano)arr=arr.filter(l=>(l.fa||l.fu||'').startsWith(ano+'-'+mes));
+  else if(mes)arr=arr.filter(l=>{const f=l.fa||l.fu||'';return f.length>=7&&f.substring(5,7)===mes;});
+  // Ordenar de más nuevo a más antiguo
+  arr.sort((a,b)=>{const fa=a.fa||a.fu||'',fb=b.fa||b.fu||'';return fb.localeCompare(fa);});
   return arr;
 }
 function populateSel(){
   const opts=users.map(u=>`<option value="${u.id}">${u.nombre}</option>`).join('');
-  ['q-ase','pipe-ase','dm-ase'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=(id==='q-ase'?'<option value="">Todos asesores</option>':id==='dm-ase'?'<option value="">— Todos —</option>':'<option value="">Todos los asesores</option>')+opts;});
+  ['q-ase','pipe-ase','dm-ase'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=(id==='q-ase'?'<option value="">Todos asesores</option><option value="__unassigned__">— Sin asignar —</option>':id==='dm-ase'?'<option value="">— Todos —</option>':'<option value="">Todos los asesores</option>')+opts;});
   const la=document.getElementById('lf-ase');if(la)la.innerHTML='<option value="">— Sin asignar</option>'+opts;
   document.getElementById('nc-users').textContent=users.length;
   const cl=document.getElementById('col-list');if(cl)cl.innerHTML=COL_NAMES.map((c,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--bd);font-size:11px"><span style="width:20px;text-align:center;font-weight:700;color:var(--navy)">${i+1}</span><span>${c}</span></div>`).join('');
@@ -1145,7 +1183,7 @@ function renderDashboard(){
     </div>`;
     const dg=document.getElementById('dash-perf-asesor');if(dg)dg.innerHTML=perfHtml;
   }
-  document.getElementById('dash-t').textContent=isPriv()?'Dashboard General':`Hola, ${CU.nombre.split(' ')[0]} 👋`;
+  document.getElementById('dash-t').textContent=isGerencia()?'Dashboard Gerencial':isPriv()?'Dashboard General':`Hola, ${CU.nombre.split(' ')[0]} 👋`;
   document.getElementById('dash-s').textContent=(isPriv()?'Vista global':arr.length+' leads asignados')+(useCloud?' · ☁️ Firebase':' · 📱 local');
   document.getElementById('dash-mets').innerHTML=`
     <div id="dash-perf-asesor"></div><div class="met"><div class="ml">Total Leads</div><div class="mv">${arr.length}</div><div class="ms">${proceso} en proceso</div></div>
@@ -1205,7 +1243,7 @@ function saveRemind(){const d=document.getElementById('rm-d').value;if(!d){toast
 // ═══════════════════════════════════════
 function openDet(id){
   const l=leads.find(x=>x.id===id),priv=isPriv();
-  const aseSel=priv?`<select class="fc" id="ds-ase" style="font-size:12px"><option value="">— Sin asignar</option>${users.map(u=>`<option value="${u.id}" ${u.id===l.uid?'selected':''}>${u.nombre}</option>`).join('')}</select>`:atag(l.uid);
+  const aseSel=priv?`<select class="fc" id="ds-ase" style="font-size:12px"><option value="">— Sin asignar</option>${users.map(u=>`<option value="${u.id}" ${u.id===l.uid?'selected':''}>${u.nombre}</option>`).join('')}</select>`:`<div style="display:flex;align-items:center;gap:6px">${atag(l.uid)}<button class="btn bo bsm" style="font-size:10px" onclick="openQuickAssign(${l.id})">✏️ Asignar</button></div>`;
   const rs=remSt(l.reminder);
   document.getElementById('det-body').innerHTML=`
     <div style="display:flex;align-items:center;gap:11px;margin-bottom:1.1rem">${avH(l.nom,'#1B2F6E','av-lg')}<div style="flex:1"><div style="font-size:17px;font-weight:700;color:var(--navy)">${l.nom}</div><div style="font-size:12px;color:var(--mut)">📞 ${l.tel}</div></div><div style="display:flex;gap:5px;flex-wrap:wrap">${oriBadge(l.ori)}${eBadge(l.est)}${tpBadge(l.tp)}</div></div>
@@ -1277,28 +1315,117 @@ function delLead(id){if(!confirm('¿Eliminar este lead?'))return;leads=leads.fil
 // ═══════════════════════════════════════
 // REPORTES
 // ═══════════════════════════════════════
+// Chart instances registry
+const _charts={};
+function mkChart(id,type,labels,datasets,opts={}){
+  const el=document.getElementById(id);if(!el)return;
+  if(_charts[id]){_charts[id].destroy();}
+  _charts[id]=new Chart(el,{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:opts.legend!==false,position:'bottom',labels:{font:{size:10},boxWidth:12}},tooltip:{callbacks:{label:ctx=>` ${ctx.parsed.y??ctx.parsed}  (${ctx.label})`}}},scales:type==='pie'||type==='doughnut'?{}:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:10}}}}},...opts.extra||{}});
+}
 function renderReportes(){
   if(!isPriv())return;
   const dias=parseInt(document.getElementById('rep-per')?.value||'0');
+  const mes=document.getElementById('rep-mes')?.value||'';
+  const ano=document.getElementById('rep-ano')?.value||'';
   let arr=dias>0?leads.filter(l=>{try{return(Date.now()-new Date(l.fa).getTime())<=dias*86400000;}catch(e){return true;}}): [...leads];
-  const venta=arr.filter(l=>l.est==='VENTA').length,perdido=arr.filter(l=>l.est==='PERDIDO').length;
-  document.getElementById('rep-mets').innerHTML=`<div class="met"><div class="ml">Total</div><div class="mv">${arr.length}</div></div><div class="met grn"><div class="ml">Ventas</div><div class="mv">${venta}</div><div class="ms" style="color:#2e7d32">${arr.length>0?Math.round(venta/arr.length*100):0}%</div></div><div class="met red"><div class="ml">Perdidos</div><div class="mv">${perdido}</div></div><div class="met org"><div class="ml">Asesores</div><div class="mv">${users.filter(u=>u.rol==='asesor').length}</div></div>`;
+  if(ano)arr=arr.filter(l=>(l.fa||l.fu||'').startsWith(ano));
+  if(mes&&ano)arr=arr.filter(l=>(l.fa||l.fu||'').startsWith(ano+'-'+mes));
+  else if(mes)arr=arr.filter(l=>{const f=l.fa||l.fu||'';return f.length>=7&&f.substring(5,7)===mes;});
+  const venta=arr.filter(l=>l.est==='VENTA').length,perdido=arr.filter(l=>l.est==='PERDIDO').length,proceso=arr.filter(l=>l.est==='PROCESO').length;
+  document.getElementById('rep-mets').innerHTML=`
+    <div class="met"><div class="ml">Total Leads</div><div class="mv">${arr.length}</div></div>
+    <div class="met grn"><div class="ml">Ventas</div><div class="mv">${venta}</div><div class="ms" style="color:#2e7d32">${arr.length>0?Math.round(venta/arr.length*100):0}%</div></div>
+    <div class="met red"><div class="ml">Perdidos</div><div class="mv">${perdido}</div><div class="ms" style="color:var(--red)">${arr.length>0?Math.round(perdido/arr.length*100):0}%</div></div>
+    <div class="met org"><div class="ml">En proceso</div><div class="mv">${proceso}</div></div>`;
   function bars(data,colors){const mx=Math.max(...data.map(d=>d.v),1);return data.map((d,i)=>`<div class="br"><span class="bl" title="${d.k}">${d.k}</span><div class="bt"><div class="bf" style="width:${Math.round(d.v/mx*100)}%;background:${Array.isArray(colors)?colors[i%colors.length]:colors}"></div></div><span class="bv">${d.v}</span></div>`).join('');}
   const ases=users.filter(u=>u.rol!=='admin');
-  document.getElementById('rep-ase').innerHTML=bars(ases.map(u=>({k:u.nombre,v:arr.filter(l=>l.uid===u.id).length})).sort((a,b)=>b.v-a.v),BAR_C);
-  const om={};arr.forEach(l=>om[l.ori]=(om[l.ori]||0)+1);document.getElementById('rep-ori').innerHTML=bars(Object.entries(om).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v),'#F47920');
-  document.getElementById('rep-est').innerHTML=ESTADOS.map(s=>{const v=arr.filter(l=>l.est===s).length,p=arr.length>0?Math.round(v/arr.length*100):0;return `<div class="br"><span class="bl">${s}</span><div class="bt"><div class="bf" style="width:${p}%;background:${EC[s]}"></div></div><span class="bv">${v}</span></div>`;}).join('');
-  const tpm={};arr.forEach(l=>tpm[l.tp||'Otro']=(tpm[l.tp||'Otro']||0)+1);document.getElementById('rep-tp').innerHTML=bars(Object.entries(tpm).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v),['#C8E6C9','#BBDEFB','#FFE082','var(--s2)']);
-  const lm={};arr.forEach(l=>lm[l.linea]=(lm[l.linea]||0)+1);document.getElementById('rep-lin').innerHTML=bars(Object.entries(lm).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v).slice(0,8),'#1B2F6E');
-  const um={};arr.forEach(l=>um[l.ubi]=(um[l.ubi]||0)+1);document.getElementById('rep-ubi').innerHTML=bars(Object.entries(um).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v).slice(0,8),'#0891B2');
+
+  // ── Gráfica: Leads por asesor (barras) ──
+  const aseData=ases.map(u=>({k:u.nombre.split(' ')[0],v:arr.filter(l=>l.uid===u.id).length})).sort((a,b)=>b.v-a.v);
+  mkChart('chart-ase','bar',aseData.map(d=>d.k),[{label:'Leads',data:aseData.map(d=>d.v),backgroundColor:'#F47920',borderRadius:4}]);
+
+  // ── Gráfica: Estado de leads (dona) ──
+  const estLabels=ESTADOS.filter(s=>arr.some(l=>l.est===s));
+  const estVals=estLabels.map(s=>arr.filter(l=>l.est===s).length);
+  const estColors=estLabels.map(s=>EC[s]||'#999');
+  mkChart('chart-est','doughnut',estLabels,[{data:estVals,backgroundColor:estColors}],{legend:true});
+
+  // ── Gráfica: Canal de ingreso (barras) ──
+  const om={};arr.forEach(l=>om[l.ori||'Otro']=(om[l.ori||'Otro']||0)+1);
+  const oriData=Object.entries(om).sort((a,b)=>b[1]-a[1]);
+  mkChart('chart-ori','bar',oriData.map(d=>d[0]),[{label:'Leads',data:oriData.map(d=>d[1]),backgroundColor:'#7C3AED',borderRadius:4}]);
+
+  // ── Gráfica: Ingreso por día (línea) ──
+  const dm={};arr.forEach(l=>{const f=l.fa||l.fu||'';if(f)dm[f]=(dm[f]||0)+1;});
+  const diasKeys=Object.keys(dm).sort().slice(-30);
+  mkChart('chart-dia','line',diasKeys,[{label:'Leads',data:diasKeys.map(k=>dm[k]),borderColor:'#1B2F6E',backgroundColor:'rgba(27,47,110,.1)',fill:true,tension:.3,pointRadius:3}]);
+
+  // ── Barras simples: tipo pago y líneas ──
+  const tpm={};arr.forEach(l=>tpm[l.tp||'Otro']=(tpm[l.tp||'Otro']||0)+1);
+  document.getElementById('rep-tp').innerHTML=bars(Object.entries(tpm).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v),['#C8E6C9','#BBDEFB','#FFE082','#ccc']);
+  const lm={};arr.forEach(l=>lm[l.linea]=(lm[l.linea]||0)+1);
+  document.getElementById('rep-lin').innerHTML=bars(Object.entries(lm).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v).slice(0,10),'#1B2F6E');
+
+  // ── Ranking ──
   document.getElementById('rep-rank').innerHTML=ases.map((u,i)=>{const ul=arr.filter(l=>l.uid===u.id),uv=ul.filter(l=>l.est==='VENTA').length,up=ul.filter(l=>l.est==='PERDIDO').length,uu=ul.filter(l=>l.est==='PROCESO').length,pp=ul.length>0?Math.round(uv/ul.length*100):0;return `<tr><td style="font-weight:700;color:var(--navy)">${i+1}</td><td><div style="display:flex;align-items:center;gap:7px">${avU(u)}<span style="font-weight:600">${u.nombre}</span></div></td><td style="font-weight:700">${ul.length}</td><td>${uu}</td><td style="color:#1B5E20;font-weight:700">${uv}</td><td style="color:var(--red)">${up}</td><td style="font-weight:700;color:${pp>=30?'#1B5E20':'var(--red)'}">${pp}%</td></tr>`;}).join('');
+}
+
+// ── Descargar dashboard como imagen ──
+function descargarDashboard(){
+  const mes=document.getElementById('rep-mes')?.value||'';
+  const ano=document.getElementById('rep-ano')?.value||'';
+  const periodo=mes&&ano?`${mes}-${ano}`:ano||'todo';
+  // Crear ventana de impresión con los datos
+  const w=window.open('','_blank','width=900,height=700');
+  if(!w)return toast('Permite popups para descargar');
+  const dias=parseInt(document.getElementById('rep-per')?.value||'0');
+  let arr=dias>0?leads.filter(l=>{try{return(Date.now()-new Date(l.fa).getTime())<=dias*86400000;}catch(e){return true;}}): [...leads];
+  if(ano)arr=arr.filter(l=>(l.fa||l.fu||'').startsWith(ano));
+  if(mes&&ano)arr=arr.filter(l=>(l.fa||l.fu||'').startsWith(ano+'-'+mes));
+  else if(mes)arr=arr.filter(l=>{const f=l.fa||l.fu||'';return f.length>=7&&f.substring(5,7)===mes;});
+  const venta=arr.filter(l=>l.est==='VENTA').length,perdido=arr.filter(l=>l.est==='PERDIDO').length;
+  const ases=users.filter(u=>u.rol!=='admin');
+  const aseRows=ases.map(u=>{const ul=arr.filter(l=>l.uid===u.id),uv=ul.filter(l=>l.est==='VENTA').length;return `<tr><td>${u.nombre}</td><td>${ul.length}</td><td style="color:green">${uv}</td><td>${ul.length>0?Math.round(uv/ul.length*100):0}%</td></tr>`;}).join('');
+  const estRows=Object.entries(arr.reduce((a,l)=>{a[l.est]=(a[l.est]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td><td>${arr.length>0?Math.round(v/arr.length*100):0}%</td></tr>`).join('');
+  const oriRows=Object.entries(arr.reduce((a,l)=>{a[l.ori||'Otro']=(a[l.ori||'Otro']||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Dashboard TVS - ${periodo}</title>
+  <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;padding:20px;color:#1B2F6E}
+  h1{font-size:22px;margin-bottom:4px}h2{font-size:14px;color:#666;font-weight:400;margin-bottom:20px}
+  .mets{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+  .met{background:#f5f7ff;border-radius:8px;padding:14px;text-align:center}
+  .mv{font-size:28px;font-weight:800;color:#1B2F6E}.ml{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+  .grn .mv{color:#1B5E20}.red .mv{color:#C8102E}.org .mv{color:#F47920}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+  .card{background:#f9fafb;border-radius:8px;padding:14px}h3{font-size:13px;font-weight:700;margin-bottom:10px;color:#1B2F6E}
+  table{width:100%;border-collapse:collapse}th{background:#1B2F6E;color:white;padding:7px 10px;font-size:11px;text-align:left}
+  td{padding:6px 10px;font-size:12px;border-bottom:1px solid #eee}tr:nth-child(even)td{background:#f5f7ff}
+  .footer{margin-top:20px;font-size:10px;color:#aaa;text-align:center}
+  @media print{button{display:none}}
+  </style></head><body>
+  <h1>📊 Dashboard TVS Motos — CRM</h1>
+  <h2>Período: ${periodo==='todo'?'Todo el tiempo':periodo} · Generado: ${new Date().toLocaleString()}</h2>
+  <div class="mets">
+    <div class="met"><div class="ml">Total Leads</div><div class="mv">${arr.length}</div></div>
+    <div class="met grn"><div class="ml">Ventas</div><div class="mv">${venta}</div></div>
+    <div class="met red"><div class="ml">Perdidos</div><div class="mv">${perdido}</div></div>
+    <div class="met org"><div class="ml">% Cierre</div><div class="mv">${arr.length>0?Math.round(venta/arr.length*100):0}%</div></div>
+  </div>
+  <div class="two">
+    <div class="card"><h3>Leads por asesor</h3><table><thead><tr><th>Asesor</th><th>Leads</th><th>Ventas</th><th>%</th></tr></thead><tbody>${aseRows}</tbody></table></div>
+    <div class="card"><h3>Estado de leads</h3><table><thead><tr><th>Estado</th><th>Cantidad</th><th>%</th></tr></thead><tbody>${estRows}</tbody></table></div>
+  </div>
+  <div class="card"><h3>Canal de ingreso</h3><table><thead><tr><th>Canal</th><th>Leads</th></tr></thead><tbody>${oriRows}</tbody></table></div>
+  <div class="footer">TVS Motos CRM · Dashboard generado automáticamente</div>
+  <br><button onclick="window.print()" style="padding:10px 20px;background:#1B2F6E;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px">🖨️ Imprimir / Guardar PDF</button>
+  </body></html>`);
+  w.document.close();
 }
 
 // ═══════════════════════════════════════
 // USUARIOS
 // ═══════════════════════════════════════
 function renderUsers(){
-  if(!isPriv())return;
+  if(!isAdmin())return;
   const known=new Set(users.map(u=>u.leadsname?.trim().toLowerCase()).filter(Boolean));
   const unkn=[...new Set(leads.map(l=>l.anom).filter(n=>n&&!known.has(n.trim().toLowerCase())))];
   document.getElementById('pend-notice').style.display=unkn.length?'block':'none';
@@ -1411,6 +1538,45 @@ function savePerfConfig(){
   toast('Meta actualizada ✓');
 }
 
+// QUICK ASSIGN desde detalle de lead
+function openQuickAssign(lid){
+  const existing=document.getElementById('m-qassign');if(existing)existing.remove();
+  const l=leads.find(x=>x.id===lid);if(!l)return;
+  const div=document.createElement('div');
+  div.id='m-qassign';div.className='ov';
+  div.innerHTML=`<div class="mo msm" style="max-width:320px">
+    <div class="mh"><span class="mt2">👤 Asignar Asesor</span><button class="xb" onclick="closeM('m-qassign')">×</button></div>
+    <div class="mb2">
+      <div style="font-size:12px;color:var(--mut);margin-bottom:10px">${l.nom}</div>
+      <div class="fg"><label class="fl">Seleccionar asesor</label>
+        <select class="fc" id="qa-ase">
+          <option value="">— Sin asignar —</option>
+          ${users.filter(u=>u.rol==='asesor'||u.rol==='supervisor').map(u=>`<option value="${u.id}" ${u.id===l.uid?'selected':''}>${u.nombre}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+        <button class="btn bo" onclick="closeM('m-qassign')">Cancelar</button>
+        <button class="btn bp" onclick="saveQuickAssign(${lid})">Guardar</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+  openM('m-qassign');
+}
+function saveQuickAssign(lid){
+  const l=leads.find(x=>x.id===lid);if(!l)return;
+  const val=document.getElementById('qa-ase')?.value;
+  l.uid=val?parseInt(val):null;
+  if(l.uid){const u=users.find(x=>x.id===l.uid);if(u)l.anom=u.nombre;}
+  else l.anom='';
+  l.fu=today();
+  persist();cloudSaveLead(l);
+  closeM('m-qassign');
+  closeM('m-det');
+  renderAll();
+  toast('Asesor asignado ✓');
+}
+
 // ASSIGN
 function openAssign(uid){assignU=uid;const u=users.find(x=>x.id===uid);document.getElementById('ma-title').textContent='Asignar a '+u.nombre;document.getElementById('a-info').textContent=`Marca los leads a asignar a ${u.nombre}.`;document.getElementById('a-list').innerHTML=leads.map(l=>{const cur=l.uid&&l.uid!==uid?users.find(x=>x.id===l.uid)?.nombre.split(' ')[0]:'';return `<label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--bd);cursor:pointer"><input type="checkbox" value="${l.id}" ${l.uid===uid?'checked':''} style="width:15px;height:15px;accent-color:var(--navy)"><div style="flex:1"><div style="font-weight:600;font-size:12px">${l.nom}${cur?` <span style="font-size:10px;color:var(--orange)">(${cur})</span>`:''}</div><div style="font-size:10px;color:var(--mut)">${l.linea} · ${l.ubi}</div></div>${eBadge(l.est)}</label>`;}).join('');openM('m-assign');}
 async function saveAssign(){const checked=[...document.querySelectorAll('#a-list input:checked')].map(c=>parseInt(c.value));leads.forEach(l=>{if(checked.includes(l.id)){l.uid=assignU;const u=users.find(x=>x.id===assignU);if(u)l.anom=u.nombre;}else if(l.uid===assignU)l.uid=null;});persist();if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await window._fb.saveAllLeads(leads);setSyncStatus('ok');}closeM('m-assign');renderAll();toast('Asignación guardada ✓');}
@@ -1473,6 +1639,8 @@ async function fullReset(){const conf=prompt('Reset total: borrará TODO en la n
 // NAV
 const TAB_LABELS={dashboard:'Dashboard',leads:'Leads',pipeline:'Pipeline',recordatorios:'Recordatorios',reportes:'Reportes',usuarios:'Usuarios',importar:'Importar / Vincular',storage:'Gestión de datos',perfil:'Mi Perfil'};
 function goTab(name,btn){
+  // Gerencia no puede acceder a usuarios, importar, storage
+  if(['usuarios','importar','storage'].includes(name)&&!isAdmin()){toast('Acceso restringido');return;}
   if(name!=='leads'&&bulkMode)exitBulk();
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.ni').forEach(b=>b.classList.remove('active'));
