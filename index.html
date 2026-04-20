@@ -914,8 +914,30 @@ function leadsEnFecha(uid,fecha){
   return leads.filter(l=>l.uid===uid&&parseFecha(l.fa||'')===fecha);
 }
 function gestionesEnFecha(uid,fecha){
-  // Gestiones = leads modificados (fu) en la fecha, pero cuya fa es ANTERIOR a esa fecha
-  return leads.filter(l=>l.uid===uid&&parseFecha(l.fu||'')===fecha&&parseFecha(l.fa||'')<fecha).length;
+  // Gestiones = leads donde el asesor agregó una nota O un recordatorio en la fecha
+  let count=0;
+  leads.filter(l=>l.uid===uid).forEach(l=>{
+    let cuenta=false;
+    // Verificar notas agregadas en la fecha
+    if(l.notas&&l.notas.length){
+      cuenta=l.notas.some(n=>{
+        if(!n.ts)return false;
+        const fechaNota=parseFecha(n.ts.split(',')[0].trim());
+        return fechaNota===fecha;
+      });
+    }
+    // Verificar recordatorio creado/modificado en la fecha
+    if(!cuenta&&l.reminder&&l.reminder.date){
+      // El recordatorio se guarda con fu=today() cuando se crea
+      // Si fu === fecha y tiene recordatorio, cuenta como gestión
+      const fuFecha=parseFecha(l.fu||'');
+      if(fuFecha===fecha&&parseFecha(l.fa||'')<fecha){
+        cuenta=true;
+      }
+    }
+    if(cuenta)count++;
+  });
+  return count;
 }
 function todayLeads(uid){return leadsEnFecha(uid,perfFecha).length;}
 function todayGest(uid){return gestionesEnFecha(uid,perfFecha);}
