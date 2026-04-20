@@ -1369,52 +1369,124 @@ function renderReportes(){
 function descargarDashboard(){
   const mes=document.getElementById('rep-mes')?.value||'';
   const ano=document.getElementById('rep-ano')?.value||'';
-  const periodo=mes&&ano?`${mes}-${ano}`:ano||'todo';
-  const w=window.open('','_blank','width=950,height=750');
+  const mesNombres={'01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio','07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre'};
+  const periodoLabel=mes&&ano?`${mesNombres[mes]||mes} ${ano}`:ano?`Año ${ano}`:'Todo el tiempo';
+  const w=window.open('','_blank','width=1100,height=800');
   if(!w)return toast('Permite popups para descargar');
   const dias=parseInt(document.getElementById('rep-per')?.value||'0');
   let arr=dias>0?leads.filter(l=>{try{return(Date.now()-new Date(l.fa).getTime())<=dias*86400000;}catch(e){return true;}}): [...leads];
   if(ano)arr=arr.filter(l=>(l.fa||l.fu||'').startsWith(ano));
   if(mes&&ano)arr=arr.filter(l=>(l.fa||l.fu||'').startsWith(ano+'-'+mes));
   else if(mes)arr=arr.filter(l=>{const f=l.fa||l.fu||'';return f.length>=7&&f.substring(5,7)===mes;});
-  const venta=arr.filter(l=>l.est==='VENTA').length,perdido=arr.filter(l=>l.est==='PERDIDO').length;
+  const venta=arr.filter(l=>l.est==='VENTA').length,perdido=arr.filter(l=>l.est==='PERDIDO').length,proceso=arr.filter(l=>l.est==='PROCESO').length;
   const ases=users.filter(u=>u.rol!=='admin');
-  const aseRows=ases.map(u=>{const ul=arr.filter(l=>l.uid===u.id),uv=ul.filter(l=>l.est==='VENTA').length;return `<tr><td>${u.nombre}</td><td>${ul.length}</td><td style="color:green">${uv}</td><td>${ul.length>0?Math.round(uv/ul.length*100):0}%</td></tr>`;}).join('');
-  const estRows=Object.entries(arr.reduce((a,l)=>{a[l.est]=(a[l.est]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td><td>${arr.length>0?Math.round(v/arr.length*100):0}%</td></tr>`).join('');
-  const oriRows=Object.entries(arr.reduce((a,l)=>{a[l.ori||'Otro']=(a[l.ori||'Otro']||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Dashboard TVS - ${periodo}</title>
-  <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#1B2F6E;background:#f5f7ff}
-  h1{font-size:22px;margin-bottom:4px}h2{font-size:13px;color:#666;font-weight:400;margin-bottom:20px}
-  .mets{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
-  .met{background:#fff;border-radius:10px;padding:16px;text-align:center;border:1px solid #e5e7eb}
-  .mv{font-size:30px;font-weight:800;color:#1B2F6E}.ml{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-  .grn .mv{color:#1B5E20}.red .mv{color:#C8102E}.org .mv{color:#F47920}
-  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-  .card{background:#fff;border-radius:10px;padding:16px;border:1px solid #e5e7eb}h3{font-size:13px;font-weight:700;margin-bottom:10px;color:#1B2F6E;border-bottom:2px solid #1B2F6E;padding-bottom:6px}
-  table{width:100%;border-collapse:collapse}th{background:#1B2F6E;color:white;padding:8px 10px;font-size:11px;text-align:left}
-  td{padding:7px 10px;font-size:12px;border-bottom:1px solid #eee}tr:nth-child(even)td{background:#f9fafb}
-  .footer{margin-top:20px;font-size:10px;color:#aaa;text-align:center;padding-top:10px;border-top:1px solid #eee}
-  .btn-p{display:inline-block;margin-top:16px;padding:10px 24px;background:#1B2F6E;color:white;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600}
-  @media print{.btn-p{display:none}body{background:white}}
-  </style></head><body>
-  <h1>📊 Dashboard TVS Motos — CRM</h1>
-  <h2>Período: ${periodo==='todo'?'Todo el tiempo':periodo} · Generado: ${new Date().toLocaleString()}</h2>
-  <div class="mets">
-    <div class="met"><div class="ml">Total Leads</div><div class="mv">${arr.length}</div></div>
-    <div class="met grn"><div class="ml">Ventas</div><div class="mv">${venta}</div></div>
-    <div class="met red"><div class="ml">Perdidos</div><div class="mv">${perdido}</div></div>
-    <div class="met org"><div class="ml">% Cierre</div><div class="mv">${arr.length>0?Math.round(venta/arr.length*100):0}%</div></div>
+  // Datos para gráficas
+  const aseData=ases.map(u=>{const ul=arr.filter(l=>l.uid===u.id),uv=ul.filter(l=>l.est==='VENTA').length,p=calcPerf(u.id);return{nombre:u.nombre.split(' ')[0],total:ul.length,ventas:uv,pct:ul.length>0?Math.round(uv/ul.length*100):0,perf:p.total,perfL:p.pLeads,perfG:p.pGest,tl:p.tl,tg:p.tg};}).sort((a,b)=>b.total-a.total);
+  const estMap=arr.reduce((a,l)=>{a[l.est]=(a[l.est]||0)+1;return a;},{});
+  const oriMap=arr.reduce((a,l)=>{a[l.ori||'Otro']=(a[l.ori||'Otro']||0)+1;return a;},{});
+  const dm={};arr.forEach(l=>{const f=l.fa||l.fu||'';if(f)dm[f]=(dm[f]||0)+1;});
+  const diasKeys=Object.keys(dm).sort().slice(-30);
+  // Colores performance
+  const pc=p=>p>=81?'#16a34a':p>=60?'#ea580c':'#dc2626';
+  const pbg=p=>p>=81?'#dcfce7':p>=60?'#ffedd5':'#fee2e2';
+  // Rows para tablas
+  const aseRows=aseData.map(u=>`<tr><td><strong>${u.nombre}</strong></td><td>${u.total}</td><td style="color:#16a34a;font-weight:700">${u.ventas}</td><td style="font-weight:700;color:${u.pct>=30?'#16a34a':'#dc2626'}">${u.pct}%</td><td><span style="background:${pbg(u.perf)};color:${pc(u.perf)};padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">${u.perf}%</span></td><td style="font-size:11px;color:#666">${u.tl}/${perfMeta.leads}L · ${u.tg}/${perfMeta.gestiones}G</td></tr>`).join('');
+  const estRows=Object.entries(estMap).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td style="font-weight:700">${v}</td><td>${arr.length>0?Math.round(v/arr.length*100):0}%</td></tr>`).join('');
+  const oriRows=Object.entries(oriMap).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td style="font-weight:700">${v}</td><td>${arr.length>0?Math.round(v/arr.length*100):0}%</td></tr>`).join('');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Dashboard Gerencial TVS — ${periodoLabel}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"><\/script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1B2F6E;padding:0}
+.header{background:linear-gradient(135deg,#1B2F6E,#C8102E);color:white;padding:20px 28px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:20px;font-weight:800;letter-spacing:.3px}
+.header .sub{font-size:12px;opacity:.8;margin-top:3px}
+.filters{background:#fff;padding:12px 28px;display:flex;gap:10px;align-items:center;border-bottom:1px solid #e5e7eb;flex-wrap:wrap}
+.filters select,.filters button{padding:7px 12px;border-radius:7px;border:1px solid #d1d5db;font-size:12px;cursor:pointer;font-family:inherit}
+.filters button{background:#1B2F6E;color:white;border:none;font-weight:600}
+.filters label{font-size:12px;font-weight:600;color:#1B2F6E}
+.content{padding:20px 28px}
+.mets{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.met{background:#fff;border-radius:10px;padding:16px 12px;text-align:center;border:1px solid #e5e7eb;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.mv{font-size:28px;font-weight:800;color:#1B2F6E;line-height:1}.ml{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.ms{font-size:11px;color:#888;margin-top:4px}
+.grn .mv{color:#16a34a}.red .mv{color:#C8102E}.org .mv{color:#F47920}.pur .mv{color:#7C3AED}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.card{background:#fff;border-radius:10px;padding:16px;border:1px solid #e5e7eb;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.card h3{font-size:13px;font-weight:700;margin-bottom:12px;color:#1B2F6E;padding-bottom:8px;border-bottom:2px solid #1B2F6E;display:flex;align-items:center;gap:6px}
+table{width:100%;border-collapse:collapse}
+th{background:#1B2F6E;color:white;padding:8px 10px;font-size:11px;text-align:left;font-weight:600}
+td{padding:7px 10px;font-size:12px;border-bottom:1px solid #f0f0f0}
+tr:hover td{background:#f8faff}
+.perf-bar{height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;margin-top:4px}
+.perf-fill{height:100%;border-radius:3px}
+.footer{text-align:center;padding:16px;font-size:11px;color:#aaa;border-top:1px solid #e5e7eb;margin-top:8px}
+.btn-p{padding:9px 20px;background:#1B2F6E;color:white;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;margin-right:8px}
+.btn-cls{padding:9px 20px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:8px;cursor:pointer;font-size:13px}
+@media print{.no-print{display:none!important}body{background:white}.header{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body>
+<div class="header">
+  <div>
+    <div class="header h1">📊 Dashboard Gerencial — TVS Motos CRM</div>
+    <div class="sub">Período: ${periodoLabel} · Generado: ${new Date().toLocaleString()}</div>
   </div>
-  <div class="two">
-    <div class="card"><h3>Leads por asesor</h3><table><thead><tr><th>Asesor</th><th>Leads</th><th>Ventas</th><th>% Cierre</th></tr></thead><tbody>${aseRows||'<tr><td colspan=4 style=text-align:center;color:#aaa;padding:12px>Sin datos</td></tr>'}</tbody></table></div>
-    <div class="card"><h3>Estado de leads</h3><table><thead><tr><th>Estado</th><th>Cantidad</th><th>%</th></tr></thead><tbody>${estRows||'<tr><td colspan=3 style=text-align:center;color:#aaa;padding:12px>Sin datos</td></tr>'}</tbody></table></div>
+  <div class="no-print" style="display:flex;gap:8px">
+    <button class="btn-p" onclick="window.print()">🖨️ Imprimir / PDF</button>
+    <button class="btn-cls" onclick="window.close()">✕ Cerrar</button>
   </div>
-  <div class="card"><h3>Canal de ingreso</h3><table><thead><tr><th>Canal</th><th>Leads</th></tr></thead><tbody>${oriRows||'<tr><td colspan=2 style=text-align:center;color:#aaa;padding:12px>Sin datos</td></tr>'}</tbody></table></div>
-  <div class="footer">TVS Motos CRM · Dashboard generado automáticamente</div>
-  <button class="btn-p" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
-  </body></html>`);
+</div>
+<div class="content">
+<div class="mets">
+  <div class="met"><div class="ml">Total Leads</div><div class="mv">${arr.length}</div></div>
+  <div class="met grn"><div class="ml">Ventas</div><div class="mv">${venta}</div><div class="ms">${arr.length>0?Math.round(venta/arr.length*100):0}% cierre</div></div>
+  <div class="met red"><div class="ml">Perdidos</div><div class="mv">${perdido}</div><div class="ms">${arr.length>0?Math.round(perdido/arr.length*100):0}%</div></div>
+  <div class="met org"><div class="ml">En Proceso</div><div class="mv">${proceso}</div></div>
+  <div class="met pur"><div class="ml">Asesores</div><div class="mv">${ases.length}</div></div>
+</div>
+<div class="grid2">
+  <div class="card"><h3>📊 Leads por asesor</h3><canvas id="chart-ase" height="200"></canvas></div>
+  <div class="card"><h3>🍩 Estado de leads</h3><canvas id="chart-est" height="200"></canvas></div>
+</div>
+<div class="grid2">
+  <div class="card"><h3>📡 Canal de ingreso</h3><canvas id="chart-ori" height="200"></canvas></div>
+  <div class="card"><h3>📈 Ingreso por día (últimos 30)</h3><canvas id="chart-dia" height="200"></canvas></div>
+</div>
+<div class="card" style="margin-bottom:16px">
+  <h3>⚡ Performance del equipo hoy</h3>
+  <table>
+    <thead><tr><th>Asesor</th><th>Leads totales</th><th>Ventas</th><th>% Cierre</th><th>Performance</th><th>Leads/Gestiones hoy</th></tr></thead>
+    <tbody>${aseRows||'<tr><td colspan=6 style=text-align:center;color:#aaa;padding:12px>Sin datos</td></tr>'}</tbody>
+  </table>
+</div>
+<div class="grid3">
+  <div class="card"><h3>📋 Estado de leads</h3><table><thead><tr><th>Estado</th><th>Cant.</th><th>%</th></tr></thead><tbody>${estRows}</tbody></table></div>
+  <div class="card"><h3>📡 Canal de ingreso</h3><table><thead><tr><th>Canal</th><th>Leads</th><th>%</th></tr></thead><tbody>${oriRows}</tbody></table></div>
+  <div class="card"><h3>📅 Actividad reciente</h3><table><thead><tr><th>Fecha</th><th>Leads</th></tr></thead><tbody>${diasKeys.slice(-10).reverse().map(k=>`<tr><td>${k}</td><td style="font-weight:700">${dm[k]}</td></tr>`).join('')}</tbody></table></div>
+</div>
+</div>
+<div class="footer">TVS Motos CRM · Dashboard Gerencial · ${new Date().toLocaleDateString()}</div>
+<script>
+const aseLabels=${JSON.stringify(aseData.map(d=>d.nombre))};
+const aseTotals=${JSON.stringify(aseData.map(d=>d.total))};
+const aseVentas=${JSON.stringify(aseData.map(d=>d.ventas))};
+const estLabels=${JSON.stringify(Object.keys(estMap))};
+const estVals=${JSON.stringify(Object.values(estMap))};
+const oriLabels=${JSON.stringify(Object.keys(oriMap).sort((a,b)=>oriMap[b]-oriMap[a]))};
+const oriVals=${JSON.stringify(Object.keys(oriMap).sort((a,b)=>oriMap[b]-oriMap[a]).map(k=>oriMap[k]))};
+const diaLabels=${JSON.stringify(diasKeys)};
+const diaVals=${JSON.stringify(diasKeys.map(k=>dm[k]))};
+const estColors=['#F47920','#C8102E','#16a34a','#0891B2','#7C3AED','#EAB308','#9D174D','#065F46'];
+new Chart(document.getElementById('chart-ase'),{type:'bar',data:{labels:aseLabels,datasets:[{label:'Total',data:aseTotals,backgroundColor:'#F47920',borderRadius:4},{label:'Ventas',data:aseVentas,backgroundColor:'#16a34a',borderRadius:4}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:10}}}}}});
+new Chart(document.getElementById('chart-est'),{type:'doughnut',data:{labels:estLabels,datasets:[{data:estVals,backgroundColor:estColors}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:12}}}}});
+new Chart(document.getElementById('chart-ori'),{type:'bar',data:{labels:oriLabels,datasets:[{label:'Leads',data:oriVals,backgroundColor:'#7C3AED',borderRadius:4}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:10},maxRotation:30}}}}});
+new Chart(document.getElementById('chart-dia'),{type:'line',data:{labels:diaLabels,datasets:[{label:'Leads',data:diaVals,borderColor:'#1B2F6E',backgroundColor:'rgba(27,47,110,.1)',fill:true,tension:.3,pointRadius:2}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:10},maxRotation:45}}}}});
+<\/script>
+</body></html>`);
   w.document.close();
 }
+
 
 // ═══════════════════════════════════════
 // USUARIOS
