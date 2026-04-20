@@ -142,7 +142,7 @@ a{color:inherit;text-decoration:none}
 
 /* ── SETUP SCREEN ── */
 #setup-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#0d1f4e,#1B2F6E 55%,#152560);padding:1rem}
-.admin-only{display:none!important}
+.admin-only{display:none}
 .setup-card{background:white;border-radius:20px;padding:2rem;width:100%;max-width:520px;box-shadow:0 24px 60px rgba(0,0,0,.28)}
 .setup-stripe{height:4px;background:linear-gradient(90deg,var(--navy),var(--red),var(--orange),var(--green));border-radius:4px;margin-bottom:1.3rem}
 
@@ -1050,8 +1050,12 @@ function updateStorageInfo(){
 // ═══════════════════════════════════════
 function doLogin(){
   const u=document.getElementById('lu').value.trim(),p=document.getElementById('lp').value;
-  const f=users.find(x=>x.user===u&&x.pass===p);
+  // Buscar en usuarios locales primero, luego en DEF_USERS como fallback
+  let f=users.find(x=>x.user===u&&x.pass===p);
+  if(!f)f=DEF_USERS.find(x=>x.user===u&&x.pass===p);
   if(!f){document.getElementById('lerr').style.display='block';return;}
+  // Si el usuario existe en DEF_USERS pero no en users, agregarlo
+  if(!users.find(x=>x.id===f.id))users.push(f);
   document.getElementById('lerr').style.display='none';CU=f;
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
@@ -1065,7 +1069,7 @@ function isAdmin(){return CU&&CU.rol==='admin';}
 function isGerencia(){return CU&&(CU.rol==='gerencia'||CU.rol==='admin');}
 function setupUI(){
   document.querySelectorAll('.admin-sup').forEach(el=>el.style.display=isPriv()?'':'none');
-  document.querySelectorAll('.admin-only').forEach(el=>el.style.display=isAdmin()?'':'none');
+  document.querySelectorAll('.admin-only').forEach(el=>{el.style.display=isAdmin()?'':'none';});
   const av=document.getElementById('tb-av');av.textContent=ini(CU.nombre);av.style.background=CU.color+'20';av.style.color=CU.color;
   document.getElementById('tb-nm').textContent=CU.nombre.split(' ')[0];
   const rolLabel={admin:'Administrador',gerencia:'Gerencia',supervisor:'Supervisor',asesor:'Asesor'};
@@ -1699,6 +1703,7 @@ function doAutoConnect(){
     else{showLoginScreen(false);}
   }else{showLoginScreen(false);}
 }
+// Esperar a que el módulo Firebase termine de cargar
 if(window._fb){doAutoConnect();}else{setTimeout(doAutoConnect,300);}
 if(impHist.length>0)renderImpHist();
 </script>
