@@ -910,19 +910,16 @@ const _pm=lsG('tvs8_perfmeta',null);if(_pm)perfMeta=_pm;
 let perfFecha=today(); // se puede cambiar con el filtro de fecha
 
 function leadsEnFecha(uid,fecha){
-  // Leads cuya fa (actividad) o fu (actualización) coincide con la fecha
-  return leads.filter(l=>l.uid===uid&&(parseFecha(l.fa||'')===fecha||parseFecha(l.fu||'')===fecha));
+  // Leads del día = fa (fecha actividad) = fecha exacta
+  return leads.filter(l=>l.uid===uid&&parseFecha(l.fa||'')===fecha);
 }
 function gestionesEnFecha(uid,fecha){
-  // Gestiones = leads que fueron actualizados (fu) en la fecha, independiente de fa
-  return leads.filter(l=>l.uid===uid&&parseFecha(l.fu||'')===fecha).length;
+  // Gestiones = leads modificados (fu) en la fecha, pero cuya fa es ANTERIOR a esa fecha
+  return leads.filter(l=>l.uid===uid&&parseFecha(l.fu||'')===fecha&&parseFecha(l.fa||'')<fecha).length;
 }
 function todayLeads(uid){return leadsEnFecha(uid,perfFecha).length;}
 function todayGest(uid){return gestionesEnFecha(uid,perfFecha);}
-function addGest(uid,n){
-  // Ya no necesitamos localStorage, las gestiones se calculan desde leads
-  // Pero actualizamos fu del lead para que cuente
-}
+function addGest(uid,n){/* gestiones se calculan desde leads */}
 function calcPerf(uid,fecha){
   const f=fecha||perfFecha;
   const tl=leadsEnFecha(uid,f).length;
