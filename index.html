@@ -502,7 +502,9 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
 
 <!-- DASHBOARD -->
 <div id="tab-dashboard" class="tab active">
-  <div class="ph"><div><div class="pt" id="dash-t">Dashboard</div><div class="psb" id="dash-s">Resumen</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="date" id="perf-fecha-fil" class="fc" style="max-width:150px;font-size:12px" title="Filtrar performance por fecha" onchange="renderDashboard()"><button class="btn bo bsm" onclick="document.getElementById('perf-fecha-fil').value=today();renderDashboard()">Hoy</button></div><button class="btn bp" onclick="openLM(null)">+ Nuevo Lead</button></div>
+  <div class="ph"><div><div class="pt" id="dash-t">Dashboard</div><div class="psb" id="dash-s">Resumen</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="date" id="perf-fecha-fil" class="fc" style="max-width:140px;font-size:12px" title="Filtrar performance por fecha" onchange="renderDashboard()">
+<button class="btn bo bsm" style="font-size:11px" onclick="perfModo='dia';document.getElementById('perf-fecha-fil').value=today();renderDashboard()">Hoy</button>
+<button class="btn bo bsm" style="font-size:11px" onclick="setPerfMes()">Este mes</button></div><button class="btn bp" onclick="openLM(null)">+ Nuevo Lead</button></div>
   <div class="mets" id="dash-mets"></div>
   <div class="two">
     <div class="card"><div class="ch"><span class="ct">Leads recientes</span><button class="btn bo bsm" onclick="goTab('leads',null)">Ver todos</button></div><div class="tw"><table><thead><tr><th>Nombre</th><th>Origen</th><th>Línea</th><th>Estado</th></tr></thead><tbody id="dash-rec"></tbody></table></div></div>
@@ -922,7 +924,7 @@ function gestionesEnFecha(uid,fecha){
     if(l.notas&&l.notas.length){
       cuenta=l.notas.some(n=>{
         if(!n.ts)return false;
-        const fechaNota=parseFecha(n.ts.split(',')[0].trim());
+        const fechaNota=parseFechaNota(n.ts);
         return fechaNota===fecha;
       });
     }
@@ -942,14 +944,15 @@ function gestionesEnFecha(uid,fecha){
 function todayLeads(uid){return leadsEnFecha(uid,perfFecha).length;}
 function todayGest(uid){return gestionesEnFecha(uid,perfFecha);}
 function addGest(uid,n){/* gestiones se calculan desde leads */}
-function calcPerf(uid,fecha){
-  const f=fecha||perfFecha;
-  const tl=leadsEnFecha(uid,f).length;
-  const tg=gestionesEnFecha(uid,f);
-  const pL=Math.min(Math.round(tl/perfMeta.leads*100),100);
-  const pG=Math.min(Math.round(tg/perfMeta.gestiones*100),100);
+function calcPerf(uid){
+  const tl=leadsEnPeriodo(uid).length;
+  const tg=gestionesEnPeriodo(uid);
+  const metaL=perfModo==='mes'?perfMeta.leads*22:perfMeta.leads;
+  const metaG=perfModo==='mes'?perfMeta.gestiones*22:perfMeta.gestiones;
+  const pL=Math.min(Math.round(tl/metaL*100),100);
+  const pG=Math.min(Math.round(tg/metaG*100),100);
   const tot=Math.round((pL+pG)/2);
-  return{pLeads:pL,pGest:pG,total:tot,tl,tg};
+  return{pLeads:pL,pGest:pG,total:tot,tl,tg,metaL,metaG};
 }
 function perfColor(p){return p>=81?'#16a34a':p>=60?'#ea580c':'#dc2626';}
 function perfBadge(p){const c=perfColor(p);return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:44px;padding:3px 8px;border-radius:20px;background:${c}18;color:${c};font-weight:700;font-size:12px">${p}%</span>`;}
@@ -1148,11 +1151,31 @@ function waBtn(l){const u=users.find(x=>x.id===l.uid);if(!u||!u.tel)return '';co
 function myLeads(){if(isPriv())return leads;return leads.filter(l=>l.uid===CU.id||(CU.leadsname&&l.nom&&l.nom.trim().toLowerCase()===CU.leadsname.trim().toLowerCase()));}
 function parseFecha(f){
   if(!f)return '';
-  if(f.includes('-')&&f.length>=10)return f.substring(0,10);
-  const p=f.split('/');
-  if(p.length===3){let d=p[0].padStart(2,'0'),m=p[1].padStart(2,'0'),y=p[2];if(y.length===2)y='20'+y;return y+'-'+m+'-'+d;}
-  return f;
+  const s=String(f).trim();
+  if(s.match(/^\d{4}-\d{2}-\d{2}/))return s.substring(0,10);
+  if(s.match(/^\d{5}$/)){
+    const serial=parseInt(s);
+    const d=new Date(Date.UTC(1900,0,1)+(serial-2)*86400000);
+    const y=d.getUTCFullYear(),mo=String(d.getUTCMonth()+1).padStart(2,'0'),dy=String(d.getUTCDate()).padStart(2,'0');
+    if(y>=2024&&y<=2030)return `${y}-${mo}-${dy}`;
+    return '';
+  }
+  const sinHora=s.split(',')[0].trim();
+  const p=sinHora.split('/');
+  if(p.length===3){
+    const n0=parseInt(p[0]),n1=parseInt(p[1]),n2=parseInt(p[2]);
+    let y=n2;if(String(n2).length===2)y=2000+n2;
+    if(y>=2024&&y<=2030){
+      let m,d;
+      if(n0>12){d=String(n0).padStart(2,'0');m=String(n1).padStart(2,'0');}
+      else if(n1>12){m=String(n0).padStart(2,'0');d=String(n1).padStart(2,'0');}
+      else{d=String(n0).padStart(2,'0');m=String(n1).padStart(2,'0');}
+      return `${y}-${m}-${d}`;
+    }
+  }
+  return '';
 }
+function parseFechaNota(ts){if(!ts)return '';return parseFecha(ts.split('T')[0].split(',')[0].trim());}
 function filteredLeads(){
   let arr=myLeads();
   const q=(document.getElementById('q-s')?.value||'').toLowerCase(),
@@ -1252,7 +1275,9 @@ function renderDashboard(){
   }
   // Actualizar perfFecha con el filtro seleccionado
   const pfEl=document.getElementById('perf-fecha-fil');
-  if(pfEl)perfFecha=pfEl.value||today();
+  if(pfEl&&pfEl.value)perfFecha=pfEl.value;
+  // Modo: si el valor es primer día del mes, mostrar modo mes
+  if(pfEl&&pfEl.value&&pfEl.value.endsWith('-01')&&perfModo==='mes'){/* mantener modo mes */}else if(pfEl&&pfEl.value){perfModo='dia';}
   document.getElementById('dash-t').textContent=isGerencia()?'Dashboard Gerencial':isPriv()?'Dashboard General':`Hola, ${CU.nombre.split(' ')[0]} 👋`;
   document.getElementById('dash-s').textContent=(isPriv()?'Vista global':arr.length+' leads asignados')+(useCloud?' · ☁️ Firebase':' · 📱 local');
   document.getElementById('dash-mets').innerHTML=`
@@ -1275,11 +1300,11 @@ function renderDashboard(){
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;padding-left:36px">
         <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-size:10px;color:var(--mut);min-width:72px">Leads ${p.tl}/${perfMeta.leads}</span>
+          <span style="font-size:10px;color:var(--mut);min-width:72px">Leads ${p.tl}/${p.metaL}</span>
           ${perfBar(p.pLeads)}
         </div>
         <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-size:10px;color:var(--mut);min-width:72px">Gest. ${p.tg}/${perfMeta.gestiones}</span>
+          <span style="font-size:10px;color:var(--mut);min-width:72px">Gest. ${p.tg}/${p.metaG}</span>
           ${perfBar(p.pGest)}
         </div>
       </div>
@@ -1356,7 +1381,7 @@ function openDet(id){
   openM('m-det');
 }
 function renderNotas(l){if(!l.notas||l.notas.length===0)return `<div style="color:var(--mut);font-size:12px;text-align:center;padding:.75rem">Sin comentarios</div>`;return l.notas.map((n,i)=>`<div class="ni2"><div class="nt">${n.txt}</div><div class="nm"><span>✍️ ${n.by||'Asesor'}</span><span>${n.ts||''}</span></div><button class="nd" onclick="delNota(${l.id},${i})">✕</button></div>`).join('');}
-function addNota(lid){const txt=document.getElementById('new-nota')?.value?.trim();if(!txt){toast('Escribe algo');return;}const l=leads.find(x=>x.id===lid);if(!l.notas)l.notas=[];l.notas.push({txt,by:CU.nombre,ts:new Date().toLocaleString()});l.fu=today();document.getElementById('new-nota').value='';document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);renderAll();toast('Comentario agregado ✓');// contar gestión del asesor asignado
+function addNota(lid){const txt=document.getElementById('new-nota')?.value?.trim();if(!txt){toast('Escribe algo');return;}const l=leads.find(x=>x.id===lid);if(!l.notas)l.notas=[];l.notas.push({txt,by:CU.nombre,ts:today()+'T'+new Date().toTimeString().substring(0,5)});l.fu=today();document.getElementById('new-nota').value='';document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);renderAll();toast('Comentario agregado ✓');// contar gestión del asesor asignado
 const gestUid=l.uid||CU.id;addGest(gestUid,1);}
 function delNota(lid,idx){if(!confirm('¿Eliminar?'))return;const l=leads.find(x=>x.id===lid);l.notas.splice(idx,1);document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);toast('Eliminado');}
 function saveDet(id){const l=leads.find(x=>x.id===id);l.est=document.getElementById('ds-est').value;l.tp=document.getElementById('ds-tp').value;if(l.est==='CITA'){const cc=document.getElementById('ds-canal');if(cc)l.canal_cita=cc.value;}l.fu=today();if(isPriv()){const v=document.getElementById('ds-ase')?.value;l.uid=v?parseInt(v):null;if(l.uid){const u=users.find(x=>x.id===l.uid);if(u)l.anom=u.nombre;}}persist();cloudSaveLead(l);closeM('m-det');renderAll();toast('Lead actualizado ✓');}
@@ -1364,6 +1389,56 @@ function saveDet(id){const l=leads.find(x=>x.id===id);l.est=document.getElementB
 // ═══════════════════════════════════════
 // LEAD CRUD
 // ═══════════════════════════════════════
+function setPerfMes(){
+  // Cambiar a modo "mes completo" — perfFecha = primer día del mes actual
+  const hoy=new Date();
+  const primerDia=`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-01`;
+  // En modo mes, calcPerf suma todos los días del mes
+  perfModo='mes';
+  document.getElementById('perf-fecha-fil').value=primerDia;
+  renderDashboard();
+}
+
+// ══ calcPerf con soporte para modo día / mes ══
+// perfModo: 'dia' (default) | 'mes'
+let perfModo='dia';
+
+function leadsEnPeriodo(uid){
+  const f=document.getElementById('perf-fecha-fil')?.value||today();
+  if(perfModo==='mes'){
+    const mes=f.substring(0,7); // "2026-04"
+    return leads.filter(l=>l.uid===uid&&parseFecha(l.fa||'').startsWith(mes));
+  }
+  return leads.filter(l=>l.uid===uid&&parseFecha(l.fa||'')===f);
+}
+function gestionesEnPeriodo(uid){
+  const f=document.getElementById('perf-fecha-fil')?.value||today();
+  let count=0;
+  const targetLeads=leads.filter(l=>l.uid===uid);
+  targetLeads.forEach(l=>{
+    let cuenta=false;
+    if(l.notas&&l.notas.length){
+      cuenta=l.notas.some(n=>{
+        const fn=parseFechaNota(n.ts||'');
+        if(!fn)return false;
+        if(perfModo==='mes')return fn.startsWith(f.substring(0,7))&&parseFecha(l.fa||'')<fn;
+        return fn===f&&parseFecha(l.fa||'')<f;
+      });
+    }
+    if(!cuenta&&l.reminder&&l.reminder.date){
+      const fuF=parseFecha(l.fu||'');
+      const faF=parseFecha(l.fa||'');
+      if(perfModo==='mes'){
+        if(fuF.startsWith(f.substring(0,7))&&faF<fuF)cuenta=true;
+      } else {
+        if(fuF===f&&faF<f)cuenta=true;
+      }
+    }
+    if(cuenta)count++;
+  });
+  return count;
+}
+
 function populateUbi(val){
   const sel=document.getElementById('lf-ubi');if(!sel)return;
   sel.innerHTML='<option value="">— Seleccionar agencia —</option>'+AGENCIAS_LIST.map(a=>`<option ${a===val?'selected':''}>${a}</option>`).join('');
