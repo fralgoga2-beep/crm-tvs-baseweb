@@ -1259,7 +1259,7 @@ function renderPipeline(){
     return `<div class="kcol ${s.c}"><div class="khd"><span>${s.k}</span><span>${cols.length}</span></div><div class="ks">${cols.length} lead${cols.length!==1?'s':''}</div>${cols.map(l=>`<div class="kc" onclick="openDet(${l.id})"><div class="kn">${l.nom}</div><div class="km">${l.linea}</div><div class="km">${l.ubi}</div><div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">${oriBadge(l.ori)}${tpBadge(l.tp)}</div></div>`).join('')}</div>`;
   }).join('');
 }
-function renderDashboard(){
+function renderDashboard(){try{
   const arr=myLeads(),venta=arr.filter(l=>l.est==='VENTA').length,perdido=arr.filter(l=>l.est==='PERDIDO').length,proceso=arr.filter(l=>l.est==='PROCESO').length,pct=arr.length>0?Math.round(venta/arr.length*100):0;
   // ── PERFORMANCE CARD ──
   if(!isPriv()){
@@ -1769,7 +1769,7 @@ async function saveQuickAssign(lid){
 
 // BULK
 function enterBulk(){bulkMode=true;selIds.clear();document.getElementById('blk-bar').style.display='flex';document.getElementById('btn-bulk').style.display='none';const ba=document.getElementById('btn-bulk-assign');if(ba)ba.style.display=isAdmin()?'inline-flex':'none';renderLeads();}
-function exitBulk(){bulkMode=false;selIds.clear();document.getElementById('blk-bar').style.display='none';document.getElementById('btn-bulk').style.display='';document.getElementById('chk-all').checked=false;renderLeads();}
+function exitBulk(){bulkMode=false;selIds.clear();document.getElementById('blk-bar').style.display='none';document.getElementById('btn-bulk').style.display='';document.getElementById('chk-all').checked=false;renderLeads();}}
 function updBlk(){const arr=filteredLeads();document.getElementById('blk-cnt').textContent=selIds.size+' sel. de '+arr.length;document.getElementById('chk-all').checked=arr.length>0&&arr.every(l=>selIds.has(l.id));document.getElementById('chk-all').indeterminate=selIds.size>0&&!arr.every(l=>selIds.has(l.id));}
 function toggleAllChk(cb){const arr=filteredLeads();if(cb.checked)arr.forEach(l=>selIds.add(l.id));else arr.forEach(l=>selIds.delete(l.id));if(!bulkMode&&selIds.size>0)enterBulk();renderLeads();}
 function tChk(id,cb){if(cb.checked)selIds.add(id);else selIds.delete(id);if(!bulkMode&&selIds.size>0)enterBulk();updBlk();}
@@ -1859,7 +1859,7 @@ window.addEventListener('pagehide',persist);window.addEventListener('beforeunloa
 setInterval(()=>{if(CU)updRemBadge();},60000);
 
 // AUTO-CONNECT
-function doAutoConnect(){
+function doAutoConnect(){try{
   const saved=lsG('tvs8_fbcfg',null);
   if(saved&&saved.apiKey&&saved.projectId&&window._fb){
     ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{const el=document.getElementById('cfg-'+k.replace('Storage','').toLowerCase().replace('messaging','ms').replace('app','app').replace('auth','auth'));if(el&&saved[k])el.value=saved[k];});
@@ -1867,9 +1867,9 @@ function doAutoConnect(){
     if(ok){useCloud=true;showLoginScreen(true);initRealtimeSync();}
     else{showLoginScreen(false);}
   }else{showLoginScreen(false);}
-}
+}}catch(e){showLoginScreen(false);}
 if(window._fb){doAutoConnect();}else{setTimeout(doAutoConnect,500);}
 if(impHist.length>0)renderImpHist();
 </script>
 </body>
-</html>
+</html>}catch(e){console.error("renderDashboard error:",e);}
