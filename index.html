@@ -555,14 +555,14 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <select class="fc" id="q-ori" onchange="renderLeads()" style="flex:1;min-width:110px;max-width:130px"><option value="">Todos orígenes</option><option>Pauta</option><option>Hubspot</option><option>Call Bell</option><option>Extra Leads</option><option>Pagina Web</option><option>Otro</option></select>
     <select class="fc" id="q-tp" onchange="renderLeads()" style="flex:1;min-width:110px;max-width:130px"><option value="">Tipo pago</option><option>Contado</option><option>Visa Cuotas</option><option>Crédito</option><option>Otro</option></select>
     <select class="fc admin-sup" id="q-ase" onchange="renderLeads()" style="flex:1;min-width:120px;max-width:150px"><option value="">Todos asesores</option><option value="__unassigned__">— Sin asignar —</option></select>
-    <select class="fc" id="q-mes" onchange="renderLeads()" style="flex:1;min-width:100px;max-width:115px">
+    <select class="fc" id="q-mes" onchange="resetAndRender()" style="flex:1;min-width:100px;max-width:115px">
       <option value="">Todos meses</option>
       <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
       <option value="04">Abril</option><option value="05">Mayo</option><option value="06">Junio</option>
       <option value="07">Julio</option><option value="08">Agosto</option><option value="09">Septiembre</option>
       <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
     </select>
-    <select class="fc" id="q-ano" onchange="renderLeads()" style="flex:1;min-width:88px;max-width:105px">
+    <select class="fc" id="q-ano" onchange="resetAndRender()" style="flex:1;min-width:88px;max-width:105px">
       <option value="">Todos años</option>
       <option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option>
     </select>
@@ -1158,7 +1158,7 @@ function parseFecha(f){
   if(p.length===3){let d=p[0].padStart(2,'0'),m=p[1].padStart(2,'0'),y=p[2];if(y.length===2)y='20'+y;return y+'-'+m+'-'+d;}
   return f;
 }
-function filteredLeads(){leadsPage=1;
+function filteredLeads(){
   let arr=myLeads();
   const q=(document.getElementById('q-s')?.value||'').toLowerCase(),
         est=document.getElementById('q-est')?.value||'',
@@ -1193,6 +1193,7 @@ function updRemBadge(){const mine=myLeads(),t=today(),due=mine.filter(l=>l.remin
 // ═══════════════════════════════════════
 let leadsPage=1;
 const LEADS_PER_PAGE=50;
+function resetAndRender(){leadsPage=1;renderLeads();}
 function goPage(p){leadsPage=p;renderLeads();const el=document.getElementById('leads-pagination');if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});}
 function renderLeads(){
   const arr=filteredLeads(),mine=myLeads();
@@ -1288,7 +1289,7 @@ function renderDashboard(){
     </div>`;
     const dg=document.getElementById('dash-perf-asesor');if(dg)dg.innerHTML=perfHtml;
   }
-  const _pf2=document.getElementById('perf-fecha-fil');if(_pf2&&_pf2.value)perfFecha=_pf2.value;const _pp2=document.getElementById('perf-periodo');if(_pp2)perfPeriodo=_pp2.value;
+  const _pf2=document.getElementById('perf-fecha-fil');if(_pf2){if(!_pf2.value)_pf2.value=today();perfFecha=_pf2.value;}if(!perfFecha)perfFecha=today();const _pp2=document.getElementById('perf-periodo');if(_pp2)perfPeriodo=_pp2.value||'dia';if(!perfPeriodo)perfPeriodo='dia';
   document.getElementById('dash-t').textContent=isGerencia()?'Dashboard Gerencial':isPriv()?'Dashboard General':`Hola, ${CU.nombre.split(' ')[0]} 👋`;
   document.getElementById('dash-s').textContent=(isPriv()?'Vista global':arr.length+' leads asignados')+(useCloud?' · ☁️ Firebase':' · 📱 local');
   document.getElementById('dash-mets').innerHTML=`
@@ -1299,7 +1300,7 @@ function renderDashboard(){
   document.getElementById('dash-rec').innerHTML=arr.slice(0,6).map(l=>`<tr><td style="font-weight:600">${l.nom}</td><td>${oriBadge(l.ori)}</td><td style="font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.linea}</td><td>${eBadge(l.est)}</td></tr>`).join('');
   const sc={};ESTADOS.forEach(s=>sc[s]=0);arr.forEach(l=>sc[l.est]=(sc[l.est]||0)+1);
   document.getElementById('dash-est').innerHTML=`<div class="bw">${ESTADOS.map(s=>{const p=arr.length>0?Math.round(sc[s]/arr.length*100):0;return `<div class="br"><span class="bl">${s}</span><div class="bt"><div class="bf" style="width:${p}%;background:${EC[s]}"></div></div><span class="bv">${sc[s]}</span></div>`;}).join('')}</div>`;
-  const da=document.getElementById('dash-ase');if(da&&isPriv())da.innerHTML=users.filter(u=>u.rol!=='admin').map(u=>{
+  const da=document.getElementById('dash-ase');if(da&&isPriv()){const asesList=users.filter(u=>u.rol!=='admin'&&u.rol!=='gerencia');if(asesList.length===0){da.innerHTML='<div style="color:var(--mut);font-size:12px;text-align:center;padding:1rem">Cargando asesores...</div>';}else{da.innerHTML=asesList.map(u=>{
     const ul=leads.filter(l=>l.uid===u.id),uv=ul.filter(l=>l.est==='VENTA').length,p=calcPerf(u.id);
     return `<div style="padding:9px 0;border-bottom:1px solid var(--bd)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
@@ -1319,7 +1320,7 @@ function renderDashboard(){
           ${perfBar(p.pGest)}
         </div>
       </div>
-    </div>`;}).join('');
+    </div>`;}).join('')}};
   const t=today(),due=myLeads().filter(l=>l.reminder&&l.reminder.date&&l.reminder.date<=t).slice(0,3);
   const dr=document.getElementById('dash-rem');if(dr){if(due.length===0){dr.innerHTML='<div style="color:var(--mut);font-size:12px;text-align:center;padding:1rem">Sin recordatorios urgentes</div>';}else dr.innerHTML=due.map(l=>{const s=remSt(l.reminder);return `<div class="rc ${s==='overdue'?'ov2':s==='today'?'tod':'upc'}" onclick="openDet(${l.id})" style="cursor:pointer"><div style="font-size:20px">${s==='overdue'?'🔴':s==='today'?'🟡':'🟢'}</div><div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--navy)">${l.nom}</div><div style="font-size:11px;color:var(--mut)">${l.reminder.note||l.linea}</div><div style="font-size:10px;font-weight:600;margin-top:3px;color:${s==='overdue'?'var(--red)':s==='today'?'#EAB308':'var(--green)'}">${l.reminder.date} ${l.reminder.time||''}</div></div></div>`;}).join('');}
 }
