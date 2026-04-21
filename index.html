@@ -1300,7 +1300,7 @@ function renderDashboard(){
   document.getElementById('dash-rec').innerHTML=arr.slice(0,6).map(l=>`<tr><td style="font-weight:600">${l.nom}</td><td>${oriBadge(l.ori)}</td><td style="font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.linea}</td><td>${eBadge(l.est)}</td></tr>`).join('');
   const sc={};ESTADOS.forEach(s=>sc[s]=0);arr.forEach(l=>sc[l.est]=(sc[l.est]||0)+1);
   document.getElementById('dash-est').innerHTML=`<div class="bw">${ESTADOS.map(s=>{const p=arr.length>0?Math.round(sc[s]/arr.length*100):0;return `<div class="br"><span class="bl">${s}</span><div class="bt"><div class="bf" style="width:${p}%;background:${EC[s]}"></div></div><span class="bv">${sc[s]}</span></div>`;}).join('')}</div>`;
-  const da=document.getElementById('dash-ase');if(da&&isPriv()){const asesList=users.filter(u=>u.rol!=='admin'&&u.rol!=='gerencia');if(asesList.length===0){da.innerHTML='<div style="color:var(--mut);font-size:12px;text-align:center;padding:1rem">Cargando asesores...</div>';}else{da.innerHTML=asesList.map(u=>{
+  const da=document.getElementById('dash-ase');if(da&&isPriv()){const perfF=document.getElementById('perf-fecha-fil')?.value||today();if(!perfFecha||perfFecha===today()&&perfF)perfFecha=perfF;const asesList=users.filter(u=>u.rol!=='admin'&&u.rol!=='gerencia');if(asesList.length===0){da.innerHTML='<div style="color:var(--mut);font-size:12px;text-align:center;padding:1rem">Sin asesores registrados</div>';if(useCloud)setTimeout(renderDashboard,2000);}else{da.innerHTML=asesList.map(u=>{
     const ul=leads.filter(l=>l.uid===u.id),uv=ul.filter(l=>l.est==='VENTA').length,p=calcPerf(u.id);
     return `<div style="padding:9px 0;border-bottom:1px solid var(--bd)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
@@ -1495,8 +1495,7 @@ function descargarDashboard(){
   const ano=document.getElementById('rep-ano')?.value||'';
   const mesNombres={'01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio','07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre'};
   const periodoLabel=mes&&ano?`${mesNombres[mes]||mes} ${ano}`:ano?`Año ${ano}`:'Todo el tiempo';
-  const w=window.open('','_blank','width=1100,height=800');
-  if(!w)return toast('Permite popups para descargar');
+  let _dashHtml='';  // will build below
   const dias=parseInt(document.getElementById('rep-per')?.value||'0');
   let arr=dias>0?leads.filter(l=>{try{return(Date.now()-new Date(l.fa).getTime())<=dias*86400000;}catch(e){return true;}}): [...leads];
   if(ano||mes){arr=arr.filter(l=>{const fa=parseFecha(l.fa||'');if(!fa)return false;if(ano&&!fa.startsWith(ano))return false;if(mes&&fa.length>=7&&fa.substring(5,7)!==mes)return false;return true;});}
@@ -1516,7 +1515,7 @@ function descargarDashboard(){
   }).join('');
   const estRows=Object.entries(estMap).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td style="font-weight:700">${v}</td><td>${arr.length>0?Math.round(v/arr.length*100):0}%</td></tr>`).join('');
   const oriRows=Object.entries(oriMap).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td style="font-weight:700">${v}</td><td>${arr.length>0?Math.round(v/arr.length*100):0}%</td></tr>`).join('');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  _dashHtml=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Dashboard Gerencial TVS — ${periodoLabel}</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"><\/script>
 <style>
@@ -1588,7 +1587,13 @@ new Chart(document.getElementById('ce'),{type:'doughnut',data:{labels:eL,dataset
 new Chart(document.getElementById('co'),{type:'bar',data:{labels:oL,datasets:[{label:'Leads',data:oV,backgroundColor:'#7C3AED',borderRadius:4}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:10},maxRotation:30}}}}});
 new Chart(document.getElementById('cd'),{type:'line',data:{labels:dL,datasets:[{label:'Leads',data:dV,borderColor:'#1B2F6E',backgroundColor:'rgba(27,47,110,.1)',fill:true,tension:.3,pointRadius:2}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:10},maxRotation:45}}}}});
 <\/script></body></html>`);
-  w.document.close();
+  // Open as blob in new tab
+  const blob=new Blob([_dashHtml],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.target='_blank';a.rel='noopener';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
 }
 
 // ═══════════════════════════════════════
