@@ -1320,11 +1320,11 @@ function renderDashboard(){
           ${perfBar(p.pGest)}
         </div>
       </div>
-    </div>`;}).join('')}};
+    </div>`;}).join('');}
   const t=today(),due=myLeads().filter(l=>l.reminder&&l.reminder.date&&l.reminder.date<=t).slice(0,3);
   const dr=document.getElementById('dash-rem');if(dr){if(due.length===0){dr.innerHTML='<div style="color:var(--mut);font-size:12px;text-align:center;padding:1rem">Sin recordatorios urgentes</div>';}else dr.innerHTML=due.map(l=>{const s=remSt(l.reminder);return `<div class="rc ${s==='overdue'?'ov2':s==='today'?'tod':'upc'}" onclick="openDet(${l.id})" style="cursor:pointer"><div style="font-size:20px">${s==='overdue'?'🔴':s==='today'?'🟡':'🟢'}</div><div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--navy)">${l.nom}</div><div style="font-size:11px;color:var(--mut)">${l.reminder.note||l.linea}</div><div style="font-size:10px;font-weight:600;margin-top:3px;color:${s==='overdue'?'var(--red)':s==='today'?'#EAB308':'var(--green)'}">${l.reminder.date} ${l.reminder.time||''}</div></div></div>`;}).join('');}
 }
-function renderRecordatorios(){
+func}tion renderRecordatorios(){
   const mine=myLeads(),t=today();
   let arr=mine.filter(l=>l.reminder&&l.reminder.date);
   if(remFilter==='overdue')arr=arr.filter(l=>l.reminder.date<t);
