@@ -1494,100 +1494,71 @@ function descargarDashboard(){
   const mes=document.getElementById('rep-mes')?.value||'';
   const ano=document.getElementById('rep-ano')?.value||'';
   const mesNombres={'01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio','07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre'};
-  const periodoLabel=mes&&ano?`${mesNombres[mes]||mes} ${ano}`:ano?`Año ${ano}`:'Todo el tiempo';
-  let _dashHtml='';
+  const periodoLabel=mes&&ano?(mesNombres[mes]||mes)+' '+ano:ano?'Año '+ano:'Todo el tiempo';
   const dias=parseInt(document.getElementById('rep-per')?.value||'0');
   let arr=dias>0?leads.filter(l=>{try{return(Date.now()-new Date(l.fa).getTime())<=dias*86400000;}catch(e){return true;}}): [...leads];
   if(ano||mes){arr=arr.filter(l=>{const fa=parseFecha(l.fa||'');if(!fa)return false;if(ano&&!fa.startsWith(ano))return false;if(mes&&fa.length>=7&&fa.substring(5,7)!==mes)return false;return true;});}
   const venta=arr.filter(l=>l.est==='VENTA').length,perdido=arr.filter(l=>l.est==='PERDIDO').length,proceso=arr.filter(l=>l.est==='PROCESO').length;
-  const ases=users.filter(u=>u.rol!=='admin');
+  const ases=users.filter(u=>u.rol!=='admin'&&u.rol!=='gerencia');
   const aseData=ases.map(u=>{const ul=arr.filter(l=>l.uid===u.id),uv=ul.filter(l=>l.est==='VENTA').length;return{nombre:u.nombre,total:ul.length,ventas:uv,pct:ul.length>0?Math.round(uv/ul.length*100):0};}).sort((a,b)=>b.total-a.total);
   const estMap=arr.reduce((a,l)=>{a[l.est]=(a[l.est]||0)+1;return a;},{});
   const oriMap=arr.reduce((a,l)=>{a[l.ori||'Otro']=(a[l.ori||'Otro']||0)+1;return a;},{});
   const dm={};arr.forEach(l=>{const f=parseFecha(l.fa||'');if(f)dm[f]=(dm[f]||0)+1;});
   const diasKeys=Object.keys(dm).sort().slice(-30);
-  // Performance del mes filtrado
-  const aseRows=aseData.map(u=>{
-    const p=calcPerf(u.id);
-    const pc=p.total>=81?'#16a34a':p.total>=60?'#ea580c':'#dc2626';
-    const pbg=p.total>=81?'#dcfce7':p.total>=60?'#ffedd5':'#fee2e2';
-    return `<tr><td><strong>${u.nombre}</strong></td><td>${u.total}</td><td style="color:#16a34a;font-weight:700">${u.ventas}</td><td style="font-weight:700;color:${u.pct>=30?'#16a34a':'#dc2626'}">${u.pct}%</td><td><span style="background:${pbg};color:${pc};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">${p.total}%</span></td><td style="font-size:11px;color:#666">${p.tl}L/${perfMeta.leads} · ${p.tg}G/${perfMeta.gestiones}</td></tr>`;
-  }).join('');
-  const estRows=Object.entries(estMap).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td style="font-weight:700">${v}</td><td>${arr.length>0?Math.round(v/arr.length*100):0}%</td></tr>`).join('');
-  const oriRows=Object.entries(oriMap).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td style="font-weight:700">${v}</td><td>${arr.length>0?Math.round(v/arr.length*100):0}%</td></tr>`).join('');
-  _dashHtml=`<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>Dashboard Gerencial TVS — ${periodoLabel}</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"><\/script>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1B2F6E}
-.header{background:linear-gradient(135deg,#1B2F6E,#C8102E);color:white;padding:18px 28px;display:flex;align-items:center;justify-content:space-between}
-.header h1{font-size:19px;font-weight:800}.header .sub{font-size:11px;opacity:.8;margin-top:3px}
-.content{padding:20px 28px}
-.mets{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
-.met{background:#fff;border-radius:10px;padding:14px 10px;text-align:center;border:1px solid #e5e7eb}
-.mv{font-size:26px;font-weight:800;color:#1B2F6E;line-height:1}.ml{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
-.ms{font-size:11px;color:#888;margin-top:3px}.grn .mv{color:#16a34a}.red .mv{color:#C8102E}.org .mv{color:#F47920}.pur .mv{color:#7C3AED}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
-.card{background:#fff;border-radius:10px;padding:14px;border:1px solid #e5e7eb}
-.card h3{font-size:12px;font-weight:700;margin-bottom:10px;color:#1B2F6E;padding-bottom:7px;border-bottom:2px solid #1B2F6E}
-table{width:100%;border-collapse:collapse}th{background:#1B2F6E;color:white;padding:7px 10px;font-size:11px;text-align:left}
-td{padding:6px 10px;font-size:12px;border-bottom:1px solid #f0f0f0}tr:hover td{background:#f8faff}
-.footer{text-align:center;padding:14px;font-size:10px;color:#aaa;border-top:1px solid #e5e7eb;margin-top:4px}
-.btn-p{padding:8px 18px;background:#1B2F6E;color:white;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;margin-right:6px}
-@media print{.no-print{display:none!important}body{background:white}.header{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-<\/style></head><body>
-<div class="header">
-  <div><div style="display:flex;align-items:center;gap:14px"><img src="data:image/jpeg;base64,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" style="height:44px;object-fit:contain"><div style="font-size:19px;font-weight:800">Dashboard Gerencial — TVS Motos CRM</div></div>
-  <div style="font-size:11px;opacity:.8;margin-top:3px">Período: ${periodoLabel} · Generado: ${new Date().toLocaleString()}</div></div>
-  <div class="no-print"><button class="btn-p" onclick="window.print()">🖨️ Imprimir / PDF</button></div>
-</div>
-<div class="content">
-<div class="mets">
-  <div class="met"><div class="ml">Total Leads</div><div class="mv">${arr.length}</div></div>
-  <div class="met grn"><div class="ml">Ventas</div><div class="mv">${venta}</div><div class="ms">${arr.length>0?Math.round(venta/arr.length*100):0}% cierre</div></div>
-  <div class="met red"><div class="ml">Perdidos</div><div class="mv">${perdido}</div><div class="ms">${arr.length>0?Math.round(perdido/arr.length*100):0}%</div></div>
-  <div class="met org"><div class="ml">En Proceso</div><div class="mv">${proceso}</div></div>
-  <div class="met pur"><div class="ml">Asesores</div><div class="mv">${ases.length}</div></div>
-</div>
-<div class="grid2">
-  <div class="card"><h3>📊 Leads por asesor</h3><canvas id="ca" height="200"></canvas></div>
-  <div class="card"><h3>🍩 Estado de leads</h3><canvas id="ce" height="200"></canvas></div>
-</div>
-<div class="grid2">
-  <div class="card"><h3>📡 Canal de ingreso</h3><canvas id="co" height="200"></canvas></div>
-  <div class="card"><h3>📈 Ingreso por día (últimos 30)</h3><canvas id="cd" height="200"></canvas></div>
-</div>
-<div class="card" style="margin-bottom:14px">
-  <h3>🏆 Ranking por asesor</h3>
-  <table><thead><tr><th>Asesor</th><th>Total Leads</th><th>Ventas</th><th>% Cierre</th><th>Performance hoy</th><th>Leads/Gest. hoy</th></tr></thead>
-  <tbody>${aseRows||'<tr><td colspan=4 style=text-align:center;color:#aaa;padding:12px>Sin datos</td></tr>'}</tbody></table>
-</div>
-<div class="grid3">
-  <div class="card"><h3>📋 Por estado</h3><table><thead><tr><th>Estado</th><th>Cant.</th><th>%</th></tr></thead><tbody>${estRows}</tbody></table></div>
-  <div class="card"><h3>📡 Por canal</h3><table><thead><tr><th>Canal</th><th>Leads</th><th>%</th></tr></thead><tbody>${oriRows}</tbody></table></div>
-  <div class="card"><h3>📅 Actividad reciente</h3><table><thead><tr><th>Fecha</th><th>Leads</th></tr></thead><tbody>${diasKeys.slice(-10).reverse().map(k=>`<tr><td>${k}</td><td style="font-weight:700">${dm[k]}</td></tr>`).join('')}</tbody></table></div>
-</div>
-</div>
-<div class="footer">TVS Motos CRM · Dashboard Gerencial · ${new Date().toLocaleDateString()}</div>
-<script>
-const aL=${JSON.stringify(aseData.map(d=>d.nombre.split(' ')[0]))};
-const aT=${JSON.stringify(aseData.map(d=>d.total))};
-const aV=${JSON.stringify(aseData.map(d=>d.ventas))};
-const eL=${JSON.stringify(Object.keys(estMap))};
-const eV=${JSON.stringify(Object.values(estMap))};
-const oL=${JSON.stringify(Object.keys(oriMap).sort((a,b)=>oriMap[b]-oriMap[a]))};
-const oV=${JSON.stringify(Object.keys(oriMap).sort((a,b)=>oriMap[b]-oriMap[a]).map(k=>oriMap[k]))};
-const dL=${JSON.stringify(diasKeys)};
-const dV=${JSON.stringify(diasKeys.map(k=>dm[k]))};
-const ec=['#F47920','#C8102E','#16a34a','#0891B2','#7C3AED','#EAB308','#9D174D','#065F46'];
-new Chart(document.getElementById('ca'),{type:'bar',data:{labels:aL,datasets:[{label:'Total',data:aT,backgroundColor:'#F47920',borderRadius:4},{label:'Ventas',data:aV,backgroundColor:'#16a34a',borderRadius:4}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:10}}}}}});
-new Chart(document.getElementById('ce'),{type:'doughnut',data:{labels:eL,datasets:[{data:eV,backgroundColor:ec}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:12}}}}});
-new Chart(document.getElementById('co'),{type:'bar',data:{labels:oL,datasets:[{label:'Leads',data:oV,backgroundColor:'#7C3AED',borderRadius:4}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:10},maxRotation:30}}}}});
-new Chart(document.getElementById('cd'),{type:'line',data:{labels:dL,datasets:[{label:'Leads',data:dV,borderColor:'#1B2F6E',backgroundColor:'rgba(27,47,110,.1)',fill:true,tension:.3,pointRadius:2}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:10},maxRotation:45}}}}});
-<"+"/script></body></html>`);
-  const _blob=new Blob([_dashHtml],{type:'text/html;charset=utf-8'});
+  const aseRows=aseData.map(u=>'<tr><td><strong>'+u.nombre+'</strong></td><td>'+u.total+'</td><td style="color:#16a34a;font-weight:700">'+u.ventas+'</td><td style="font-weight:700">'+u.pct+'%</td></tr>').join('');
+  const estRows=Object.entries(estMap).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<tr><td>'+k+'</td><td style="font-weight:700">'+v+'</td><td>'+Math.round(v/arr.length*100)+'%</td></tr>').join('');
+  const oriRows=Object.entries(oriMap).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<tr><td>'+k+'</td><td style="font-weight:700">'+v+'</td><td>'+Math.round(v/arr.length*100)+'%</td></tr>').join('');
+  const actRows=diasKeys.slice(-10).reverse().map(k=>'<tr><td>'+k+'</td><td style="font-weight:700">'+dm[k]+'</td></tr>').join('');
+  const aL=JSON.stringify(aseData.map(d=>d.nombre));
+  const aT=JSON.stringify(aseData.map(d=>d.total));
+  const aV=JSON.stringify(aseData.map(d=>d.ventas));
+  const eL=JSON.stringify(Object.keys(estMap));
+  const eV=JSON.stringify(Object.values(estMap));
+  const oL=JSON.stringify(Object.keys(oriMap).sort((a,b)=>oriMap[b]-oriMap[a]));
+  const oV=JSON.stringify(Object.keys(oriMap).sort((a,b)=>oriMap[b]-oriMap[a]).map(k=>oriMap[k]));
+  const dL=JSON.stringify(diasKeys);
+  const dV=JSON.stringify(diasKeys.map(k=>dm[k]));
+  const html=[
+    '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Dashboard TVS - '+periodoLabel+'</title>',
+    '<sc'+'ript src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></sc'+'ript>',
+    '<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Segoe UI,Arial,sans-serif;background:#f0f4f8;color:#1B2F6E}',
+    '.header{background:linear-gradient(135deg,#1B2F6E,#C8102E);color:white;padding:18px 28px}.h1{font-size:19px;font-weight:800}.sub{font-size:11px;opacity:.8;margin-top:3px}',
+    '.content{padding:20px 28px}.mets{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}',
+    '.met{background:#fff;border-radius:10px;padding:14px;text-align:center;border:1px solid #e5e7eb}.mv{font-size:26px;font-weight:800;line-height:1}.ml{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}',
+    '.grn .mv{color:#16a34a}.red .mv{color:#C8102E}.org .mv{color:#F47920}',
+    '.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}',
+    '.card{background:#fff;border-radius:10px;padding:14px;border:1px solid #e5e7eb}.card h3{font-size:12px;font-weight:700;margin-bottom:10px;color:#1B2F6E;padding-bottom:7px;border-bottom:2px solid #1B2F6E}',
+    'table{width:100%;border-collapse:collapse}th{background:#1B2F6E;color:white;padding:7px 10px;font-size:11px;text-align:left}td{padding:6px 10px;font-size:12px;border-bottom:1px solid #f0f0f0}',
+    '.footer{text-align:center;padding:14px;font-size:10px;color:#aaa;border-top:1px solid #e5e7eb}.btn-p{padding:8px 18px;background:#1B2F6E;color:white;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600}',
+    '@media print{.no-print{display:none!important}}</style></head><body>',
+    '<div class="header"><div class="h1">Dashboard Gerencial — TVS Motos CRM</div><div class="sub">Período: '+periodoLabel+' · Generado: '+new Date().toLocaleString()+'</div>',
+    '<div class="no-print" style="margin-top:8px"><button class="btn-p" onclick="window.print()">Imprimir / PDF</button></div></div>',
+    '<div class="content"><div class="mets">',
+    '<div class="met"><div class="ml">Total Leads</div><div class="mv">'+arr.length+'</div></div>',
+    '<div class="met grn"><div class="ml">Ventas</div><div class="mv">'+venta+'</div><div style="font-size:11px;color:#16a34a">'+(arr.length>0?Math.round(venta/arr.length*100):0)+'% cierre</div></div>',
+    '<div class="met red"><div class="ml">Perdidos</div><div class="mv">'+perdido+'</div></div>',
+    '<div class="met org"><div class="ml">En Proceso</div><div class="mv">'+proceso+'</div></div>',
+    '<div class="met"><div class="ml">Asesores</div><div class="mv">'+ases.length+'</div></div></div>',
+    '<div class="grid2"><div class="card"><h3>Leads por asesor</h3><canvas id="ca" height="200"></canvas></div>',
+    '<div class="card"><h3>Estado de leads</h3><canvas id="ce" height="200"></canvas></div></div>',
+    '<div class="grid2"><div class="card"><h3>Canal de ingreso</h3><canvas id="co" height="200"></canvas></div>',
+    '<div class="card"><h3>Ingreso por día</h3><canvas id="cd" height="200"></canvas></div></div>',
+    '<div class="card" style="margin-bottom:14px"><h3>Ranking por asesor</h3><table><thead><tr><th>Asesor</th><th>Total</th><th>Ventas</th><th>% Cierre</th></tr></thead><tbody>'+aseRows+'</tbody></table></div>',
+    '<div class="grid3">',
+    '<div class="card"><h3>Por estado</h3><table><thead><tr><th>Estado</th><th>Cant.</th><th>%</th></tr></thead><tbody>'+estRows+'</tbody></table></div>',
+    '<div class="card"><h3>Por canal</h3><table><thead><tr><th>Canal</th><th>Leads</th><th>%</th></tr></thead><tbody>'+oriRows+'</tbody></table></div>',
+    '<div class="card"><h3>Actividad reciente</h3><table><thead><tr><th>Fecha</th><th>Leads</th></tr></thead><tbody>'+actRows+'</tbody></table></div>',
+    '</div></div><div class="footer">TVS Motos CRM · '+new Date().toLocaleDateString()+'</div>',
+    '<sc'+'ript>',
+    'const aL='+aL+',aT='+aT+',aV='+aV+',eL='+eL+',eV='+eV+',oL='+oL+',oV='+oV+',dL='+dL+',dV='+dV+';',
+    'const ec=["#F47920","#C8102E","#16a34a","#0891B2","#7C3AED","#EAB308"];',
+    'new Chart(document.getElementById("ca"),{type:"bar",data:{labels:aL,datasets:[{label:"Total",data:aT,backgroundColor:"#F47920",borderRadius:4},{label:"Ventas",data:aV,backgroundColor:"#16a34a",borderRadius:4}]},options:{responsive:true,plugins:{legend:{position:"bottom"}},scales:{y:{beginAtZero:true},x:{}}}});',
+    'new Chart(document.getElementById("ce"),{type:"doughnut",data:{labels:eL,datasets:[{data:eV,backgroundColor:ec}]},options:{responsive:true,plugins:{legend:{position:"bottom"}}}});',
+    'new Chart(document.getElementById("co"),{type:"bar",data:{labels:oL,datasets:[{label:"Leads",data:oV,backgroundColor:"#7C3AED",borderRadius:4}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});',
+    'new Chart(document.getElementById("cd"),{type:"line",data:{labels:dL,datasets:[{label:"Leads",data:dV,borderColor:"#1B2F6E",backgroundColor:"rgba(27,47,110,.1)",fill:true,tension:.3,pointRadius:2}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});',
+    '</s'+'cript></body></html>'
+  ].join('\n');
+  const _blob=new Blob([html],{type:'text/html;charset=utf-8'});
   const _url=URL.createObjectURL(_blob);
   const _a=document.createElement('a');
   _a.href=_url;_a.target='_blank';_a.rel='noopener';
@@ -1595,9 +1566,6 @@ new Chart(document.getElementById('cd'),{type:'line',data:{labels:dL,datasets:[{
   setTimeout(()=>{document.body.removeChild(_a);URL.revokeObjectURL(_url);},1000);
 }
 
-// ═══════════════════════════════════════
-// USUARIOS
-// ═══════════════════════════════════════
 function renderUsers(){
   if(!isAdmin())return;
   const known=new Set(users.map(u=>u.leadsname?.trim().toLowerCase()).filter(Boolean));
