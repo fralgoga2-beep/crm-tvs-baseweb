@@ -1555,23 +1555,35 @@ function descargarDashboard(){
     '<'+'/sc'+'ript></body></html>'
   ];
   const html=parts.join('');
-  const bl=new Blob([html],{type:'text/html;charset=utf-8'});
-  const u=URL.createObjectURL(bl);
-  // Abrir ventana sincrónicamente para evitar bloqueo de popups
+  // Abrir ventana sincrónicamente (antes de cualquier async) para evitar bloqueo de popups
   const win=window.open('','_blank');
   if(win){
+    win.document.open('text/html','replace');
     win.document.write(html);
     win.document.close();
-    setTimeout(()=>URL.revokeObjectURL(u),2000);
   } else {
-    // Fallback: descarga directa si el popup fue bloqueado
-    const a=document.createElement('a');
-    a.href=u;
-    a.download='dashboard-tvs-'+new Date().toISOString().split('T')[0]+'.html';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(u);},1500);
-    toast('Dashboard descargado — abre el archivo .html en tu navegador');
+    // Si el navegador bloqueó el popup, mostrar el dashboard en un modal dentro del CRM
+    let overlay=document.getElementById('dash-overlay');
+    if(!overlay){
+      overlay=document.createElement('div');
+      overlay.id='dash-overlay';
+      overlay.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;flex-direction:column;';
+      overlay.innerHTML=`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#1B2F6E;flex-shrink:0;">
+          <span style="color:#fff;font-weight:700;font-size:14px;">📊 Dashboard Gerencial</span>
+          <div style="display:flex;gap:8px;">
+            <button onclick="document.getElementById('dash-iframe').contentWindow.print()" style="padding:5px 12px;background:#F47920;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;">🖨 Imprimir / PDF</button>
+            <button onclick="document.getElementById('dash-overlay').remove()" style="padding:5px 12px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;">✕ Cerrar</button>
+          </div>
+        </div>
+        <iframe id="dash-iframe" style="flex:1;border:none;background:#fff;"></iframe>`;
+      document.body.appendChild(overlay);
+    }
+    const iframe=overlay.querySelector('#dash-iframe');
+    iframe.contentDocument.open();
+    iframe.contentDocument.write(html);
+    iframe.contentDocument.close();
+    toast('Dashboard abierto — usa Imprimir para guardar como PDF');
   }
 }
 
