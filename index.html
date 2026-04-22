@@ -1217,7 +1217,6 @@ function renderLeads(){
   document.getElementById('leads-pt').textContent=isPriv()?'Todos los Leads':'Mis Leads';
   document.getElementById('leads-ps').textContent=mine.length+' leads'+(isPriv()?' en total':' asignados')+(useCloud?' · ☁️ sync':' · 📱 local');
   document.getElementById('leads-tb').innerHTML=pageArr.map(l=>`<tr class="${selIds.has(l.id)?'sel':''}">
-  document.getElementById('leads-tb').innerHTML=pageArr.map(l=>`<tr class="${selIds.has(l.id)?'sel':''}">
     <td style="padding:8px 4px 8px 10px;width:30px"><input type="checkbox" ${selIds.has(l.id)?'checked':''} onchange="tChk(${l.id},this)" style="width:14px;height:14px"></td>
     <td>${oriBadge(l.ori)}</td>
     <td>${eBadge(l.est)}</td>
