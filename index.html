@@ -474,6 +474,10 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <button class="ni admin-only" onclick="goTab('importar',this)"><span class="nco">📥</span><span>Importar / Vincular</span></button>
     <button class="ni admin-only" onclick="goTab('storage',this)"><span class="nco">🗂</span><span>Gestión de datos</span></button>
   </div>
+  <div class="ns ap-only" style="margin-top:.4rem;display:none">
+    <div class="nl">Canal AP</div>
+    <button class="ni" onclick="goTab('ap_reportes',this)"><span class="nco">📊</span><span>Reportes AP</span></button>
+  </div>
   <div class="ns" style="margin-top:.4rem">
     <div class="nl">Cuenta</div>
     <button class="ni" onclick="goTab('perfil',this)"><span class="nco">👤</span><span>Mi perfil</span></button>
@@ -624,6 +628,56 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <div class="card"><div class="ch"><span class="ct">Líneas de interés</span></div><div class="cb"><div class="bw" id="rep-lin"></div></div></div>
   </div>
   <div class="card"><div class="ch"><span class="ct">Ranking asesores</span></div><div class="tw"><table><thead><tr><th>#</th><th>Asesor</th><th>Total</th><th>Proceso</th><th>Venta</th><th>Perdido</th><th>% Venta</th></tr></thead><tbody id="rep-rank"></tbody></table></div></div>
+</div>
+
+
+<!-- REPORTES CANAL AP -->
+<div id="tab-ap_reportes" class="tab ap-only">
+  <div class="ph">
+    <div><div class="pt">Reportes Canal AP</div><div class="psb">Análisis exclusivo agencias AP</div></div>
+    <div class="ha" style="flex-wrap:wrap;gap:6px">
+      <select class="fc" id="ap-rep-mes" onchange="renderAPReportes()" style="max-width:120px">
+        <option value="">Todos meses</option>
+        <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
+        <option value="04">Abril</option><option value="05">Mayo</option><option value="06">Junio</option>
+        <option value="07">Julio</option><option value="08">Agosto</option><option value="09">Septiembre</option>
+        <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+      </select>
+      <select class="fc" id="ap-rep-ano" onchange="renderAPReportes()" style="max-width:100px">
+        <option value="">Todos años</option>
+        <option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option>
+      </select>
+      <select class="fc" id="ap-rep-per" onchange="renderAPReportes()" style="max-width:130px">
+        <option value="0">Todo el tiempo</option><option value="7">7 días</option>
+        <option value="30">30 días</option><option value="90">90 días</option>
+      </select>
+    </div>
+  </div>
+  <!-- KPIs -->
+  <div class="mets" id="ap-rep-mets"></div>
+  <!-- Gráficas fila 1 -->
+  <div class="two">
+    <div class="card"><div class="ch"><span class="ct">Citas por agencia AP</span></div><div class="cb"><canvas id="ap-chart-ag-cita" height="220"></canvas></div></div>
+    <div class="card"><div class="ch"><span class="ct">Estado de leads AP</span></div><div class="cb"><canvas id="ap-chart-est" height="220"></canvas></div></div>
+  </div>
+  <!-- Gráficas fila 2 -->
+  <div class="two">
+    <div class="card"><div class="ch"><span class="ct">Ventas por agencia AP</span></div><div class="cb"><canvas id="ap-chart-ag-venta" height="220"></canvas></div></div>
+    <div class="card"><div class="ch"><span class="ct">Ingreso por día (AP)</span></div><div class="cb"><canvas id="ap-chart-dia" height="220"></canvas></div></div>
+  </div>
+  <!-- Gráficas fila 3 -->
+  <div class="two">
+    <div class="card"><div class="ch"><span class="ct">Moto más solicitada (AP)</span></div><div class="cb"><div class="bw" id="ap-rep-linea"></div></div></div>
+    <div class="card"><div class="ch"><span class="ct">Moto más vendida (AP)</span></div><div class="cb"><div class="bw" id="ap-rep-linea-venta"></div></div></div>
+  </div>
+  <!-- Seguimientos -->
+  <div class="card">
+    <div class="ch"><span class="ct">Seguimientos activos AP</span></div>
+    <div class="tw"><table>
+      <thead><tr><th>Agencia</th><th>Total Leads</th><th>Citas</th><th>Proceso</th><th>Ventas</th><th>Seguimiento</th><th>% Cierre</th></tr></thead>
+      <tbody id="ap-rep-rank"></tbody>
+    </table></div>
+  </div>
 </div>
 
 <!-- USUARIOS -->
@@ -835,7 +889,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <div class="fr"><div class="fg"><label class="fl">Nombre completo *</label><input class="fc" id="uf-nom" autocapitalize="words"></div><div class="fg"><label class="fl">Usuario (login) *</label><input class="fc" id="uf-usr" autocorrect="off" autocapitalize="off"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Contraseña *</label><input class="fc" type="password" id="uf-pw" placeholder="Mínimo 6 caracteres"></div><div class="fg"><label class="fl">Confirmar</label><input class="fc" type="password" id="uf-pw2"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Email</label><input class="fc" type="email" id="uf-em" autocapitalize="off"></div><div class="fg"><label class="fl">WhatsApp</label><input class="fc" type="tel" id="uf-tel"></div></div>
-      <div class="fr"><div class="fg"><label class="fl">Rol</label><select class="fc" id="uf-rol"><option value="asesor">Asesor</option><option value="supervisor">Supervisor</option><option value="gerencia">Gerencia</option><option value="admin">Administrador</option></select></div><div class="fg"><label class="fl">Zona</label><input class="fc" id="uf-zona"></div></div>
+      <div class="fr"><div class="fg"><label class="fl">Rol</label><select class="fc" id="uf-rol"><option value="asesor">Asesor</option><option value="supervisor">Supervisor</option><option value="gerencia">Gerencia</option><option value="canal_ap">Canal AP</option><option value="admin">Administrador</option></select></div><div class="fg"><label class="fl">Zona</label><input class="fc" id="uf-zona"></div></div>
       <div class="fg"><label class="fl">Nombre exacto en los leads</label><input class="fc" id="uf-ln" placeholder="Igual que columna Asesor"></div>
       <div class="fg"><label class="fl">Mensaje WhatsApp</label><textarea class="fc" id="uf-wa" placeholder="Hola {nombre}, soy {asesor} de TVS Motos..."></textarea></div>
       <div id="uf-err" class="wbox" style="display:none"></div>
@@ -1116,21 +1170,25 @@ function doLogout(){persist();CU=null;document.getElementById('app').style.displ
 function isPriv(){return CU&&(CU.rol==='admin'||CU.rol==='supervisor'||CU.rol==='gerencia');}
 function isAdmin(){return CU&&CU.rol==='admin';}
 function isGerencia(){return CU&&(CU.rol==='gerencia'||CU.rol==='admin');}
+function isAP(){return CU&&CU.rol==='canal_ap';}
 function setupUI(){const _pfi=document.getElementById('perf-fecha-fil');if(_pfi&&!_pfi.value){_pfi.value=today();perfFecha=today();}
 
   document.querySelectorAll('.admin-sup').forEach(el=>el.style.display=isPriv()?'':'none');
   document.querySelectorAll('.admin-only').forEach(el=>{el.style.display=isAdmin()?'':'none';});
   const av=document.getElementById('tb-av');av.textContent=ini(CU.nombre);av.style.background=CU.color+'20';av.style.color=CU.color;
   document.getElementById('tb-nm').textContent=CU.nombre.split(' ')[0];
-  const rolLabel={admin:'Administrador',gerencia:'Gerencia',supervisor:'Supervisor',asesor:'Asesor'};
+  const rolLabel={admin:'Administrador',gerencia:'Gerencia',supervisor:'Supervisor',asesor:'Asesor',canal_ap:'Canal AP'};
   document.getElementById('tb-rl').textContent=rolLabel[CU.rol]||CU.rol;
   document.getElementById('nav-leads-lbl').textContent=isPriv()?'Todos los Leads':'Mis Leads';
+  document.querySelectorAll('.ap-only').forEach(el=>el.style.display=isAP()?'':'none');
+  if(isAP()){document.querySelectorAll('.admin-sup,.tab-leads-nav,.tab-pipeline-nav,.tab-rec-nav').forEach(el=>el.style.display='none');}
   // PWA
   const man={name:'TVS CRM',short_name:'TVS CRM',start_url:'.',display:'standalone',background_color:'#1B2F6E',theme_color:'#1B2F6E'};
   const mb=new Blob([JSON.stringify(man)],{type:'application/json'});
   document.getElementById('pwa-manifest').href=URL.createObjectURL(mb);
   document.getElementById('apple-icon').href='data:image/webp;base64,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';
   populateSel();checkMobile();setSyncStatus(useCloud?'ok':'off');
+  if(isAP()){goTab('ap_reportes',null);return;}
   if(driveConn.url){document.getElementById('gs-url').value=driveConn.url;document.getElementById('btn-sync').style.display='inline-flex';document.getElementById('btn-autosync').style.display='inline-flex';document.getElementById('btn-disco').style.display='inline-flex';if(driveConn.lastSync)document.getElementById('sync-st').textContent='✅ '+new Date(driveConn.lastSync).toLocaleString();}
   renderAll();updateStorageInfo();
 }
@@ -1816,10 +1874,77 @@ function clearImpHistAdmin(){if(!confirm('¿Limpiar historial?'))return;impHist=
 async function delAllLeads(){if(leads.length===0){toast('Sin leads');return;}const conf=prompt(`¿Eliminar TODOS los ${leads.length} leads?\nEscribe CONFIRMAR:`);if(conf!=='CONFIRMAR'){toast('Cancelado');return;}const ids=leads.map(l=>l.id);leads=[];nlid=1;if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all(ids.map(id=>window._fb.deleteLeadCloud(id)));setSyncStatus('ok');}persist();exitBulk();renderAll();renderDataManager();toast('Todos los leads eliminados ✓');}
 async function fullReset(){const conf=prompt('Reset total: borrará TODO en la nube.\nEscribe RESET TOTAL:');if(conf!=='RESET TOTAL'){toast('Cancelado');return;}const lids=leads.map(l=>l.id),uids=users.filter(u=>u.id>1).map(u=>u.id);leads=[];users=[DEF_USERS[0]];impHist=[];driveConn={url:'',lastSync:null,autoSync:false};nuid=9;nlid=1;clearInterval(autoTimer);if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all([...lids.map(id=>window._fb.deleteLeadCloud(id)),...uids.map(id=>window._fb.deleteUserCloud(id))]);setSyncStatus('ok');}Object.keys(localStorage).filter(k=>k.startsWith('tvs8_')).forEach(k=>localStorage.removeItem(k));persist();exitBulk();populateSel();renderAll();renderDataManager();toast('CRM reseteado ✓');}
 
+
+// ═══════════════════════════════════════
+// REPORTES CANAL AP
+// ═══════════════════════════════════════
+function renderAPReportes(){
+  const dias=parseInt(document.getElementById('ap-rep-per')?.value||'0');
+  const mes=document.getElementById('ap-rep-mes')?.value||'';
+  const ano=document.getElementById('ap-rep-ano')?.value||'';
+  // Solo leads del canal AP (ubi que empieza con "AP" o origen "AP")
+  let arr=leads.filter(l=>
+    (l.ubi&&l.ubi.toUpperCase().startsWith('AP'))||
+    (l.ori&&l.ori.toUpperCase()==='AP')||
+    (l.canal_cita&&l.canal_cita.toUpperCase()==='AP')
+  );
+  if(dias>0)arr=arr.filter(l=>{try{return(Date.now()-new Date(l.fa).getTime())<=dias*86400000;}catch(e){return true;}});
+  if(ano||mes){arr=arr.filter(l=>{const fa=parseFecha(l.fa||'');if(!fa)return false;if(ano&&!fa.startsWith(ano))return false;if(mes&&fa.length>=7&&fa.substring(5,7)!==mes)return false;return true;});}
+  const venta=arr.filter(l=>l.est==='VENTA').length;
+  const citas=arr.filter(l=>l.est==='CITA').length;
+  const proceso=arr.filter(l=>l.est==='PROCESO').length;
+  const seguimiento=arr.filter(l=>l.est==='SEGUIMIENTO').length;
+  const pct=arr.length>0?Math.round(venta/arr.length*100):0;
+  // KPIs
+  const mets=document.getElementById('ap-rep-mets');
+  if(mets)mets.innerHTML=`
+    <div class="met"><div class="ml">Total Leads AP</div><div class="mv">${arr.length}</div></div>
+    <div class="met grn"><div class="ml">Ventas</div><div class="mv">${venta}</div><div class="ms" style="color:#2e7d32">${pct}%</div></div>
+    <div class="met org"><div class="ml">Citas</div><div class="mv">${citas}</div></div>
+    <div class="met"><div class="ml">En Proceso</div><div class="mv">${proceso}</div></div>
+    <div class="met"><div class="ml">Seguimiento</div><div class="mv">${seguimiento}</div></div>`;
+  // Agencias AP únicas
+  const agMap={},agVenta={},agCita={},agProc={},agSeg={};
+  arr.forEach(l=>{
+    const ag=l.ubi||'Sin agencia';
+    agMap[ag]=(agMap[ag]||0)+1;
+    if(l.est==='VENTA')agVenta[ag]=(agVenta[ag]||0)+1;
+    if(l.est==='CITA')agCita[ag]=(agCita[ag]||0)+1;
+    if(l.est==='PROCESO')agProc[ag]=(agProc[ag]||0)+1;
+    if(l.est==='SEGUIMIENTO')agSeg[ag]=(agSeg[ag]||0)+1;
+  });
+  const agKeys=Object.keys(agMap).sort((a,b)=>agMap[b]-agMap[a]);
+  // Chart citas por agencia
+  mkChart('ap-chart-ag-cita','bar',agKeys.map(k=>k.replace('AP ','')),[{label:'Citas',data:agKeys.map(k=>agCita[k]||0),backgroundColor:'#F47920',borderRadius:4}]);
+  // Chart estado
+  const estLabels=ESTADOS.filter(s=>arr.some(l=>l.est===s));
+  mkChart('ap-chart-est','doughnut',estLabels,[{data:estLabels.map(s=>arr.filter(l=>l.est===s).length),backgroundColor:estLabels.map(s=>EC[s]||'#999')}],{legend:true});
+  // Chart ventas por agencia
+  mkChart('ap-chart-ag-venta','bar',agKeys.map(k=>k.replace('AP ','')),[{label:'Ventas',data:agKeys.map(k=>agVenta[k]||0),backgroundColor:'#4CAF50',borderRadius:4}]);
+  // Chart ingreso por día
+  const dm={};arr.forEach(l=>{const f=parseFecha(l.fa||'');if(f)dm[f]=(dm[f]||0)+1;});
+  const dKeys=Object.keys(dm).sort().slice(-30);
+  mkChart('ap-chart-dia','line',dKeys,[{label:'Leads',data:dKeys.map(k=>dm[k]),borderColor:'#1B2F6E',backgroundColor:'rgba(27,47,110,.1)',fill:true,tension:.3,pointRadius:3}]);
+  // Barras motos solicitadas y vendidas
+  function bars(data,color){const mx=Math.max(...data.map(d=>d.v),1);return data.map(d=>`<div class="br"><span class="bl" title="${d.k}">${d.k}</span><div class="bt"><div class="bf" style="width:${Math.round(d.v/mx*100)}%;background:${color}"></div></div><span class="bv">${d.v}</span></div>`).join('');}
+  const linMap={};arr.forEach(l=>linMap[l.linea||'Otra']=(linMap[l.linea||'Otra']||0)+1);
+  const linVMap={};arr.filter(l=>l.est==='VENTA').forEach(l=>linVMap[l.linea||'Otra']=(linVMap[l.linea||'Otra']||0)+1);
+  const linEl=document.getElementById('ap-rep-linea');
+  if(linEl)linEl.innerHTML=bars(Object.entries(linMap).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v).slice(0,10),'#1B2F6E');
+  const linVEl=document.getElementById('ap-rep-linea-venta');
+  if(linVEl)linVEl.innerHTML=bars(Object.entries(linVMap).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v).slice(0,10),'#4CAF50');
+  // Tabla ranking agencias
+  const rankEl=document.getElementById('ap-rep-rank');
+  if(rankEl)rankEl.innerHTML=agKeys.map(ag=>{
+    const t=agMap[ag]||0,c=agCita[ag]||0,p=agProc[ag]||0,v=agVenta[ag]||0,s=agSeg[ag]||0,pp=t>0?Math.round(v/t*100):0;
+    return `<tr><td style="font-weight:700;color:var(--navy)">${ag}</td><td>${t}</td><td>${c}</td><td>${p}</td><td style="color:#1B5E20;font-weight:700">${v}</td><td>${s}</td><td style="font-weight:700;color:${pp>=30?'#1B5E20':'var(--red)'}">${pp}%</td></tr>`;
+  }).join('');
+}
 // NAV
-const TAB_LABELS={dashboard:'Dashboard',leads:'Leads',pipeline:'Pipeline',recordatorios:'Recordatorios',reportes:'Reportes',usuarios:'Usuarios',importar:'Importar / Vincular',storage:'Gestión de datos',perfil:'Mi Perfil'};
+const TAB_LABELS={dashboard:'Dashboard',leads:'Leads',pipeline:'Pipeline',recordatorios:'Recordatorios',reportes:'Reportes',ap_reportes:'Reportes Canal AP',usuarios:'Usuarios',importar:'Importar / Vincular',storage:'Gestión de datos',perfil:'Mi Perfil'};
 function goTab(name,btn){
   if(['usuarios','importar','storage'].includes(name)&&!isAdmin()){toast('Acceso restringido');return;}
+  if(isAP()&&!['ap_reportes','perfil'].includes(name)){toast('Acceso restringido');return;}
   if(name!=='leads'&&bulkMode)exitBulk();
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.ni').forEach(b=>b.classList.remove('active'));
@@ -1835,11 +1960,12 @@ function goTab(name,btn){
   else if(name==='recordatorios')renderRecordatorios();
   else if(name==='importar'){renderImpHist();updateStorageInfo();}
   else if(name==='storage')renderDataManager();
+  else if(name==='ap_reportes')renderAPReportes();
   closeSB();document.getElementById('mmenu').classList.remove('open');
 }
 function openM(id){document.getElementById(id).classList.add('open');}
 function closeM(id){document.getElementById(id).classList.remove('open');}
-function renderAll(){renderLeads();renderPipeline();renderDashboard();renderRecordatorios();if(isPriv()){renderReportes();renderUsers();}}
+function renderAll(){renderLeads();renderPipeline();renderDashboard();renderRecordatorios();if(isPriv()){renderReportes();renderUsers();}if(isAP())renderAPReportes();}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2700);}
 function checkMobile(){const m=window.innerWidth<900;document.getElementById('menu-btn').style.display=m?'flex':'none';}
 window.addEventListener('resize',checkMobile);
