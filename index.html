@@ -1407,9 +1407,19 @@ function toggleCanalCita(){
   if(fg)fg.style.display=(document.getElementById('lf-est')?.value==='CITA')?'':'none';
 }
 function openAddAgencia(){
+  if(document.getElementById('m-addagen'))return;
   const div=document.createElement('div');div.id='m-addagen';div.className='ov';
-  div.innerHTML='<div class="mo msm" style="max-width:320px"><div class="mh"><span class="mt2">🏢 Nueva Agencia</span><button class="xb" onclick="document.getElementById('m-addagen').remove()">×</button></div><div class="mb2"><div class="fg"><label class="fl">Nombre *</label><input class="fc" id="new-agencia-name" placeholder="TVS NUEVA AGENCIA" style="text-transform:uppercase"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem"><button class="btn bo" onclick="document.getElementById('m-addagen').remove()">Cancelar</button><button class="btn bp" onclick="guardarNuevaAgencia()">Guardar</button></div></div></div>';
-  document.body.appendChild(div);div.classList.add('open');setTimeout(()=>document.getElementById('new-agencia-name')?.focus(),100);
+  const mo=document.createElement('div');mo.className='mo msm';mo.style.maxWidth='320px';
+  const header=document.createElement('div');header.className='mh';
+  header.innerHTML='<span class="mt2">🏢 Nueva Agencia</span>';
+  const xb=document.createElement('button');xb.className='xb';xb.textContent='×';
+  xb.onclick=()=>div.remove();header.appendChild(xb);
+  const body=document.createElement('div');body.className='mb2';
+  body.innerHTML='<div class="fg"><label class="fl">Nombre *</label><input class="fc" id="new-agencia-name" placeholder="TVS NUEVA AGENCIA" style="text-transform:uppercase"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem"><button class="btn bo" id="btn-cancel-agen">Cancelar</button><button class="btn bp" onclick="guardarNuevaAgencia()">Guardar</button></div>';
+  mo.appendChild(header);mo.appendChild(body);div.appendChild(mo);
+  document.body.appendChild(div);div.classList.add('open');
+  document.getElementById('btn-cancel-agen').onclick=()=>div.remove();
+  setTimeout(()=>document.getElementById('new-agencia-name')?.focus(),100);
 }
 function guardarNuevaAgencia(){
   const nombre=document.getElementById('new-agencia-name')?.value?.trim().toUpperCase();
