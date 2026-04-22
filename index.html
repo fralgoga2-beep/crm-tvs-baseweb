@@ -550,7 +550,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <input class="fc" id="q-s" placeholder="Buscar nombre o teléfono..." oninput="renderLeads()" style="flex:1;min-width:150px;max-width:200px">
     <select class="fc" id="q-est" onchange="renderLeads()" style="flex:1;min-width:110px;max-width:135px"><option value="">Todos estados</option><option>PROCESO</option><option>VENTA</option><option>PERDIDO</option><option>SEGUIMIENTO</option><option>PENDIENTE</option><option>CITA</option><option>NUEVO</option><option>PRECALIFICADO</option></select>
     <select class="fc" id="q-ori" onchange="renderLeads()" style="flex:1;min-width:110px;max-width:130px"><option value="">Todos orígenes</option><option>Pauta</option><option>Hubspot</option><option>Call Bell</option><option>Extra Leads</option><option>Pagina Web</option><option>Otro</option></select>
-    <select class="fc" id="q-tp" onchange="renderLeads()" style="flex:1;min-width:110px;max-width:130px"><option value="">Tipo pago</option><option>Contado</option><option>Visa Cuotas</option><option>Crédito</option><option>Otro</option></select>
+    <select class="fc" id="q-tp" onchange="renderLeads()" style="flex:1;min-width:110px;max-width:130px"><option value="">Tipo pago</option><option>Pendiente</option><option>Contado</option><option>Visa Cuotas</option><option>Crédito</option><option>Otro</option></select>
     <select class="fc admin-sup" id="q-ase" onchange="renderLeads()" style="flex:1;min-width:120px;max-width:150px"><option value="">Todos asesores</option><option value="__unassigned__">— Sin asignar —</option></select>
     <select class="fc" id="q-mes" onchange="resetAndRender()" style="flex:1;min-width:100px;max-width:115px">
       <option value="">Todos meses</option>
@@ -844,10 +844,10 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <div class="mh"><span class="mt2" id="ml-title">Nuevo Lead</span><button class="xb" onclick="closeM('m-lead')">×</button></div>
     <div class="mb2">
       <div class="fr"><div class="fg"><label class="fl">Nombre Lead *</label><input class="fc" id="lf-nom" placeholder="Nombre completo" autocapitalize="words"></div><div class="fg"><label class="fl">Teléfono</label><input class="fc" id="lf-tel" type="tel" placeholder="50241515494"></div></div>
-      <div class="fr"><div class="fg"><label class="fl">Origen</label><select class="fc" id="lf-ori"><option>Pauta</option><option>Hubspot</option><option>Call Bell</option><option>Extra Leads</option><option>Pagina Web</option><option>Otro</option></select></div><div class="fg"><label class="fl">Tipo de Pago</label><select class="fc" id="lf-tp"><option>Contado</option><option>Visa Cuotas</option><option>Crédito</option><option>Otro</option></select></div></div>
+      <div class="fr"><div class="fg"><label class="fl">Origen</label><select class="fc" id="lf-ori"><option>Pauta</option><option>Hubspot</option><option>Call Bell</option><option>Extra Leads</option><option>Pagina Web</option><option>Otro</option></select></div><div class="fg"><label class="fl">Tipo de Pago</label><select class="fc" id="lf-tp"><option>Pendiente</option><option>Contado</option><option>Visa Cuotas</option><option>Crédito</option><option>Otro</option></select></div></div>
       <div class="fr"><div class="fg"><label class="fl">Línea de Interés</label>
         <select class="fc" id="lf-lin"><option>APACHE RTR 160 2V REF</option><option>APACHE RTR 160 4V</option><option>APACHE RTR 160 4V RM</option><option>APACHE RTR 180</option><option>APACHE RTR 200 4V</option><option>APACHE RTR 200 FI</option><option>APACHE RR310</option><option>APACHE RTR 310</option><option>APACHE RTR 310 E5</option><option>RAIDER 125</option><option>RAIDER 125 FI</option><option>RONIN 225</option><option>NEO 110 NX</option><option>DAZZ CW</option><option>NTORQ 125</option><option>NTORQ 125 RACE</option><option>JUPITER 125 FI (NUEVO MODELO)</option><option>STRYKER 125</option><option>HLX 150</option><option>HLX 125</option><option>ZT 125</option><option>SPORT 100 ELS</option><option>KING DELUXE (BLUETOOTH)</option><option>KING DELUXE PLUS</option><option>KING DURAMAX</option><option>KING KARGO</option></select>
-      </div><div class="fg"><label class="fl" style="display:flex;justify-content:space-between;align-items:center">Ubicación / Agencia <span id="btn-add-agencia" onclick="openAddAgencia()" style="cursor:pointer;font-size:10px;color:var(--navy);font-weight:700;text-decoration:underline;display:none">+ Nueva agencia</span></label>
+      </div><div class="fg"><label class="fl" style="display:flex;justify-content:space-between;align-items:center">Ubicación / Agencia <span style="display:flex;gap:8px;align-items:center"><span id="btn-add-agencia" onclick="openAddAgencia()" style="cursor:pointer;font-size:10px;color:var(--navy);font-weight:700;text-decoration:underline;display:none">+ Nueva agencia</span><span id="btn-del-agencia" onclick="openDelAgencia()" style="cursor:pointer;font-size:10px;color:#dc2626;font-weight:700;text-decoration:underline;display:none">− Eliminar agencia</span></span></label>
 <select class="fc" id="lf-ubi"><option value="">— Seleccionar agencia —</option></select>
 </div></div>
       <div class="fr"><div class="fg"><label class="fl">Fecha Actividad</label><input class="fc" type="date" id="lf-fa"></div><div class="fg"><label class="fl">Fecha Actualización</label><input class="fc" type="date" id="lf-fu"></div></div>
@@ -918,7 +918,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
 // CONSTANTS
 // ═══════════════════════════════════════
 const ESTADOS=['PROCESO','VENTA','PERDIDO','SEGUIMIENTO','PENDIENTE','CITA','NUEVO','PRECALIFICADO'];
-const TIPOS_PAGO=['Contado','Visa Cuotas','Crédito','Otro'];
+const TIPOS_PAGO=['Pendiente','Contado','Visa Cuotas','Crédito','Otro'];
 const CANALES_CITA=['AP','HT','AC'];
 let AGENCIAS_LIST=JSON.parse(localStorage.getItem('tvs8_agencias')||JSON.stringify(["HT BARBERENA", "HT AMATITLÁN", "HT TIQUISATE", "HT PLAZA TECA", "HT SAN PEDRO SAC", "HT SANTA ELENA PETEN", "HT HUEHUETENANGO", "HT JALAPA", "HT MAZATENANGO", "HT MALACATAN", "HT CHIQUIMULA", "HT ATLANTIDA", "HT ESCUINTLA", "HT PUERTO SAN JOSE", "HT SANTA LUCIA", "HT CHIMALTENANGO", "HT GOMERA", "HT ESQUIPULAS", "HT POPTUN", "HT LA LIBERTAD", "HT PRADERA EXPS V.N.", "HT EL CASTAÑO", "HT PETAPA", "HT TECULUTAN", "HT JUTIAPA", "HT SALAMA", "HT COBAN", "HT SAYAXCHE", "HT LOS AMATES", "HT SAN ANTONIO SUCHI", "HT QUETZALTENANGO", "HT COATEPEQUE", "HT PUERTO BARRIOS", "HT GUASTATOYA", "HT MORALES", "HT RETALHULEU", "HT NVA. CONCEPCION", "HT QUICHE", "HT NEBAJ", "AP ZONA KING COBAN", "CENTRAL YURRITA", "TVS 6TA AV ZONA 9", "TVS AMATITLAN", "TVS BARCENAS", "TVS CALLE MARTI", "TVS CHIMALTENANGO", "TVS CHIQUIMULA", "TVS COATEPEQUE", "TVS EL CASTAÑO", "TVS ESCUINTLA", "TVS ESKALA", "TVS JALAPA", "TVS LOS ALAMOS", "TVS METRO NORTE", "TVS QUETZALTENANGO", "TVS RETALHULEU", "TVS SANARATE", "TVS VILLA CANALES"]));
 function saveAgencias(){localStorage.setItem('tvs8_agencias',JSON.stringify(AGENCIAS_LIST));}
@@ -1486,6 +1486,7 @@ function populateUbi(val){
   const sel=document.getElementById('lf-ubi');if(!sel)return;
   sel.innerHTML='<option value="">— Seleccionar agencia —</option>'+AGENCIAS_LIST.map(a=>'<option '+(a===val?'selected':'')+'>'+a+'</option>').join('');
   const btn=document.getElementById('btn-add-agencia');if(btn)btn.style.display=isAdmin()?'inline':'none';
+  const btnD=document.getElementById('btn-del-agencia');if(btnD)btnD.style.display=isAdmin()?'inline':'none';
 }
 function toggleCanalCita(){
   const fg=document.getElementById('fg-canal-cita');
@@ -1513,9 +1514,36 @@ function guardarNuevaAgencia(){
   AGENCIAS_LIST.push(nombre);saveAgencias();populateUbi(document.getElementById('lf-ubi')?.value||'');
   document.getElementById('m-addagen')?.remove();toast('Agencia agregada ✓');
 }
+function openDelAgencia(){
+  if(document.getElementById('m-delagen'))return;
+  const div=document.createElement('div');div.id='m-delagen';div.className='ov';
+  const mo=document.createElement('div');mo.className='mo msm';mo.style.maxWidth='340px';
+  const header=document.createElement('div');header.className='mh';
+  header.innerHTML='<span class="mt2">🗑 Eliminar Agencia</span>';
+  const xb=document.createElement('button');xb.className='xb';xb.textContent='×';
+  xb.onclick=()=>div.remove();header.appendChild(xb);
+  const body=document.createElement('div');body.className='mb2';
+  const opts=AGENCIAS_LIST.map((a,i)=>`<option value="${i}">${a}</option>`).join('');
+  body.innerHTML=`<div class="fg"><label class="fl">Seleccionar agencia a eliminar</label><select class="fc" id="del-agencia-sel"><option value="">— Seleccionar —</option>${opts}</select></div><p style="font-size:12px;color:#dc2626;margin-top:8px">⚠️ Los leads que tengan esta agencia no se borran, solo se elimina de la lista.</p><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem"><button class="btn bo" id="btn-cancel-delgen">Cancelar</button><button class="btn" style="background:#dc2626;color:#fff" onclick="confirmarDelAgencia()">Eliminar</button></div>`;
+  mo.appendChild(header);mo.appendChild(body);div.appendChild(mo);
+  document.body.appendChild(div);div.classList.add('open');
+  document.getElementById('btn-cancel-delgen').onclick=()=>div.remove();
+}
+function confirmarDelAgencia(){
+  const sel=document.getElementById('del-agencia-sel');
+  if(!sel||sel.value===''){toast('Selecciona una agencia');return;}
+  const idx=parseInt(sel.value);
+  const nombre=AGENCIAS_LIST[idx];
+  if(!confirm(`¿Eliminar "${nombre}" de la lista de agencias?`))return;
+  AGENCIAS_LIST.splice(idx,1);
+  saveAgencias();
+  populateUbi(document.getElementById('lf-ubi')?.value||'');
+  document.getElementById('m-delagen')?.remove();
+  toast(`Agencia "${nombre}" eliminada ✓`);
+}
 function openLM(id){
   editL=id;
-  if(id){const l=leads.find(x=>x.id===id);document.getElementById('ml-title').textContent='Editar Lead';document.getElementById('lf-btn').textContent='Guardar cambios';document.getElementById('lf-nom').value=l.nom;document.getElementById('lf-tel').value=l.tel;document.getElementById('lf-ori').value=l.ori;document.getElementById('lf-tp').value=l.tp||'Contado';document.getElementById('lf-lin').value=l.linea;populateUbi(l.ubi||'');toggleCanalCita();const _cc=document.getElementById('lf-canal-cita');if(_cc)_cc.value=l.canal_cita||'';document.getElementById('lf-est').value=l.est;document.getElementById('lf-fa').value=l.fa||'';document.getElementById('lf-fu').value=l.fu||'';document.getElementById('lf-rd').value=l.reminder?.date||'';document.getElementById('lf-rt').value=l.reminder?.time||'09:00';document.getElementById('lf-rn').value=l.reminder?.note||'';document.getElementById('lf-com').value='';const af=document.getElementById('lf-ase');if(af)af.value=l.uid||'';}
+  if(id){const l=leads.find(x=>x.id===id);document.getElementById('ml-title').textContent='Editar Lead';document.getElementById('lf-btn').textContent='Guardar cambios';document.getElementById('lf-nom').value=l.nom;document.getElementById('lf-tel').value=l.tel;document.getElementById('lf-ori').value=l.ori;document.getElementById('lf-tp').value=l.tp||'Pendiente';document.getElementById('lf-lin').value=l.linea;populateUbi(l.ubi||'');toggleCanalCita();const _cc=document.getElementById('lf-canal-cita');if(_cc)_cc.value=l.canal_cita||'';document.getElementById('lf-est').value=l.est;document.getElementById('lf-fa').value=l.fa||'';document.getElementById('lf-fu').value=l.fu||'';document.getElementById('lf-rd').value=l.reminder?.date||'';document.getElementById('lf-rt').value=l.reminder?.time||'09:00';document.getElementById('lf-rn').value=l.reminder?.note||'';document.getElementById('lf-com').value='';const af=document.getElementById('lf-ase');if(af)af.value=l.uid||'';}
   else{document.getElementById('ml-title').textContent='Nuevo Lead';document.getElementById('lf-btn').textContent='Guardar Lead';['lf-nom','lf-tel','lf-com','lf-rd','lf-rn'].forEach(i=>document.getElementById(i).value='');document.getElementById('lf-fa').value=today();document.getElementById('lf-fu').value=today();populateUbi('');document.getElementById('lf-rt').value='09:00';const af=document.getElementById('lf-ase');if(af)af.value=isPriv()?'':String(CU.id);}
   openM('m-lead');
 }
@@ -1859,7 +1887,7 @@ function bulkEst(){const est=document.getElementById('blk-est').value;if(!est){t
 
 // IMPORT / EXPORT
 function parseCSV(text){const rows=[];const lines=text.split(/\r?\n/);const firstLine=lines.find(l=>l.trim())||'';const sep=(firstLine.split(';').length>firstLine.split(',').length)?';':',';for(const ln of lines){if(!ln.trim())continue;const cols=[];let cur='',inQ=false;for(let i=0;i<ln.length;i++){if(ln[i]==='"'&&ln[i+1]==='"'){cur+='"';i++;}else if(ln[i]==='"'){inQ=!inQ;}else if(ln[i]===sep&&!inQ){cols.push(cur.trim());cur='';}else cur+=ln[i];}cols.push(cur.trim());rows.push(cols);}return rows;}
-function importRows(rows){if(!rows||rows.length<2)return 0;const h=rows[0].map(c=>(c||'').toLowerCase().replace(/[^a-záéíóúüñ_\s]/gi,'').trim());const fi=(...ks)=>{for(const k of ks){const i=h.findIndex(c=>c.includes(k.toLowerCase()));if(i>=0)return i;}return -1;};const iOri=fi('origen'),iFa=fi('fecha_act','fecha act','fecha_actividad'),iFu=fi('fecha_upd','fecha actual','fecha_act'),iEst=fi('estado'),iTp=fi('tipo','pago'),iLin=fi('linea','l nea','modelo'),iUbi=fi('ubic'),iNom=fi('nombre_lead','nombre lead','nombre'),iTel=fi('tel','phone'),iAse=fi('asesor'),iCom=fi('comentar','observ','nota');if(iNom<0)return -1;let added=0;const newLeads=[];for(let i=1;i<rows.length;i++){const r=rows[i];if(!r[iNom]||!r[iNom].trim())continue;const nom=r[iNom].trim(),tel=(r[iTel]||'').trim();if(leads.find(l=>l.nom.trim().toLowerCase()===nom.toLowerCase()&&l.tel===tel))continue;const anom=(r[iAse]||'').trim(),u=anom?users.find(x=>x.leadsname?.trim().toLowerCase()===anom.toLowerCase()):null;const comTxt=(r[iCom]||'').trim();const nl={id:nlid++,ori:(r[iOri]||'Otro').trim(),fa:(r[iFa]||'').trim(),fu:(r[iFu]||today()),est:((r[iEst]||'PROCESO').trim()).toUpperCase(),tp:((r[iTp]||'').trim()||'Otro'),linea:(r[iLin]||'Otra').trim(),ubi:(r[iUbi]||'').trim(),nom,tel,uid:u?u.id:null,anom,notas:comTxt?[{txt:comTxt,by:'Importación',ts:new Date().toLocaleString()}]:[],reminder:null};leads.push(nl);newLeads.push(nl);added++;}if(useCloud&&window._fb.isReady()&&newLeads.length>0){setSyncStatus('syncing');Promise.all(newLeads.map(l=>window._fb.saveLeadCloud(l))).then(()=>setSyncStatus('ok'));}return added;}
+function importRows(rows){if(!rows||rows.length<2)return 0;const h=rows[0].map(c=>(c||'').toLowerCase().replace(/[^a-záéíóúüñ_\s]/gi,'').trim());const fi=(...ks)=>{for(const k of ks){const i=h.findIndex(c=>c.includes(k.toLowerCase()));if(i>=0)return i;}return -1;};const iOri=fi('origen'),iFa=fi('fecha_act','fecha act','fecha_actividad'),iFu=fi('fecha_upd','fecha actual','fecha_act'),iEst=fi('estado'),iTp=fi('tipo','pago'),iLin=fi('linea','l nea','modelo'),iUbi=fi('ubic'),iNom=fi('nombre_lead','nombre lead','nombre'),iTel=fi('tel','phone'),iAse=fi('asesor'),iCom=fi('comentar','observ','nota');if(iNom<0)return -1;let added=0;const newLeads=[];for(let i=1;i<rows.length;i++){const r=rows[i];if(!r[iNom]||!r[iNom].trim())continue;const nom=r[iNom].trim(),tel=(r[iTel]||'').trim();if(leads.find(l=>l.nom.trim().toLowerCase()===nom.toLowerCase()&&l.tel===tel))continue;const anom=(r[iAse]||'').trim(),u=anom?users.find(x=>x.leadsname?.trim().toLowerCase()===anom.toLowerCase()):null;const comTxt=(r[iCom]||'').trim();const nl={id:nlid++,ori:(r[iOri]||'Otro').trim(),fa:(r[iFa]||'').trim(),fu:(r[iFu]||today()),est:((r[iEst]||'PROCESO').trim()).toUpperCase(),tp:((r[iTp]||'').trim()||'Pendiente'),linea:(r[iLin]||'Otra').trim(),ubi:(r[iUbi]||'').trim(),nom,tel,uid:u?u.id:null,anom,notas:comTxt?[{txt:comTxt,by:'Importación',ts:new Date().toLocaleString()}]:[],reminder:null};leads.push(nl);newLeads.push(nl);added++;}if(useCloud&&window._fb.isReady()&&newLeads.length>0){setSyncStatus('syncing');Promise.all(newLeads.map(l=>window._fb.saveLeadCloud(l))).then(()=>setSyncStatus('ok'));}return added;}
 function handleDrop(e){const f=e.dataTransfer.files[0];if(f)procFile(f);}
 function handleFileImport(e){const f=e.target.files[0];if(f)procFile(f);}
 function procFile(file){const n=file.name.toLowerCase();if(n.endsWith('.csv')||n.endsWith('.txt')){const r=new FileReader();r.onload=ev=>{showPrev(parseCSV(ev.target.result),file.name);};r.readAsText(file,'UTF-8');}else if(n.endsWith('.xlsx')||n.endsWith('.xls')){if(typeof XLSX==='undefined'){toast('Cargando...');return;}const r=new FileReader();r.onload=ev=>{try{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];showPrev(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),file.name);}catch(e){toast('Error: '+e.message);}};r.readAsArrayBuffer(file);}else toast('Usa CSV o Excel');}
