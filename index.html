@@ -66,8 +66,7 @@ window._fb = {
   async saveUserCloud(user) {
     if(!fbDb) return;
     try {
-      const safe = { ...user }; delete safe.pass; // never store passwords in cloud
-      await setDoc(doc(fbDb, 'crm_users', String(user.id)), { ...safe, _ts: serverTimestamp() });
+      await setDoc(doc(fbDb, 'crm_users', String(user.id)), { ...user, _ts: serverTimestamp() });
     } catch(e) { console.warn('saveUserCloud:', e); }
   },
   async deleteUserCloud(id) {
@@ -1075,19 +1074,29 @@ function initRealtimeSync(){
   setSyncStatus('syncing');
   // Listen leads
   window._fb.listenLeads(cloudLeads=>{
-    if(savingLead)return; // esperar a que termine el guardado
     if(cloudLeads.length>0||realtimeActive){
+      if(!realtimeActive){
+        leads=[...cloudLeads].sort((a,b)=>b.id-a.id);
+      } else {
+        const cloudMap=new Map(cloudLeads.map(l=>[l.id,l]));
+        const localMap=new Map(leads.map(l=>[l.id,l]));
+        const localOnly=leads.filter(l=>!cloudMap.has(l.id));
+        const merged=cloudLeads.map(cl=>{
+          const local=localMap.get(cl.id);
+          if(savingLead&&local)return local;
+          return cl;
+        });
+        leads=[...merged,...localOnly].sort((a,b)=>b.id-a.id);
+      }
       const cloudIds=new Set(cloudLeads.map(l=>l.id));
-      const localOnly=leads.filter(l=>!cloudIds.has(l.id));
-      leads=[...cloudLeads,...localOnly].sort((a,b)=>b.id-a.id);
-      if(localOnly.length>0)Promise.all(localOnly.map(l=>window._fb.saveLeadCloud(l))).catch(()=>{});
+      const localOnly2=leads.filter(l=>!cloudIds.has(l.id));
+      if(localOnly2.length>0)Promise.all(localOnly2.map(l=>window._fb.saveLeadCloud(l))).catch(()=>{});
       const maxId=leads.reduce((m,l)=>Math.max(m,l.id),nlid);if(maxId>=nlid)nlid=maxId+1;
       lsS('tvs8_leads_bk',leads.slice(0,500));
       if(CU)renderAll();
       setSyncStatus('ok');
       realtimeActive=true;
     } else {
-      // First run, push local data to cloud
       window._fb.saveAllLeads(leads);
       setSyncStatus('ok');
       realtimeActive=true;
@@ -1099,7 +1108,7 @@ function initRealtimeSync(){
       // Merge: keep local passwords, update rest from cloud
       cloudUsers.forEach(cu=>{
         const localU=users.find(u=>u.id===cu.id);
-        if(localU){Object.assign(localU,cu,{pass:localU.pass});}
+        if(localU){Object.assign(localU,cu,{pass:localU.pass||cu.pass||'tvs2025'});}
         else{users.push({...cu,pass:'tvs2025'});}
       });
       users=users.filter(u=>cloudUsers.find(cu=>cu.id===u.id)||u.id<=8);
@@ -1156,10 +1165,25 @@ function updateStorageInfo(){
 // ═══════════════════════════════════════
 // AUTH
 // ═══════════════════════════════════════
-function doLogin(){
+async function doLogin(){
   const u=document.getElementById('lu').value.trim(),p=document.getElementById('lp').value;
+  // 1) Buscar en usuarios locales y DEF_USERS
   let f=users.find(x=>x.user===u&&x.pass===p);
   if(!f)f=DEF_USERS.find(x=>x.user===u&&x.pass===p);
+  // 2) Si no encontró y hay Firebase, intentar cargar usuarios de la nube primero
+  if(!f&&useCloud&&window._fb.isReady()){
+    try{
+      const pulled=await window._fb.pullAll();
+      if(pulled&&pulled.users){
+        pulled.users.forEach(cu=>{
+          const local=users.find(x=>x.id===cu.id);
+          if(!local)users.push({...cu,pass:cu.pass||'tvs2025'});
+          else Object.assign(local,cu,{pass:local.pass});
+        });
+      }
+      f=users.find(x=>x.user===u&&x.pass===p);
+    }catch(e){console.warn('cloud user fetch failed',e);}
+  }
   if(!f){document.getElementById('lerr').style.display='block';return;}
   if(!users.find(x=>x.id===f.id))users.push(f);
   document.getElementById('lerr').style.display='none';CU=f;
