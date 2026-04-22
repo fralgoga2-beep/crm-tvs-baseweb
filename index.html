@@ -1557,9 +1557,22 @@ function descargarDashboard(){
   const html=parts.join('');
   const bl=new Blob([html],{type:'text/html;charset=utf-8'});
   const u=URL.createObjectURL(bl);
-  const a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener';
-  document.body.appendChild(a);a.click();
-  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(u);},1000);
+  // Abrir ventana sincrónicamente para evitar bloqueo de popups
+  const win=window.open('','_blank');
+  if(win){
+    win.document.write(html);
+    win.document.close();
+    setTimeout(()=>URL.revokeObjectURL(u),2000);
+  } else {
+    // Fallback: descarga directa si el popup fue bloqueado
+    const a=document.createElement('a');
+    a.href=u;
+    a.download='dashboard-tvs-'+new Date().toISOString().split('T')[0]+'.html';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(u);},1500);
+    toast('Dashboard descargado — abre el archivo .html en tu navegador');
+  }
 }
 
 function renderUsers(){
