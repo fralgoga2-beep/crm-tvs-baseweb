@@ -791,7 +791,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   <div class="danger-zone">
     <div class="danger-hd">⚠️ Zona de peligro</div>
     <div class="dm-body">
-      <div class="dm-row" style="border:2px solid #F47920;border-radius:8px;padding:8px 12px;background:#fff8f3"><div><div class="dm-label" style="color:#F47920;font-weight:700">🗓 Conservar solo leads del 21 y 22 de abril</div><div class="dm-sub">Elimina todos los leads EXCEPTO los ingresados el 21/04/26 y 22/04/26. Esta acción no se puede deshacer.</div></div><button class="btn bsm" style="background:#F47920;color:#fff;font-weight:700" onclick="delExceptDate()">🗓 Ejecutar</button></div>
+      <div class="dm-row" style="border:2px solid #F47920;border-radius:8px;padding:8px 12px;background:#fff8f3"><div><div class="dm-label" style="color:#F47920;font-weight:700">🗓 Conservar solo leads de Abril 2026</div><div class="dm-sub">Elimina todos los leads EXCEPTO los de abril 2026. Esta acción no se puede deshacer.</div></div><button class="btn bsm" style="background:#F47920;color:#fff;font-weight:700" onclick="delExceptDate()">🗓 Ejecutar</button></div>
       <div class="dm-row"><div><div class="dm-label">Eliminar TODOS los leads</div><div class="dm-sub">Usuarios y config se mantienen.</div></div><button class="btn bd bsm" onclick="delAllLeads()">⚠️ Borrar todos</button></div>
       <div class="dm-row"><div><div class="dm-label">Reset total del CRM</div><div class="dm-sub">Borra TODO en la nube: leads, usuarios extra, config.</div></div><button class="btn bd bsm" onclick="fullReset()">💣 Reset total</button></div>
     </div>
@@ -1013,6 +1013,7 @@ let CU=null, editL=null, editU=null, assignU=null, passU=null, remL=null;
 let bulkMode=false, selIds=new Set(), remFilter='all', pendRows=[], autoTimer=null;
 let useCloud=false, syncStatus='off'; // 'off'|'ok'|'syncing'|'err'
 let realtimeActive=false;
+let savingLead=false; // bloquea listener mientras se guarda un lead
 
 // Load local backup first, then cloud overwrites
 const localLeads=lsG('tvs8_leads_bk',null);
@@ -1074,6 +1075,7 @@ function initRealtimeSync(){
   setSyncStatus('syncing');
   // Listen leads
   window._fb.listenLeads(cloudLeads=>{
+    if(savingLead)return; // esperar a que termine el guardado
     if(cloudLeads.length>0||realtimeActive){
       const cloudIds=new Set(cloudLeads.map(l=>l.id));
       const localOnly=leads.filter(l=>!cloudIds.has(l.id));
@@ -1503,7 +1505,7 @@ function saveLead(){
   let savedLead;
   if(editL){const i=leads.findIndex(x=>x.id===editL);const ex=leads[i];if(comTxt)ex.notas=[...(ex.notas||[]),{txt:comTxt,by:CU.nombre,ts:new Date().toLocaleString()}];leads[i]={...ex,...data,notas:ex.notas};savedLead=leads[i];toast('Lead actualizado ✓');}
   else{const notas=comTxt?[{txt:comTxt,by:CU.nombre,ts:new Date().toLocaleString()}]:[];savedLead={id:nlid++,...data,notas};leads.unshift(savedLead);toast('Lead guardado ✓');}
-  closeM('m-lead');persist();cloudSaveLead(savedLead);cloudSaveMeta();renderAll();
+  closeM('m-lead');persist();savingLead=true;cloudSaveLead(savedLead).then(()=>{setTimeout(()=>{savingLead=false;},2000);}).catch(()=>{savingLead=false;});cloudSaveMeta();renderAll();
 }
 function delLead(id){if(!confirm('¿Eliminar este lead?'))return;leads=leads.filter(x=>x.id!==id);persist();cloudDelLead(id);closeM('m-det');renderAll();toast('Lead eliminado');}
 
@@ -1873,11 +1875,13 @@ async function delDups(){const dups=findDups();if(dups.length===0){toast('Sin du
 async function delUnassigned(){const arr=leads.filter(l=>!l.uid);if(arr.length===0){toast('Sin leads sin asesor');return;}if(!confirm(`¿Eliminar ${arr.length} leads sin asesor?`))return;const ids=arr.map(l=>l.id);leads=leads.filter(l=>!!l.uid);if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all(ids.map(id=>window._fb.deleteLeadCloud(id)));setSyncStatus('ok');}persist();renderAll();renderDataManager();toast(`${arr.length} eliminados ✓`);}
 function clearImpHistAdmin(){if(!confirm('¿Limpiar historial?'))return;impHist=[];persist();renderImpHist();renderDataManager();toast('Historial borrado ✓');}
 async function delExceptDate(){
-  const fechasConservar=['21/04/26','22/04/26'];
-  const aConservar=leads.filter(l=>fechasConservar.includes((l.fa||'').trim()));
-  const aEliminar=leads.filter(l=>!fechasConservar.includes((l.fa||'').trim()));
+  const aConservar=leads.filter(l=>(l.fa||'').startsWith('2026-04'));
+  const aEliminar=leads.filter(l=>!(l.fa||'').startsWith('2026-04'));
   if(aEliminar.length===0){toast('No hay leads para eliminar');return;}
-  const conf=prompt(`Se conservarán ${aConservar.length} leads del 21 y 22 de abril.\nSe eliminarán ${aEliminar.length} leads de otras fechas.\n\nEscribe CONFIRMAR para continuar:`);
+  const conf=prompt(`Se conservarán ${aConservar.length} leads de abril 2026.
+Se eliminarán ${aEliminar.length} leads de otros meses.
+
+Escribe CONFIRMAR para continuar:`);
   if(conf!=='CONFIRMAR'){toast('Cancelado');return;}
   const ids=aEliminar.map(l=>l.id);
   leads=aConservar;
@@ -1890,7 +1894,7 @@ async function delExceptDate(){
     setSyncStatus('ok');
   }
   persist();exitBulk();renderAll();renderDataManager();
-  toast(`✓ ${aEliminar.length} leads eliminados. Conservados: ${aConservar.length}`);
+  toast(`✓ ${aEliminar.length} eliminados. Conservados: ${aConservar.length}`);
 }
 async function delAllLeads(){if(leads.length===0){toast('Sin leads');return;}const conf=prompt(`¿Eliminar TODOS los ${leads.length} leads?\nEscribe CONFIRMAR:`);if(conf!=='CONFIRMAR'){toast('Cancelado');return;}const ids=leads.map(l=>l.id);leads=[];nlid=1;if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all(ids.map(id=>window._fb.deleteLeadCloud(id)));setSyncStatus('ok');}persist();exitBulk();renderAll();renderDataManager();toast('Todos los leads eliminados ✓');}
 async function fullReset(){const conf=prompt('Reset total: borrará TODO en la nube.\nEscribe RESET TOTAL:');if(conf!=='RESET TOTAL'){toast('Cancelado');return;}const lids=leads.map(l=>l.id),uids=users.filter(u=>u.id>1).map(u=>u.id);leads=[];users=[DEF_USERS[0]];impHist=[];driveConn={url:'',lastSync:null,autoSync:false};nuid=9;nlid=1;clearInterval(autoTimer);if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all([...lids.map(id=>window._fb.deleteLeadCloud(id)),...uids.map(id=>window._fb.deleteUserCloud(id))]);setSyncStatus('ok');}Object.keys(localStorage).filter(k=>k.startsWith('tvs8_')).forEach(k=>localStorage.removeItem(k));persist();exitBulk();populateSel();renderAll();renderDataManager();toast('CRM reseteado ✓');}
