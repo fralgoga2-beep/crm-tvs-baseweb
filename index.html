@@ -447,6 +447,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <span id="sync-mode-badge">☁️ Datos sincronizados entre dispositivos</span>
     </p>
     <button onclick="backToSetup()" style="background:none;border:none;color:#9AA3BC;font-size:11px;cursor:pointer;margin-top:8px">⚙️ Cambiar configuración</button>
+    <div style="font-size:10px;color:#9AA3BC;margin-top:12px;text-align:center">By Alejandro Galindo 2026</div>
   </div>
 </div>
 
@@ -480,6 +481,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   </div>
   <div class="sf">
     TVS Motos · CRM v8.0
+    <div style="font-size:9px;color:var(--mut);margin-top:2px;opacity:.7">By Alejandro Galindo 2026</div>
     <div id="sb-sync-badge" style="margin-top:5px;font-size:10px;color:rgba(76,175,80,.7)">☁️ Cargando...</div>
   </div>
 </aside>
@@ -547,18 +549,19 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <select class="fc" id="q-ori" onchange="renderLeads()" style="flex:1;min-width:110px;max-width:130px"><option value="">Todos orígenes</option><option>Pauta</option><option>Hubspot</option><option>Call Bell</option><option>Extra Leads</option><option>Pagina Web</option><option>Otro</option></select>
     <select class="fc" id="q-tp" onchange="renderLeads()" style="flex:1;min-width:110px;max-width:130px"><option value="">Tipo pago</option><option>Contado</option><option>Visa Cuotas</option><option>Crédito</option><option>Otro</option></select>
     <select class="fc admin-sup" id="q-ase" onchange="renderLeads()" style="flex:1;min-width:120px;max-width:150px"><option value="">Todos asesores</option><option value="__unassigned__">— Sin asignar —</option></select>
-    <select class="fc" id="q-mes" onchange="renderLeads()" style="flex:1;min-width:100px;max-width:115px">
+    <select class="fc" id="q-mes" onchange="resetAndRender()" style="flex:1;min-width:100px;max-width:115px">
       <option value="">Todos meses</option>
       <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
       <option value="04">Abril</option><option value="05">Mayo</option><option value="06">Junio</option>
       <option value="07">Julio</option><option value="08">Agosto</option><option value="09">Septiembre</option>
       <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
     </select>
-    <select class="fc" id="q-ano" onchange="renderLeads()" style="flex:1;min-width:88px;max-width:105px">
+    <select class="fc" id="q-ano" onchange="resetAndRender()" style="flex:1;min-width:88px;max-width:105px">
       <option value="">Todos años</option>
       <option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option>
     </select>
   </div>
+  <div id="leads-pagination" style="display:none"></div>
   <div class="card"><div class="tw"><table>
     <thead><tr>
       <th style="width:30px;padding:8px 4px 8px 10px"><input type="checkbox" id="chk-all" onchange="toggleAllChk(this)" style="width:14px;height:14px"></th>
@@ -790,14 +793,17 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <div class="fr"><div class="fg"><label class="fl">Origen</label><select class="fc" id="lf-ori"><option>Pauta</option><option>Hubspot</option><option>Call Bell</option><option>Extra Leads</option><option>Pagina Web</option><option>Otro</option></select></div><div class="fg"><label class="fl">Tipo de Pago</label><select class="fc" id="lf-tp"><option>Contado</option><option>Visa Cuotas</option><option>Crédito</option><option>Otro</option></select></div></div>
       <div class="fr"><div class="fg"><label class="fl">Línea de Interés</label>
         <select class="fc" id="lf-lin"><option>APACHE RTR 160 2V REF</option><option>APACHE RTR 160 4V</option><option>APACHE RTR 160 4V RM</option><option>APACHE RTR 180</option><option>APACHE RTR 200 4V</option><option>APACHE RTR 200 FI</option><option>APACHE RR310</option><option>APACHE RTR 310</option><option>APACHE RTR 310 E5</option><option>RAIDER 125</option><option>RAIDER 125 FI</option><option>RONIN 225</option><option>NEO 110 NX</option><option>DAZZ CW</option><option>NTORQ 125</option><option>NTORQ 125 RACE</option><option>JUPITER 125 FI (NUEVO MODELO)</option><option>STRYKER 125</option><option>HLX 150</option><option>HLX 125</option><option>ZT 125</option><option>SPORT 100 ELS</option><option>KING DELUXE (BLUETOOTH)</option><option>KING DELUXE PLUS</option><option>KING DURAMAX</option><option>KING KARGO</option></select>
-      </div><div class="fg"><label class="fl">Ubicación</label><input class="fc" id="lf-ubi" placeholder="Guatemala, Cobán..." autocapitalize="words"></div></div>
+      </div><div class="fg"><label class="fl" style="display:flex;justify-content:space-between;align-items:center">Ubicación / Agencia <span id="btn-add-agencia" onclick="openAddAgencia()" style="cursor:pointer;font-size:10px;color:var(--navy);font-weight:700;text-decoration:underline;display:none">+ Nueva agencia</span></label>
+<select class="fc" id="lf-ubi"><option value="">— Seleccionar agencia —</option></select>
+</div></div>
       <div class="fr"><div class="fg"><label class="fl">Fecha Actividad</label><input class="fc" type="date" id="lf-fa"></div><div class="fg"><label class="fl">Fecha Actualización</label><input class="fc" type="date" id="lf-fu"></div></div>
-      <div class="fr"><div class="fg"><label class="fl">Estado</label><select class="fc" id="lf-est"><option>NUEVO</option><option>PROCESO</option><option>CITA</option><option>PRECALIFICADO</option><option>SEGUIMIENTO</option><option>VENTA</option><option>PERDIDO</option><option>PENDIENTE</option></select></div><div class="fg admin-sup"><label class="fl">Asesor</label><select class="fc" id="lf-ase"><option value="">— Sin asignar</option></select></div></div>
+      <div class="fr"><div class="fg"><label class="fl">Estado</label><select class="fc" id="lf-est" onchange="toggleCanalCita()"><option>NUEVO</option><option>PROCESO</option><option>CITA</option><option>PRECALIFICADO</option><option>SEGUIMIENTO</option><option>VENTA</option><option>PERDIDO</option><option>PENDIENTE</option></select></div><div class="fg admin-sup"><label class="fl">Asesor</label><select class="fc" id="lf-ase"><option value="">— Sin asignar</option></select></div></div>
       <div style="background:var(--ybg);border:1px solid #EAB308;border-radius:var(--r);padding:.9rem;margin-bottom:12px">
         <div style="font-size:12px;font-weight:700;color:#5a4200;margin-bottom:8px">🔔 Programar recordatorio</div>
         <div class="fr"><div class="fg" style="margin-bottom:0"><label class="fl" style="color:#5a4200">Fecha</label><input class="fc" type="date" id="lf-rd"></div><div class="fg" style="margin-bottom:0"><label class="fl" style="color:#5a4200">Hora</label><input class="fc" type="time" id="lf-rt" value="09:00"></div></div>
         <div class="fg" style="margin-top:8px;margin-bottom:0"><label class="fl" style="color:#5a4200">Motivo</label><input class="fc" id="lf-rn" placeholder="Ej: Cliente indicó llamar el viernes..." style="border-color:#EAB308"></div>
       </div>
+      <div class="fg" id="fg-canal-cita" style="display:none"><label class="fl">Canal de cita</label><select class="fc" id="lf-canal-cita"><option value="">— Seleccionar —</option><option>AP</option><option>HT</option><option>AC</option></select></div>
       <div class="fg"><label class="fl">Comentarios / Observaciones</label><textarea class="fc" id="lf-com" placeholder="Escribe comentarios sobre este lead..."></textarea></div>
       <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn bo" onclick="closeM('m-lead')">Cancelar</button><button class="btn bp" id="lf-btn" onclick="saveLead()">Guardar Lead</button></div>
     </div>
@@ -859,7 +865,10 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
 // ═══════════════════════════════════════
 const ESTADOS=['PROCESO','VENTA','PERDIDO','SEGUIMIENTO','PENDIENTE','CITA','NUEVO','PRECALIFICADO'];
 const TIPOS_PAGO=['Contado','Visa Cuotas','Crédito','Otro'];
-const LINEAS=['APACHE RTR 160 2V REF','APACHE RTR 160 4V','APACHE RTR 160 4V RM','APACHE RTR 180','APACHE RTR 200 4V','APACHE RTR 200 FI','APACHE RR310','APACHE RTR 310','APACHE RTR 310 E5','RAIDER 125','RAIDER 125 FI','RONIN 225','NEO 110 NX','DAZZ CW','NTORQ 125','NTORQ 125 RACE','JUPITER 125 FI (NUEVO MODELO)','STRYKER 125','HLX 150','HLX 125','ZT 125','SPORT 100 ELS','KING DELUXE (BLUETOOTH)','KING DELUXE PLUS','KING DURAMAX','KING KARGO'];
+const CANALES_CITA=['AP','HT','AC'];
+let AGENCIAS_LIST=JSON.parse(localStorage.getItem('tvs8_agencias')||JSON.stringify(["HT BARBERENA", "HT AMATITLÁN", "HT TIQUISATE", "HT PLAZA TECA", "HT SAN PEDRO SAC", "HT SANTA ELENA PETEN", "HT HUEHUETENANGO", "HT JALAPA", "HT MAZATENANGO", "HT MALACATAN", "HT CHIQUIMULA", "HT ATLANTIDA", "HT ESCUINTLA", "HT PUERTO SAN JOSE", "HT SANTA LUCIA", "HT CHIMALTENANGO", "HT GOMERA", "HT ESQUIPULAS", "HT POPTUN", "HT LA LIBERTAD", "HT PRADERA EXPS V.N.", "HT EL CASTAÑO", "HT PETAPA", "HT TECULUTAN", "HT JUTIAPA", "HT SALAMA", "HT COBAN", "HT SAYAXCHE", "HT LOS AMATES", "HT SAN ANTONIO SUCHI", "HT QUETZALTENANGO", "HT COATEPEQUE", "HT PUERTO BARRIOS", "HT GUASTATOYA", "HT MORALES", "HT RETALHULEU", "HT NVA. CONCEPCION", "HT QUICHE", "HT NEBAJ", "AP ZONA KING COBAN", "CENTRAL YURRITA", "TVS 6TA AV ZONA 9", "TVS AMATITLAN", "TVS BARCENAS", "TVS CALLE MARTI", "TVS CHIMALTENANGO", "TVS CHIQUIMULA", "TVS COATEPEQUE", "TVS EL CASTAÑO", "TVS ESCUINTLA", "TVS ESKALA", "TVS JALAPA", "TVS LOS ALAMOS", "TVS METRO NORTE", "TVS QUETZALTENANGO", "TVS RETALHULEU", "TVS SANARATE", "TVS VILLA CANALES"]));
+function saveAgencias(){localStorage.setItem('tvs8_agencias',JSON.stringify(AGENCIAS_LIST));}
+const LINEAS=['APACHE RTR 160 2V REF','APACHE RTR 160 4V','APACHE RTR 160 4V RM','APACHE RTR 180','APACHE RTR 200 4V','APACHE RTR 200 FI','APACHE RR310','APACHE RTR 310','APACHE RTR 310 E5','RAIDER 125','RAIDER 125 FI','RONIN 225','NEO 110 NX','DAZZ CW','NTORQ 125','NTORQ 125 RACE','JUPITER 125 FI (NUEVO MODELO)','STRYKER 125','HLX 150','HLX 125','ZT 125','SPORT 100 ELS','KING DELUXE (BLUETOOTH)','KING DELUXE PLUS','KING DURAMAX','KING KARGO','Pendiente'];
 const EC={'PROCESO':'#FFF176','VENTA':'#66BB6A','PERDIDO':'#E53935','SEGUIMIENTO':'#42A5F5','PENDIENTE':'#AB47BC','CITA':'#FF7043','NUEVO':'#00BCD4','PRECALIFICADO':'#2E7D32'};
 const EC_CLS={'PROCESO':'e-proc','VENTA':'e-venta','PERDIDO':'e-perd','SEGUIMIENTO':'e-seg','PENDIENTE':'e-pend','CITA':'e-cita','NUEVO':'e-nuevo','PRECALIFICADO':'e-precal'};
 const TP_CLS={'Contado':'tp-cont','Visa Cuotas':'tp-visa','Crédito':'tp-cred'};
@@ -1011,7 +1020,11 @@ function initRealtimeSync(){
   // Listen leads
   window._fb.listenLeads(cloudLeads=>{
     if(cloudLeads.length>0||realtimeActive){
-      leads=cloudLeads.sort((a,b)=>b.id-a.id);
+      const cloudIds=new Set(cloudLeads.map(l=>l.id));
+      const localOnly=leads.filter(l=>!cloudIds.has(l.id));
+      leads=[...cloudLeads,...localOnly].sort((a,b)=>b.id-a.id);
+      if(localOnly.length>0)Promise.all(localOnly.map(l=>window._fb.saveLeadCloud(l))).catch(()=>{});
+      const maxId=leads.reduce((m,l)=>Math.max(m,l.id),nlid);if(maxId>=nlid)nlid=maxId+1;
       lsS('tvs8_leads_bk',leads.slice(0,500));
       if(CU)renderAll();
       setSyncStatus('ok');
@@ -1136,10 +1149,12 @@ function waBtn(l){const u=users.find(x=>x.id===l.uid);if(!u||!u.tel)return '';co
 function myLeads(){if(isPriv())return leads;return leads.filter(l=>l.uid===CU.id||(CU.leadsname&&l.nom&&l.nom.trim().toLowerCase()===CU.leadsname.trim().toLowerCase()));}
 function parseFecha(f){
   if(!f)return '';
-  if(f.includes('-')&&f.length>=10)return f.substring(0,10);
-  const p=f.split('/');
-  if(p.length===3){let d=p[0].padStart(2,'0'),m=p[1].padStart(2,'0'),y=p[2];if(y.length===2)y='20'+y;return y+'-'+m+'-'+d;}
-  return f;
+  const s=String(f).trim();
+  if(s.match(/^\d{4}-\d{2}-\d{2}/))return s.substring(0,10);
+  if(s.match(/^\d{5}$/)){const serial=parseInt(s);const d=new Date(Date.UTC(1900,0,1)+(serial-2)*86400000);const y=d.getUTCFullYear(),mo=String(d.getUTCMonth()+1).padStart(2,'0'),dy=String(d.getUTCDate()).padStart(2,'0');if(y>=2024&&y<=2030)return y+'-'+mo+'-'+dy;return '';}
+  const sinHora=s.split(',')[0].split(' ')[0].trim();const p=sinHora.split('/');
+  if(p.length===3){const n0=parseInt(p[0]),n1=parseInt(p[1]);let y=parseInt(p[2]);if(y<100)y=2000+y;if(y>=2024&&y<=2030){let d,m;if(n0>12){d=String(n0).padStart(2,'0');m=String(n1).padStart(2,'0');}else if(n1>12){m=String(n0).padStart(2,'0');d=String(n1).padStart(2,'0');}else{d=String(n0).padStart(2,'0');m=String(n1).padStart(2,'0');}return y+'-'+m+'-'+d;}}
+  return '';
 }
 function filteredLeads(){
   let arr=myLeads();
@@ -1174,12 +1189,35 @@ function updRemBadge(){const mine=myLeads(),t=today(),due=mine.filter(l=>l.remin
 // ═══════════════════════════════════════
 // RENDER LEADS
 // ═══════════════════════════════════════
+let leadsPage=1;
+const LEADS_PER_PAGE=50;
+function goPage(p){leadsPage=p;renderLeads();const el=document.getElementById('leads-pagination');if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});}
+function resetAndRender(){leadsPage=1;renderLeads();}
 function renderLeads(){
   const arr=filteredLeads(),mine=myLeads();
+  const totalPages=Math.max(1,Math.ceil(arr.length/LEADS_PER_PAGE));
+  if(leadsPage>totalPages)leadsPage=totalPages;if(leadsPage<1)leadsPage=1;
+  const pageArr=arr.slice((leadsPage-1)*LEADS_PER_PAGE,leadsPage*LEADS_PER_PAGE);
+  const pg=document.getElementById('leads-pagination');
+  if(pg){
+    if(totalPages<=1){pg.style.display='none';}
+    else{
+      pg.style.display='flex';
+      let pages=[];
+      if(totalPages<=9){for(let i=1;i<=totalPages;i++)pages.push(i);}
+      else{pages=[1,2,3];if(leadsPage>4)pages.push('...');const lo=Math.max(4,leadsPage-1),hi=Math.min(totalPages-3,leadsPage+1);for(let i=lo;i<=hi;i++)if(!pages.includes(i))pages.push(i);if(leadsPage<totalPages-3)pages.push('...');[totalPages-2,totalPages-1,totalPages].forEach(p=>{if(p>3&&!pages.includes(p))pages.push(p);});}
+      pg.innerHTML='<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:center;padding:8px 0">'+
+        (leadsPage>1?'<button onclick="goPage('+(leadsPage-1)+')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--bd);background:#fff;color:var(--navy);font-size:12px;cursor:pointer">‹</button>':'')+
+        pages.map(p=>p==='...'?'<span style="padding:5px 4px;color:var(--mut);font-size:12px">…</span>':'<button onclick="goPage('+p+')" style="min-width:34px;padding:5px 8px;border-radius:6px;border:2px solid '+(p===leadsPage?'var(--navy)':'var(--bd)')+';background:'+(p===leadsPage?'var(--navy)':'#fff')+';color:'+(p===leadsPage?'#fff':'var(--navy)')+';font-size:12px;font-weight:'+(p===leadsPage?'700':'400')+';cursor:pointer">'+p+'</button>').join('')+
+        (leadsPage<totalPages?'<button onclick="goPage('+(leadsPage+1)+')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--bd);background:#fff;color:var(--navy);font-size:12px;cursor:pointer">›</button>':'')+
+        '<span style="font-size:11px;color:var(--mut);margin-left:6px">'+((leadsPage-1)*LEADS_PER_PAGE+1)+'–'+Math.min(leadsPage*LEADS_PER_PAGE,arr.length)+' de '+arr.length+'</span></div>';
+    }
+  }
   document.getElementById('nc-leads').textContent=mine.length;
   document.getElementById('leads-pt').textContent=isPriv()?'Todos los Leads':'Mis Leads';
-  document.getElementById('leads-ps').textContent=`${mine.length} leads${isPriv()?' en total':' asignados'}${useCloud?' · ☁️ sync':' · 📱 local'}`;
-  document.getElementById('leads-tb').innerHTML=arr.map(l=>`<tr class="${selIds.has(l.id)?'sel':''}">
+  document.getElementById('leads-ps').textContent=mine.length+' leads'+(isPriv()?' en total':' asignados')+(useCloud?' · ☁️ sync':' · 📱 local');
+  document.getElementById('leads-tb').innerHTML=pageArr.map(l=>`<tr class="${selIds.has(l.id)?'sel':''}">
+  document.getElementById('leads-tb').innerHTML=pageArr.map(l=>`<tr class="${selIds.has(l.id)?'sel':''}">
     <td style="padding:8px 4px 8px 10px;width:30px"><input type="checkbox" ${selIds.has(l.id)?'checked':''} onchange="tChk(${l.id},this)" style="width:14px;height:14px"></td>
     <td>${oriBadge(l.ori)}</td>
     <td>${eBadge(l.est)}</td>
@@ -1326,6 +1364,7 @@ function openDet(id){
         <div class="dr"><span class="dl">Asesor</span><span class="dv">${aseSel}</span></div>
         <div class="dr"><span class="dl">Estado</span><span class="dv"><select class="fc" id="ds-est" style="font-size:12px">${ESTADOS.map(s=>`<option ${s===l.est?'selected':''}>${s}</option>`).join('')}</select></span></div>
         <div class="dr"><span class="dl">Tipo Pago</span><span class="dv"><select class="fc" id="ds-tp" style="font-size:12px">${TIPOS_PAGO.map(t=>`<option ${t===l.tp?'selected':''}>${t}</option>`).join('')}</select></span></div>
+        ${l.est==='CITA'?'<div class="dr"><span class="dl">Canal cita</span><span class="dv"><select class="fc" id="ds-canal" style="font-size:12px"><option value="">— Ninguno —</option>'+CANALES_CITA.map(c=>'<option '+(c===l.canal_cita?'selected':'')+'>'+c+'</option>').join('')+'</select></span></div>':''}
       </div>
     </div>
     <div style="border:2px solid ${rs==='overdue'?'var(--red)':rs==='today'?'#EAB308':rs?'#4CAF50':'#EAB308'};border-radius:var(--r);padding:.9rem;margin-bottom:1rem">
@@ -1354,15 +1393,36 @@ function renderNotas(l){if(!l.notas||l.notas.length===0)return `<div style="colo
 function addNota(lid){const txt=document.getElementById('new-nota')?.value?.trim();if(!txt){toast('Escribe algo');return;}const l=leads.find(x=>x.id===lid);if(!l.notas)l.notas=[];l.notas.push({txt,by:CU.nombre,ts:today()});l.fu=today();document.getElementById('new-nota').value='';document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);renderAll();toast('Comentario agregado ✓');// contar gestión del asesor asignado
 const gestUid=l.uid||CU.id;addGest(gestUid,1);}
 function delNota(lid,idx){if(!confirm('¿Eliminar?'))return;const l=leads.find(x=>x.id===lid);l.notas.splice(idx,1);document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);toast('Eliminado');}
-function saveDet(id){const l=leads.find(x=>x.id===id);l.est=document.getElementById('ds-est').value;l.tp=document.getElementById('ds-tp').value;l.fu=today();if(isPriv()){const v=document.getElementById('ds-ase')?.value;l.uid=v?parseInt(v):null;if(l.uid){const u=users.find(x=>x.id===l.uid);if(u)l.anom=u.nombre;}}persist();cloudSaveLead(l);closeM('m-det');renderAll();toast('Lead actualizado ✓');}
+function saveDet(id){const l=leads.find(x=>x.id===id);l.est=document.getElementById('ds-est').value;l.tp=document.getElementById('ds-tp').value;if(l.est==='CITA'){const cc=document.getElementById('ds-canal');if(cc)l.canal_cita=cc.value;}l.fu=today();if(isPriv()){const v=document.getElementById('ds-ase')?.value;l.uid=v?parseInt(v):null;if(l.uid){const u=users.find(x=>x.id===l.uid);if(u)l.anom=u.nombre;}}persist();cloudSaveLead(l);closeM('m-det');renderAll();toast('Lead actualizado ✓');}
 
 // ═══════════════════════════════════════
 // LEAD CRUD
 // ═══════════════════════════════════════
+function populateUbi(val){
+  const sel=document.getElementById('lf-ubi');if(!sel)return;
+  sel.innerHTML='<option value="">— Seleccionar agencia —</option>'+AGENCIAS_LIST.map(a=>'<option '+(a===val?'selected':'')+'>'+a+'</option>').join('');
+  const btn=document.getElementById('btn-add-agencia');if(btn)btn.style.display=isAdmin()?'inline':'none';
+}
+function toggleCanalCita(){
+  const fg=document.getElementById('fg-canal-cita');
+  if(fg)fg.style.display=(document.getElementById('lf-est')?.value==='CITA')?'':'none';
+}
+function openAddAgencia(){
+  const div=document.createElement('div');div.id='m-addagen';div.className='ov';
+  div.innerHTML='<div class="mo msm" style="max-width:320px"><div class="mh"><span class="mt2">🏢 Nueva Agencia</span><button class="xb" onclick="document.getElementById('m-addagen').remove()">×</button></div><div class="mb2"><div class="fg"><label class="fl">Nombre *</label><input class="fc" id="new-agencia-name" placeholder="TVS NUEVA AGENCIA" style="text-transform:uppercase"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem"><button class="btn bo" onclick="document.getElementById('m-addagen').remove()">Cancelar</button><button class="btn bp" onclick="guardarNuevaAgencia()">Guardar</button></div></div></div>';
+  document.body.appendChild(div);div.classList.add('open');setTimeout(()=>document.getElementById('new-agencia-name')?.focus(),100);
+}
+function guardarNuevaAgencia(){
+  const nombre=document.getElementById('new-agencia-name')?.value?.trim().toUpperCase();
+  if(!nombre){toast('Escribe un nombre');return;}
+  if(AGENCIAS_LIST.includes(nombre)){toast('Ya existe');return;}
+  AGENCIAS_LIST.push(nombre);saveAgencias();populateUbi(document.getElementById('lf-ubi')?.value||'');
+  document.getElementById('m-addagen')?.remove();toast('Agencia agregada ✓');
+}
 function openLM(id){
   editL=id;
-  if(id){const l=leads.find(x=>x.id===id);document.getElementById('ml-title').textContent='Editar Lead';document.getElementById('lf-btn').textContent='Guardar cambios';document.getElementById('lf-nom').value=l.nom;document.getElementById('lf-tel').value=l.tel;document.getElementById('lf-ori').value=l.ori;document.getElementById('lf-tp').value=l.tp||'Contado';document.getElementById('lf-lin').value=l.linea;document.getElementById('lf-ubi').value=l.ubi;document.getElementById('lf-est').value=l.est;document.getElementById('lf-fa').value=l.fa||'';document.getElementById('lf-fu').value=l.fu||'';document.getElementById('lf-rd').value=l.reminder?.date||'';document.getElementById('lf-rt').value=l.reminder?.time||'09:00';document.getElementById('lf-rn').value=l.reminder?.note||'';document.getElementById('lf-com').value='';const af=document.getElementById('lf-ase');if(af)af.value=l.uid||'';}
-  else{document.getElementById('ml-title').textContent='Nuevo Lead';document.getElementById('lf-btn').textContent='Guardar Lead';['lf-nom','lf-tel','lf-ubi','lf-com','lf-rd','lf-rn'].forEach(i=>document.getElementById(i).value='');document.getElementById('lf-fa').value=today();document.getElementById('lf-fu').value=today();document.getElementById('lf-rt').value='09:00';const af=document.getElementById('lf-ase');if(af)af.value=isPriv()?'':String(CU.id);}
+  if(id){const l=leads.find(x=>x.id===id);document.getElementById('ml-title').textContent='Editar Lead';document.getElementById('lf-btn').textContent='Guardar cambios';document.getElementById('lf-nom').value=l.nom;document.getElementById('lf-tel').value=l.tel;document.getElementById('lf-ori').value=l.ori;document.getElementById('lf-tp').value=l.tp||'Contado';document.getElementById('lf-lin').value=l.linea;populateUbi(l.ubi||'');toggleCanalCita();const _cc=document.getElementById('lf-canal-cita');if(_cc)_cc.value=l.canal_cita||'';document.getElementById('lf-est').value=l.est;document.getElementById('lf-fa').value=l.fa||'';document.getElementById('lf-fu').value=l.fu||'';document.getElementById('lf-rd').value=l.reminder?.date||'';document.getElementById('lf-rt').value=l.reminder?.time||'09:00';document.getElementById('lf-rn').value=l.reminder?.note||'';document.getElementById('lf-com').value='';const af=document.getElementById('lf-ase');if(af)af.value=l.uid||'';}
+  else{document.getElementById('ml-title').textContent='Nuevo Lead';document.getElementById('lf-btn').textContent='Guardar Lead';['lf-nom','lf-tel','lf-com','lf-rd','lf-rn'].forEach(i=>document.getElementById(i).value='');document.getElementById('lf-fa').value=today();document.getElementById('lf-fu').value=today();populateUbi('');document.getElementById('lf-rt').value='09:00';const af=document.getElementById('lf-ase');if(af)af.value=isPriv()?'':String(CU.id);}
   openM('m-lead');
 }
 function saveLead(){
@@ -1370,7 +1430,8 @@ function saveLead(){
   const afEl=document.getElementById('lf-ase'),uidVal=afEl&&isPriv()?afEl.value:String(CU.id),uid=uidVal?parseInt(uidVal):null,u=uid?users.find(x=>x.id===uid):null;
   const comTxt=document.getElementById('lf-com').value.trim();
   const rd=document.getElementById('lf-rd').value,reminder=rd?{date:rd,time:document.getElementById('lf-rt').value,note:document.getElementById('lf-rn').value}:null;
-  const data={nom,tel:document.getElementById('lf-tel').value,ori:document.getElementById('lf-ori').value,tp:document.getElementById('lf-tp').value,linea:document.getElementById('lf-lin').value,ubi:document.getElementById('lf-ubi').value,est:document.getElementById('lf-est').value,fa:document.getElementById('lf-fa').value,fu:today(),uid,anom:u?u.nombre:'',reminder};
+  const cCV=document.getElementById('lf-est')?.value==='CITA'?(document.getElementById('lf-canal-cita')?.value||''):'';
+  const data={nom,tel:document.getElementById('lf-tel').value,ori:document.getElementById('lf-ori').value,tp:document.getElementById('lf-tp').value,linea:document.getElementById('lf-lin').value,ubi:document.getElementById('lf-ubi').value,est:document.getElementById('lf-est').value,fa:document.getElementById('lf-fa').value,fu:today(),uid,anom:u?u.nombre:'',reminder,canal_cita:cCV};
   let savedLead;
   if(editL){const i=leads.findIndex(x=>x.id===editL);const ex=leads[i];if(comTxt)ex.notas=[...(ex.notas||[]),{txt:comTxt,by:CU.nombre,ts:new Date().toLocaleString()}];leads[i]={...ex,...data,notas:ex.notas};savedLead=leads[i];toast('Lead actualizado ✓');}
   else{const notas=comTxt?[{txt:comTxt,by:CU.nombre,ts:new Date().toLocaleString()}]:[];savedLead={id:nlid++,...data,notas};leads.unshift(savedLead);toast('Lead guardado ✓');}
@@ -1417,6 +1478,15 @@ function renderReportes(){
   document.getElementById('rep-tp').innerHTML=bars(Object.entries(tpm).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v),['#C8E6C9','#BBDEFB','#FFE082','#ccc']);
   const lm={};arr.forEach(l=>lm[l.linea]=(lm[l.linea]||0)+1);
   document.getElementById('rep-lin').innerHTML=bars(Object.entries(lm).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v).slice(0,10),'#1B2F6E');
+  const citaLeads=arr.filter(l=>l.est==='CITA'),ventaLeads=arr.filter(l=>l.est==='VENTA');
+  const canalMap={};citaLeads.forEach(l=>{const c=l.canal_cita||'Sin canal';canalMap[c]=(canalMap[c]||0)+1;});
+  const agVentaMap={};ventaLeads.forEach(l=>{const a=l.ubi||'Sin agencia';agVentaMap[a]=(agVentaMap[a]||0)+1;});
+  const agCitaMap={};citaLeads.forEach(l=>{const a=l.ubi||'Sin agencia';agCitaMap[a]=(agCitaMap[a]||0)+1;});
+  const motoMap={};ventaLeads.forEach(l=>{const m=l.linea||'Otra';motoMap[m]=(motoMap[m]||0)+1;});
+  function bEx(map,color){const mx=Math.max(...Object.values(map),1);return Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,v])=>'<div class="br"><span class="bl">'+k+'</span><div class="bt"><div class="bf" style="width:'+Math.round(v/mx*100)+'%;background:'+color+'"></div></div><span class="bv">'+v+'</span></div>').join('');}
+  let eC=document.getElementById('rep-extra');
+  if(!eC){eC=document.createElement('div');eC.id='rep-extra';const rT=document.getElementById('tab-reportes');if(rT){const rk=rT.querySelector('#rep-rank')?.closest('.card');if(rk)rT.insertBefore(eC,rk);else rT.appendChild(eC);}}
+  eC.innerHTML='<div class="two"><div class="card"><div class="ch"><span class="ct">🟠 Citas por canal</span></div><div class="cb"><div class="bw">'+(Object.keys(canalMap).length?bEx(canalMap,'#FF7043'):'<span style="color:var(--mut);font-size:12px">Sin citas</span>')+'</div></div></div><div class="card"><div class="ch"><span class="ct">🟢 Ventas por agencia</span></div><div class="cb"><div class="bw">'+(Object.keys(agVentaMap).length?bEx(agVentaMap,'#16a34a'):'<span style="color:var(--mut);font-size:12px">Sin ventas</span>')+'</div></div></div></div><div class="two"><div class="card"><div class="ch"><span class="ct">📅 Citas por agencia</span></div><div class="cb"><div class="bw">'+(Object.keys(agCitaMap).length?bEx(agCitaMap,'#F47920'):'<span style="color:var(--mut);font-size:12px">Sin citas</span>')+'</div></div></div><div class="card"><div class="ch"><span class="ct">🏆 Motos más vendidas</span></div><div class="cb"><div class="bw">'+(Object.keys(motoMap).length?bEx(motoMap,'#7C3AED'):'<span style="color:var(--mut);font-size:12px">Sin ventas</span>')+'</div></div></div></div>';
   document.getElementById('rep-rank').innerHTML=ases.map((u,i)=>{const ul=arr.filter(l=>l.uid===u.id),uv=ul.filter(l=>l.est==='VENTA').length,up=ul.filter(l=>l.est==='PERDIDO').length,uu=ul.filter(l=>l.est==='PROCESO').length,pp=ul.length>0?Math.round(uv/ul.length*100):0;return `<tr><td style="font-weight:700;color:var(--navy)">${i+1}</td><td><div style="display:flex;align-items:center;gap:7px">${avU(u)}<span style="font-weight:600">${u.nombre}</span></div></td><td style="font-weight:700">${ul.length}</td><td>${uu}</td><td style="color:#1B5E20;font-weight:700">${uv}</td><td style="color:var(--red)">${up}</td><td style="font-weight:700;color:${pp>=30?'#1B5E20':'var(--red)'}">${pp}%</td></tr>`;}).join('');
 }
 
@@ -1670,7 +1740,7 @@ function bulkEst(){const est=document.getElementById('blk-est').value;if(!est){t
 
 // IMPORT / EXPORT
 function parseCSV(text){const rows=[];const lines=text.split(/\r?\n/);const firstLine=lines.find(l=>l.trim())||'';const sep=(firstLine.split(';').length>firstLine.split(',').length)?';':',';for(const ln of lines){if(!ln.trim())continue;const cols=[];let cur='',inQ=false;for(let i=0;i<ln.length;i++){if(ln[i]==='"'&&ln[i+1]==='"'){cur+='"';i++;}else if(ln[i]==='"'){inQ=!inQ;}else if(ln[i]===sep&&!inQ){cols.push(cur.trim());cur='';}else cur+=ln[i];}cols.push(cur.trim());rows.push(cols);}return rows;}
-function importRows(rows){if(!rows||rows.length<2)return 0;const h=rows[0].map(c=>(c||'').toLowerCase().replace(/[^a-záéíóúüñ_\s]/gi,'').trim());const fi=(...ks)=>{for(const k of ks){const i=h.findIndex(c=>c.includes(k.toLowerCase()));if(i>=0)return i;}return -1;};const iOri=fi('origen'),iFa=fi('fecha_act','fecha act','fecha_actividad'),iFu=fi('fecha_upd','fecha actual','fecha_act'),iEst=fi('estado'),iTp=fi('tipo','pago'),iLin=fi('linea','l nea','modelo'),iUbi=fi('ubic'),iNom=fi('nombre_lead','nombre lead','nombre'),iTel=fi('tel','phone'),iAse=fi('asesor'),iCom=fi('comentar','observ','nota');if(iNom<0)return -1;let added=0;const newLeads=[];for(let i=1;i<rows.length;i++){const r=rows[i];if(!r[iNom]||!r[iNom].trim())continue;const nom=r[iNom].trim(),tel=(r[iTel]||'').trim();if(leads.find(l=>l.nom.trim().toLowerCase()===nom.toLowerCase()&&l.tel===tel))continue;const anom=(r[iAse]||'').trim(),u=anom?users.find(x=>x.leadsname?.trim().toLowerCase()===anom.toLowerCase()):null;const comTxt=(r[iCom]||'').trim();const nl={id:nlid++,ori:(r[iOri]||'Otro').trim(),fa:(r[iFa]||'').trim(),fu:(r[iFu]||today()),est:((r[iEst]||'PROCESO').trim()).toUpperCase(),tp:(r[iTp]||'Contado').trim(),linea:(r[iLin]||'Otra').trim(),ubi:(r[iUbi]||'').trim(),nom,tel,uid:u?u.id:null,anom,notas:comTxt?[{txt:comTxt,by:'Importación',ts:new Date().toLocaleString()}]:[],reminder:null};leads.push(nl);newLeads.push(nl);added++;}if(useCloud&&window._fb.isReady()&&newLeads.length>0){setSyncStatus('syncing');Promise.all(newLeads.map(l=>window._fb.saveLeadCloud(l))).then(()=>setSyncStatus('ok'));}return added;}
+function importRows(rows){if(!rows||rows.length<2)return 0;const h=rows[0].map(c=>(c||'').toLowerCase().replace(/[^a-záéíóúüñ_\s]/gi,'').trim());const fi=(...ks)=>{for(const k of ks){const i=h.findIndex(c=>c.includes(k.toLowerCase()));if(i>=0)return i;}return -1;};const iOri=fi('origen'),iFa=fi('fecha_act','fecha act','fecha_actividad'),iFu=fi('fecha_upd','fecha actual','fecha_act'),iEst=fi('estado'),iTp=fi('tipo','pago'),iLin=fi('linea','l nea','modelo'),iUbi=fi('ubic'),iNom=fi('nombre_lead','nombre lead','nombre'),iTel=fi('tel','phone'),iAse=fi('asesor'),iCom=fi('comentar','observ','nota');if(iNom<0)return -1;let added=0;const newLeads=[];for(let i=1;i<rows.length;i++){const r=rows[i];if(!r[iNom]||!r[iNom].trim())continue;const nom=r[iNom].trim(),tel=(r[iTel]||'').trim();if(leads.find(l=>l.nom.trim().toLowerCase()===nom.toLowerCase()&&l.tel===tel))continue;const anom=(r[iAse]||'').trim(),u=anom?users.find(x=>x.leadsname?.trim().toLowerCase()===anom.toLowerCase()):null;const comTxt=(r[iCom]||'').trim();const nl={id:nlid++,ori:(r[iOri]||'Otro').trim(),fa:(r[iFa]||'').trim(),fu:(r[iFu]||today()),est:((r[iEst]||'PROCESO').trim()).toUpperCase(),tp:((r[iTp]||'').trim()||'Otro'),linea:(r[iLin]||'Otra').trim(),ubi:(r[iUbi]||'').trim(),nom,tel,uid:u?u.id:null,anom,notas:comTxt?[{txt:comTxt,by:'Importación',ts:new Date().toLocaleString()}]:[],reminder:null};leads.push(nl);newLeads.push(nl);added++;}if(useCloud&&window._fb.isReady()&&newLeads.length>0){setSyncStatus('syncing');Promise.all(newLeads.map(l=>window._fb.saveLeadCloud(l))).then(()=>setSyncStatus('ok'));}return added;}
 function handleDrop(e){const f=e.dataTransfer.files[0];if(f)procFile(f);}
 function handleFileImport(e){const f=e.target.files[0];if(f)procFile(f);}
 function procFile(file){const n=file.name.toLowerCase();if(n.endsWith('.csv')||n.endsWith('.txt')){const r=new FileReader();r.onload=ev=>{showPrev(parseCSV(ev.target.result),file.name);};r.readAsText(file,'UTF-8');}else if(n.endsWith('.xlsx')||n.endsWith('.xls')){if(typeof XLSX==='undefined'){toast('Cargando...');return;}const r=new FileReader();r.onload=ev=>{try{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];showPrev(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),file.name);}catch(e){toast('Error: '+e.message);}};r.readAsArrayBuffer(file);}else toast('Usa CSV o Excel');}
