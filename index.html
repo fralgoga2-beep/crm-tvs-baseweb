@@ -640,12 +640,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
 <!-- USUARIOS -->
 <div id="tab-usuarios" class="tab admin-only">
   <div class="ph"><div><div class="pt">Usuarios</div><div class="psb">Accesos al CRM</div></div><button class="btn bp" onclick="openUM(null)">+ Nuevo</button></div>
-  <div class="sc" style="margin-bottom:1rem">
-    <div class="sct">🏢 Agencias</div>
-    <div class="scs">Administra las agencias disponibles en el CRM.</div>
-    <div style="display:flex;gap:8px;margin-bottom:.75rem"><input class="fc" id="new-agencia" placeholder="Nombre de la agencia..." style="max-width:280px"><button class="btn bp bsm" onclick="addAgencia()">+ Agregar</button></div>
-    <div id="agencias-list"></div>
-  </div>
+
   <div class="wbox" id="pend-notice" style="display:none">⚠️ Asesores detectados sin acceso al CRM.</div>
   <div id="pend-ases" style="margin-bottom:1rem"></div>
   <div class="ug" id="users-grid"></div>
@@ -697,7 +692,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <span>📊 Historial importaciones</span>
       <button class="btn bd bsm" id="btn-clr-h" onclick="clearImpHist()" style="display:none">🗑 Borrar</button>
     </div>
-    <div class="tw"><table><thead><tr><th>Fecha</th><th>Archivo</th><th>Registros</th><th>Por</th><th></th></tr></thead><tbody id="imp-hist"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th>Fecha</th><th>Archivo</th><th>Registros</th><th>Por</th><th>Descargar</th><th></th></tr></thead><tbody id="imp-hist"></tbody></table></div>
   </div>
   <!-- SYNC CONFIG SHORTCUT -->
   <div class="sc" style="margin-top:.9rem;border:2px solid rgba(27,47,110,.2)">
@@ -727,6 +722,10 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <div class="dm-hd">🔍 Eliminar leads por criterio</div>
     <div class="dm-body">
       <div class="fr">
+        <div class="fg" style="margin-bottom:0"><label class="fl">Fecha desde</label><input class="fc" type="date" id="dm-fd" onchange="previewDel()"></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">Fecha hasta</label><input class="fc" type="date" id="dm-fh" onchange="previewDel()"></div>
+      </div>
+      <div class="fr" style="margin-top:10px">
         <div class="fg" style="margin-bottom:0"><label class="fl">Por estado</label><select class="fc" id="dm-est" onchange="previewDel()"><option value="">— Seleccionar —</option><option>PERDIDO</option><option>VENTA</option><option>PROCESO</option><option>SEGUIMIENTO</option><option>PENDIENTE</option><option>CITA</option><option>NUEVO</option><option>PRECALIFICADO</option></select></div>
         <div class="fg" style="margin-bottom:0"><label class="fl">Más antiguos que</label><select class="fc" id="dm-antig" onchange="previewDel()"><option value="">— Sin filtro —</option><option value="30">30 días</option><option value="60">60 días</option><option value="90">90 días</option><option value="180">6 meses</option><option value="365">1 año</option></select></div>
       </div>
@@ -1197,7 +1196,38 @@ function renderLeads(){
     <td style="display:flex;gap:3px;flex-wrap:nowrap">${waBtn(l)}<button class="btn bo bsm" onclick="openDet(${l.id})" title="Ver">👁</button><button class="btn by bsm" onclick="openRem(${l.id})" title="Recordatorio" style="font-size:10px">🔔</button></td>
   </tr>`).join('')||`<tr><td colspan="13" style="text-align:center;color:var(--mut);padding:2rem">Sin leads para mostrar</td></tr>`;
   const _totalPg2=Math.max(1,Math.ceil(_allArr.length/LEADS_PER_PAGE));
-  document.getElementById('leads-pagination').innerHTML=_totalPg2>1?`<div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:.75rem;font-size:12px;border-bottom:1px solid var(--bd)"><button class="btn bo bsm" onclick="leadsPage=Math.max(0,leadsPage-1);renderLeads()" ${leadsPage===0?'disabled':''}>‹ Anterior</button><span style="color:var(--mut)">Página <strong>${leadsPage+1}</strong> de <strong>${_totalPg2}</strong> · ${_allArr.length} leads</span><button class="btn bo bsm" onclick="leadsPage=Math.min(${_totalPg2-1},leadsPage+1);renderLeads()" ${leadsPage===_totalPg2-1?'disabled':''}>Siguiente ›</button></div>`:'';
+  (function(){
+    const el=document.getElementById('leads-pagination');
+    if(!el)return;
+    if(_totalPg2<=1){el.innerHTML='';return;}
+    const cur=leadsPage;
+    const total=_totalPg2;
+    // Build page numbers with ellipsis
+    function pageBtn(p,active){
+      return '<button onclick="leadsPage='+p+';renderLeads()" style="min-width:34px;height:34px;border-radius:6px;border:1px solid '+(active?'var(--navy)':'rgba(27,47,110,.2)')+';background:'+(active?'var(--navy)':'rgba(27,47,110,.06)')+';color:'+(active?'white':'var(--navy)')+';font-weight:'+(active?'700':'500')+';font-size:13px;cursor:pointer;font-family:inherit">'+( p+1)+'</button>';
+    }
+    function ellipsis(){return '<span style="display:inline-flex;align-items:flex-end;height:34px;font-size:16px;color:var(--mut);padding:0 2px">...</span>';}
+    let pages=[];
+    // Always show first, last, current±2
+    const show=new Set();
+    show.add(0);show.add(total-1);
+    for(let i=Math.max(0,cur-2);i<=Math.min(total-1,cur+2);i++)show.add(i);
+    const sorted=[...show].sort((a,b)=>a-b);
+    let html='<div style="display:flex;align-items:center;gap:5px;padding:.65rem 1rem;flex-wrap:wrap;border-bottom:1px solid var(--bd)">';
+    // Anterior
+    html+='<button onclick="leadsPage=Math.max(0,leadsPage-1);renderLeads()" style="height:34px;padding:0 12px;border-radius:6px;border:1px solid rgba(27,47,110,.2);background:rgba(27,47,110,.06);color:var(--navy);font-weight:600;font-size:13px;cursor:pointer;font-family:inherit"'+(cur===0?' disabled':'')+'> ‹ Anterior</button>';
+    let prev=-1;
+    for(const p of sorted){
+      if(prev!==-1&&p-prev>1)html+=ellipsis();
+      html+=pageBtn(p,p===cur);
+      prev=p;
+    }
+    // Siguiente
+    html+='<button onclick="leadsPage=Math.min('+(total-1)+',leadsPage+1);renderLeads()" style="height:34px;padding:0 12px;border-radius:6px;border:1px solid rgba(27,47,110,.2);background:rgba(27,47,110,.06);color:var(--navy);font-weight:600;font-size:13px;cursor:pointer;font-family:inherit"'+(cur===total-1?' disabled':'')+'>Siguiente ›</button>';
+    html+='<span style="font-size:11px;color:var(--mut);margin-left:6px">'+_allArr.length+' leads · pág '+(cur+1)+'/'+total+'</span>';
+    html+='</div>';
+    el.innerHTML=html;
+  })();
   if(bulkMode)updBlk();updRemBadge();
 }
 
@@ -1765,7 +1795,7 @@ function handleFileImport(e){const f=e.target.files[0];if(f)procFile(f);}
 function procFile(file){const n=file.name.toLowerCase();if(n.endsWith('.csv')||n.endsWith('.txt')){const r=new FileReader();r.onload=ev=>{showPrev(parseCSV(ev.target.result),file.name);};r.readAsText(file,'UTF-8');}else if(n.endsWith('.xlsx')||n.endsWith('.xls')){if(typeof XLSX==='undefined'){toast('Cargando...');return;}const r=new FileReader();r.onload=ev=>{try{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];showPrev(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),file.name);}catch(e){toast('Error: '+e.message);}};r.readAsArrayBuffer(file);}else toast('Usa CSV o Excel');}
 function showPrev(rows,fname){pendRows=rows;const valid=rows.filter((r,i)=>i>0&&r.some(c=>c)).length;document.getElementById('imp-info').textContent=`"${fname}" · ${valid} registros`;const prev=rows.slice(0,5);document.getElementById('imp-tbl').innerHTML=`<table><thead><tr>${(prev[0]||[]).map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${prev.slice(1,4).map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;document.getElementById('imp-prev').style.display='block';}
 function confirmImport(){const added=importRows(pendRows);impHist.unshift({fecha:new Date().toLocaleString(),arch:'Importación',reg:Math.max(added,0),por:CU.nombre});renderImpHist();document.getElementById('imp-prev').style.display='none';document.getElementById('imp-f').value='';pendRows=[];persist();renderAll();toast(added>0?`${added} leads importados ✓`:added===0?'Sin nuevos registros':'No se encontró columna de nombre');}
-function renderImpHist(){const ih=document.getElementById('imp-hist');const btn=document.getElementById('btn-clr-h');if(!ih)return;if(impHist.length===0){ih.innerHTML=`<tr><td colspan="5" style="text-align:center;color:var(--mut);padding:1.5rem;font-size:12px">Sin importaciones</td></tr>`;if(btn)btn.style.display='none';return;}if(btn)btn.style.display='inline-flex';ih.innerHTML=impHist.map((h,i)=>`<tr><td style="font-size:11px">${h.fecha}</td><td>${h.arch}</td><td style="font-weight:700;color:var(--navy)">${h.reg}</td><td>${h.por}</td><td><button class="btn bd bsm" onclick="delImpE(${i})">🗑</button></td></tr>`).join('');}
+function renderImpHist(){const ih=document.getElementById('imp-hist');const btn=document.getElementById('btn-clr-h');if(!ih)return;if(impHist.length===0){ih.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--mut);padding:1.5rem;font-size:12px">Sin importaciones</td></tr>`;if(btn)btn.style.display='none';return;}if(btn)btn.style.display='inline-flex';ih.innerHTML=impHist.map((h,i)=>`<tr><td style="font-size:11px">${h.fecha}</td><td>${h.arch}</td><td style="font-weight:700;color:var(--navy)">${h.reg}</td><td>${h.por}</td><td><button class="btn bg bsm" onclick="downloadImpHist(${i})" title="Descargar CSV">⬇ CSV</button></td><td><button class="btn bd bsm" onclick="delImpE(${i})">🗑</button></td></tr>`).join('');}
 function delImpE(i){if(!confirm('¿Eliminar este registro?'))return;impHist.splice(i,1);persist();renderImpHist();}
 function clearImpHist(){if(!confirm('¿Borrar historial?'))return;impHist=[];persist();renderImpHist();}
 async function connectSheets(){const url=document.getElementById('gs-url').value.trim();if(!url){toast('Pega la URL');return;}let csvUrl=url;const m=url.match(/\/d\/([a-zA-Z0-9_-]+)/);if(m){const gm=url.match(/[?&#]gid=(\d+)/);csvUrl=`https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv${gm?'&gid='+gm[1]:''}`;}driveConn.url=csvUrl;await syncNow();}
@@ -1794,6 +1824,21 @@ function toggleCanalField(){
   const est=document.getElementById('lf-est')?.value;
   const cf=document.getElementById('canal-field');
   if(cf)cf.style.display=(est==='CITA')?'flex':'none';
+}
+function downloadImpHist(idx){
+  const h=impHist[idx];if(!h){toast('Error');return;}
+  const exportLeads=leads;
+  const COL=['Origen','Estado','Fecha_Actividad','Tipo_de_Pago','Asesor','Fecha_Actualizacion','Linea_Interes','Ubicacion','Agencia','Nombre_Lead','Telefono','Interes','Responde','Regescion','Comentarios'];
+  const rows=[COL,...exportLeads.map(function(l){
+    const u=users.find(function(x){return x.id===l.uid;});
+    return[l.ori||'',l.est||'',l.fa||'',l.tp||'',u?u.nombre:l.anom||'',l.fu||'',l.linea||'',l.ubi||'',l.agencia||'',l.nom||'',l.tel||'',l.interes||'',l.responde||'',l.regest||'',(l.notas||[]).map(function(n){return n.txt;}).join(' | ')];
+  })];
+  var csv=rows.map(function(r){return r.map(function(c){return '"'+String(c||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  var a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='leads_exportacion_'+(h.reg||exportLeads.length)+'registros.csv';
+  a.click();
+  toast('Descargado: '+exportLeads.length+' leads');
 }
 function startAutoSync(){if(autoTimer)clearInterval(autoTimer);autoTimer=setInterval(syncNow,5*60*1000);}
 async function loadHistorico(){
@@ -1837,7 +1882,7 @@ function renderDataManager(){
   updateStorageInfo();
 }
 function getFilterDel(){const est=document.getElementById('dm-est')?.value||'',antig=parseInt(document.getElementById('dm-antig')?.value||'0'),aseId=document.getElementById('dm-ase')?.value||'',ori=document.getElementById('dm-ori')?.value||'',fdDesde=document.getElementById('dm-fd')?.value||'',fdHasta=document.getElementById('dm-fh')?.value||'';return leads.filter(l=>{if(fdDesde&&(l.fa||'').substring(0,10)<fdDesde)return false;if(fdHasta&&(l.fa||'').substring(0,10)>fdHasta)return false;if(est&&l.est!==est)return false;if(antig){try{const d=new Date(l.fa||l.fu);if(isNaN(d.getTime()))return false;if((Date.now()-d.getTime())<antig*86400000)return false;}catch(e){return false;}}if(aseId&&String(l.uid)!==aseId)return false;if(ori&&l.ori!==ori)return false;return true;});}
-function previewDel(){const est=document.getElementById('dm-est')?.value||'',antig=document.getElementById('dm-antig')?.value||'',aseId=document.getElementById('dm-ase')?.value||'',ori=document.getElementById('dm-ori')?.value||'';const prev=document.getElementById('dm-prev'),nm=document.getElementById('dm-nomatch');if(!est&&!antig&&!aseId&&!ori){if(prev)prev.style.display='none';if(nm)nm.style.display='none';return;}const arr=getFilterDel();if(arr.length===0){if(prev)prev.style.display='none';if(nm)nm.style.display='block';return;}if(nm)nm.style.display='none';if(prev){prev.style.display='block';const parts=[];if(est)parts.push('Estado: '+est);if(antig)parts.push(antig+' días');if(aseId){const u=users.find(x=>x.id===parseInt(aseId));if(u)parts.push(u.nombre);}if(ori)parts.push(ori);document.getElementById('dm-prev-c').textContent=`${arr.length} leads`;document.getElementById('dm-prev-d').textContent=parts.join(' · ');}}
+function previewDel(){const est=document.getElementById('dm-est')?.value||'',antig=document.getElementById('dm-antig')?.value||'',aseId=document.getElementById('dm-ase')?.value||'',ori=document.getElementById('dm-ori')?.value||'',fdDesde=document.getElementById('dm-fd')?.value||'',fdHasta=document.getElementById('dm-fh')?.value||'';const prev=document.getElementById('dm-prev'),nm=document.getElementById('dm-nomatch');if(!est&&!antig&&!aseId&&!ori&&!fdDesde&&!fdHasta){if(prev)prev.style.display='none';if(nm)nm.style.display='none';return;}const arr=getFilterDel();if(arr.length===0){if(prev)prev.style.display='none';if(nm)nm.style.display='block';return;}if(nm)nm.style.display='none';if(prev){prev.style.display='block';const parts=[];if(fdDesde)parts.push('Desde: '+fdDesde);if(fdHasta)parts.push('Hasta: '+fdHasta);if(est)parts.push('Estado: '+est);if(antig)parts.push(antig+' días');if(aseId){const u=users.find(x=>x.id===parseInt(aseId));if(u)parts.push(u.nombre);}if(ori)parts.push(ori);document.getElementById('dm-prev-c').textContent=`${arr.length} leads`;document.getElementById('dm-prev-d').textContent=parts.join(' · ');}}
 async function execDel(){const arr=getFilterDel();if(arr.length===0){toast('Sin coincidencias');return;}if(!confirm(`¿Eliminar ${arr.length} leads?\nIRREVERSIBLE.`))return;const ids=new Set(arr.map(l=>l.id));leads=leads.filter(l=>!ids.has(l.id));if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all([...ids].map(id=>window._fb.deleteLeadCloud(id)));setSyncStatus('ok');}['dm-est','dm-antig','dm-ase','dm-ori','dm-fd','dm-fh'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('dm-prev').style.display='none';persist();renderAll();renderDataManager();toast(`${arr.length} leads eliminados ✓`);}
 function findDups(){const seen=new Map(),dups=[];leads.forEach(l=>{const k=(l.nom||'').trim().toLowerCase()+'|'+(l.tel||'').trim();if(k==='|')return;if(seen.has(k))dups.push(l);else seen.set(k,l);});return dups;}
 async function delDups(){const dups=findDups();if(dups.length===0){toast('Sin duplicados');return;}if(!confirm(`¿Eliminar ${dups.length} duplicados?`))return;const dids=new Set(dups.map(l=>l.id));leads=leads.filter(l=>!dids.has(l.id));if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all([...dids].map(id=>window._fb.deleteLeadCloud(id)));setSyncStatus('ok');}persist();renderAll();renderDataManager();toast(`${dups.length} eliminados ✓`);}
@@ -1860,7 +1905,7 @@ function goTab(name,btn){
   else if(name==='pipeline')renderPipeline();
   else if(name==='dashboard')renderDashboard();
   else if(name==='reportes')renderReportes();
-  else if(name==='usuarios'){renderUsers();renderAgencias();}
+  else if(name==='usuarios')renderUsers();
   else if(name==='perfil')renderPerfil();
   else if(name==='recordatorios')renderRecordatorios();
   else if(name==='importar'){renderImpHist();updateStorageInfo();}
