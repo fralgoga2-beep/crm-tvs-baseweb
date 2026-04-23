@@ -571,7 +571,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   <div class="card"><div class="tw"><table>
     <thead><tr>
       <th style="width:30px;padding:8px 4px 8px 10px"><input type="checkbox" id="chk-all" onchange="toggleAllChk(this)" style="width:14px;height:14px"></th>
-      <th>Origen</th><th>Estado</th><th>F.Actividad</th><th>Tipo Pago</th><th>Asesor</th><th>F.Actualiz.</th><th>Línea Interés</th><th>Ubicación</th><th>Nombre Lead</th><th>Teléfono</th><th>Comentarios</th><th></th>
+      <th>Origen</th><th>Estado</th><th>F.Actividad</th><th>Tipo Pago</th><th>Asesor</th><th>F.Actualiz.</th><th>Línea Interés</th><th>Agencia</th><th>Nombre Lead</th><th>Teléfono</th><th>Comentarios</th><th></th>
     </tr></thead>
     <tbody id="leads-tb"></tbody>
   </table></div></div>
@@ -915,7 +915,7 @@ const EC_CLS={'PROCESO':'e-proc','VENTA':'e-venta','PERDIDO':'e-perd','SEGUIMIEN
 const TP_CLS={'Contado':'tp-cont','Visa Cuotas':'tp-visa','Crédito':'tp-cred'};
 const ORI_CLS={'Pauta':'o-pau','Hubspot':'o-hub','Call Bell':'o-cb','Extra Leads':'o-el','Pagina Web':'o-pw'};
 const BAR_C=['#1B2F6E','#C8102E','#F47920','#065F46','#0891B2','#7C3AED','#B45309','#1D4ED8'];
-const COL_NAMES=['Origen','Estado','Fecha_Actividad','Tipo_de_Pago','Asesor','Fecha_Actualizacion','Linea_Interes','Ubicacion','Nombre_Lead','Telefono','Comentarios'];
+const COL_NAMES=['Origen','Estado','Fecha_Actividad','Tipo_de_Pago','Asesor','Fecha_Actualizacion','Linea_Interes','Agencia','Nombre_Lead','Telefono','Comentarios'];
 const AVC=['#1B2F6E','#C8102E','#F47920','#065F46','#0891B2','#7C3AED','#B45309','#1D4ED8','#9D174D','#0F766E'];
 
 // ═══════════════════════════════════════
@@ -1251,7 +1251,7 @@ function renderLeads(){
     <td>${atag(l.uid)}</td>
     <td style="font-size:11px;color:var(--mut);white-space:nowrap">${l.fu||'—'}</td>
     <td style="font-size:11px;font-weight:600;color:var(--navy);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.linea}</td>
-    <td style="font-size:11px">${l.ubi}</td>
+    <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.agencia||'—'}</td>
     <td><div style="display:flex;align-items:center;gap:7px">${avH(l.nom,'#1B2F6E')}<div><div style="font-weight:700;font-size:12px">${l.nom}</div>${l.reminder&&l.reminder.date?`<div style="font-size:10px;color:${remSt(l.reminder)==='overdue'?'var(--red)':remSt(l.reminder)==='today'?'#EAB308':'#4CAF50'}">🔔 ${l.reminder.date}</div>`:''}</div></div></td>
     <td style="color:var(--mut);font-size:12px">${l.tel}</td>
     <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mut)" title="${(l.notas&&l.notas.length?l.notas[l.notas.length-1].txt:'')}">${l.notas&&l.notas.length?l.notas[l.notas.length-1].txt:'—'}</td>
@@ -1942,7 +1942,7 @@ async function loadHistorico(){
 }
 function toggleAutoSync(){driveConn.autoSync=!driveConn.autoSync;if(driveConn.autoSync)startAutoSync();else clearInterval(autoTimer);document.getElementById('btn-autosync').textContent=driveConn.autoSync?'⏱ Auto ON':'⏱ Auto-sync';persist();toast(driveConn.autoSync?'Auto-sync ON':'Auto-sync OFF');}
 function discoDrive(){if(!confirm('¿Desconectar?'))return;driveConn={url:'',lastSync:null,autoSync:false};clearInterval(autoTimer);['btn-sync','btn-autosync','btn-disco'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('sync-st').textContent='';persist();}
-function exportCSV(){const arr=myLeads();const rows=[COL_NAMES,...arr.map(l=>{const u=users.find(x=>x.id===l.uid);return[l.ori,l.est,l.fa,l.tp,u?u.nombre:l.anom||'',l.fu,l.linea,l.ubi,l.nom,l.tel,(l.notas||[]).map(n=>n.txt).join(' | ')];})];const csv=rows.map(r=>r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent('\uFEFF'+csv);a.download='tvs-leads.csv';a.click();toast('CSV exportado ✓');}
+function exportCSV(){const arr=myLeads();const rows=[COL_NAMES,...arr.map(l=>{const u=users.find(x=>x.id===l.uid);return[l.ori,l.est,l.fa,l.tp,u?u.nombre:l.anom||'',l.fu,l.linea,l.agencia||'',l.nom,l.tel,(l.notas||[]).map(n=>n.txt).join(' | ')];})];const csv=rows.map(r=>r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent('\uFEFF'+csv);a.download='tvs-leads.csv';a.click();toast('CSV exportado ✓');}
 
 // DATA MANAGER
 function renderDataManager(){
