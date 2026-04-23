@@ -528,6 +528,36 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <div class="card admin-sup"><div class="ch"><span class="ct">Performance por asesor</span><button class="btn bo bsm" style="font-size:10px" onclick="openPerfConfig()">⚙️ Meta diaria</button></div><div class="cb" id="dash-ase"></div></div>
     <div class="card"><div class="ch"><span class="ct">Recordatorios urgentes</span><button class="btn bo bsm" onclick="goTab('recordatorios',null)">Ver todos</button></div><div class="cb" id="dash-rem"></div></div>
   </div>
+
+  <!-- SECCION DIARIA ASESOR -->
+  <div class="card" id="dash-daily-card">
+    <div class="ch" style="flex-wrap:wrap;gap:8px">
+      <span class="ct">📋 Mi Gestión del Día</span>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <label style="font-size:11px;color:var(--mut);font-weight:600">Filtrar por día:</label>
+        <input type="date" id="dash-daily-date" class="fc" style="max-width:145px;font-size:11px" onchange="renderDailyStats()">
+        <button class="btn bo bsm" style="font-size:11px" onclick="document.getElementById('dash-daily-date').value=today();renderDailyStats()">Hoy</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.8rem;margin-top:.8rem">
+      <!-- Interés -->
+      <div style="background:var(--s2);border-radius:var(--r);padding:12px">
+        <div style="font-size:10px;font-weight:700;color:#1B2F6E;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">📊 Interés</div>
+        <div id="daily-interes"></div>
+      </div>
+      <!-- Respuesta -->
+      <div style="background:var(--s2);border-radius:var(--r);padding:12px">
+        <div style="font-size:10px;font-weight:700;color:#1B2F6E;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">📞 Respuesta</div>
+        <div id="daily-responde"></div>
+      </div>
+      <!-- Regestión -->
+      <div style="background:var(--s2);border-radius:var(--r);padding:12px">
+        <div style="font-size:10px;font-weight:700;color:#1B2F6E;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🔄 Regestión</div>
+        <div id="daily-regest"></div>
+      </div>
+    </div>
+    <div id="daily-leads-list" style="margin-top:.8rem"></div>
+  </div>
 </div>
 
 <!-- LEADS -->
@@ -871,7 +901,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <div class="fr"><div class="fg"><label class="fl">Línea de Interés</label>
         <select class="fc" id="lf-lin"><option>APACHE RTR 160 2V REF</option><option>APACHE RTR 160 4V</option><option>APACHE RTR 160 4V RM</option><option>APACHE RTR 180</option><option>APACHE RTR 200 4V</option><option>APACHE RTR 200 FI</option><option>APACHE RR310</option><option>APACHE RTR 310</option><option>APACHE RTR 310 E5</option><option>RAIDER 125</option><option>RAIDER 125 FI</option><option>RONIN 225</option><option>NEO 110 NX</option><option>DAZZ CW</option><option>NTORQ 125</option><option>NTORQ 125 RACE</option><option>JUPITER 125 FI (NUEVO MODELO)</option><option>STRYKER 125</option><option>HLX 150</option><option>HLX 125</option><option>ZT 125</option><option>SPORT 100 ELS</option><option>KING DELUXE (BLUETOOTH)</option><option>KING DELUXE PLUS</option><option>KING DURAMAX</option><option>KING KARGO</option></select>
       </div></div>
-      <div class="fr"><div class="fg"><label class="fl">Agencia</label><select class="fc" id="lf-agencia"><option value="">— Sin agencia —</option></select></div><div class="fg"><label class="fl">Ubicación</label><input class="fc" id="lf-ubi" style="display:none"><datalist id="ubi-list"></datalist></div></div>
+      <div class="fr"><div class="fg"><label class="fl">Agencia</label><select class="fc" id="lf-agencia"><option value="">— Sin agencia —</option></select></div><div class="fg"><label class="fl">Ubicación</label><input class="fc" id="lf-ubi" list="ubi-list" placeholder="Ciudad o zona..."><datalist id="ubi-list"></datalist></div></div>
       <div class="fr"><div class="fg"><label class="fl">Fecha Actividad</label><input class="fc" type="date" id="lf-fa"></div><div class="fg"><label class="fl">Fecha Actualización</label><input class="fc" type="date" id="lf-fu"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Estado</label><select class="fc" id="lf-est" onchange="toggleCanalField()"><option>NUEVO</option><option>PROCESO</option><option>CITA</option><option>PRECALIFICADO</option><option>SEGUIMIENTO</option><option>VENTA</option><option>PERDIDO</option><option>PENDIENTE</option></select></div><div class="fg admin-sup"><label class="fl">Asesor</label><select class="fc" id="lf-ase"><option value="">— Sin asignar</option></select></div></div>
       <div class="fr" id="canal-field" style="display:none"><div class="fg"><label class="fl">Canal de Cita</label><select class="fc" id="lf-canal"><option value="">— Seleccionar —</option><option value="AP">AP</option><option value="HT">HT</option><option value="AC">AC</option></select></div></div>
@@ -1008,7 +1038,7 @@ const DEF_LEADS=[
 ];
 
 let users=[...DEF_USERS], leads=[...DEF_LEADS];
-let agencias=lsG('tvs8_agencias',["HT BARBERENA", "HT AMATITLÁN", "HT TIQUISATE", "HT PLAZA TECA", "HT SAN PEDRO SAC", "HT SANTA ELENA PETEN", "HT HUEHUETENANGO", "HT JALAPA", "HT MAZATENANGO", "HT MALACATAN", "HT CHIQUIMULA", "HT ATLANTIDA", "HT ESCUINTLA", "HT PUERTO SAN JOSE", "HT SANTA LUCIA", "HT CHIMALTENANGO", "HT GOMERA", "HT ESQUIPUL", "HT POPTUN", "HT LA LIBERTAD", "HT PRADERA EXPS V.N.", "HT EL CASTAÑO", "HT PETAPA", "HT TECULUTAN", "HT JUTIAPA", "HT SALAMA", "HT COBAN", "HT SAYAXCHE", "HT LOS AMATES", "HT SAN ANTONIO SUCHI", "HT QUETZALTENANGO", "HT COATEPEQUE", "HT PUERTO BARRIOS", "HT GUASTATO", "HT MORALES", "HT RETALHULEU", "HT NVA. CONCEPCION", "HT QUICHE", "HT NEBAJ", "HT SANTA ELENA PETEN 2", "AP ZONA KING COBAN", "AP CENTRAL YURRITA", "AP 6TA AV ZONA 9", "AP AMATITLAN", "AP BARCENAS", "AP CALLE MARTI", "AP CHIMALTENANGO", "AP CHIQUIMULA", "AP COATEPEQUE", "AP EL CASTAÑO", "AP ESCUINTLA", "AP ESKALA", "AP JALAPA", "AP LOS ALAMOS", "AP METRO NORTE", "AP QUETZALTENANGO", "AP RETALHULEU", "AP SANARATE", "AP VILLA CANALES"]);
+let agencias=lsG('tvs8_agencias',["HT BARBERENA", "HT AMATITLÁN", "HT TIQUISATE", "HT PLAZA TECA", "HT SAN PEDRO SAC", "HT SANTA ELENA PETEN", "HT HUEHUETENANGO", "HT JALAPA", "HT MAZATENANGO", "HT MALACATAN", "HT CHIQUIMULA", "HT ATLANTIDA", "HT ESCUINTLA", "HT PUERTO SAN JOSE", "HT SANTA LUCIA", "HT CHIMALTENANGO", "HT GOMERA", "HT ESQUIPUL", "HT POPTUN", "HT LA LIBERTAD", "HT PRADERA EXPS V.N.", "HT EL CASTAÑO", "HT PETAPA", "HT TECULUTAN", "HT JUTIAPA", "HT SALAMA", "HT COBAN", "HT SAYAXCHE", "HT LOS AMATES", "HT SAN ANTONIO SUCHI", "HT QUETZALTENANGO", "HT COATEPEQUE", "HT PUERTO BARRIOS", "HT GUASTATO", "HT MORALES", "HT RETALHULEU", "HT NVA. CONCEPCION", "HT QUICHE", "HT NEBAJ", "HT SANTA ELENA PETEN 2", "AP ZONA KING COBAN", "AP CENTRAL YURRITA", "AP 6TA AV ZONA 9", "AP AMATITLAN", "AP BARCENAS", "AP CALLE MARTI", "AP CHIMALTENANGO", "AP CHIQUIMULA", "AP COATEPEQUE", "AP EL CASTAÑO", "AP ESCUINTLA", "AP ESKALA", "AP JALAPA", "AP LOS ALAMOS", "AP METRO NORTE", "AP QUETZALTENANGO", "AP RETALHULEU", "AP SANARATE", "AP VILLA CANALES", "AC JOCOTENANGO", "AC SANTA LUCIA MILPAS ALTAS", "AC SANTA CLARA LA LAGUNA", "AC ESCUINTLA", "AC SAN JOSE PINULA", "AC ALOTENANGO", "AC LA BRIGADA", "AC ZONA 10", "AC UTATLAN", "AC SAN JUAN SACATEPEQUEZ", "AC SAN LUCAS", "AC CIUDAD VIEJA", "AC BOCA DEL MONTE", "AC VILLA NUEVA", "AC PALIN", "AC ANTIGUA", "AC AMATITLAN", "AC BETHANIA", "AC ZONA 9", "AC SAN MIGUEL PETAPA", "AC LA GOMERA", "AC PETAPA", "AC ZONA 1", "AC OBELISCO", "AC BOSQUES", "AC SAN RAFAEL"]);
 let driveConn={url:'',lastSync:null,autoSync:false};
 let impHist=[], syncLogs=[];
 // ── PERFORMANCE DIARIO ──
@@ -1305,6 +1335,94 @@ function today(){return new Date().toISOString().split('T')[0];}
 function remSt(r){if(!r||!r.date)return null;const t=today();if(r.date<t)return 'overdue';if(r.date===t)return 'today';return 'upcoming';}
 function updRemBadge(){const mine=myLeads(),t=today(),due=mine.filter(l=>l.reminder&&l.reminder.date&&l.reminder.date<=t);const dot=document.getElementById('rdot'),cnt=document.getElementById('nc-rem');if(due.length>0){if(dot)dot.style.display='block';if(cnt){cnt.style.display='block';cnt.textContent=due.length;}}else{if(dot)dot.style.display='none';if(cnt)cnt.style.display='none';}document.getElementById('nc-leads').textContent=myLeads().length;}
 
+
+// ═══════════════════════════════════════
+// DAILY STATS (Interés / Responde / Regestión)
+// ═══════════════════════════════════════
+function renderDailyStats(){
+  const dateEl=document.getElementById('dash-daily-date');
+  const fecha=dateEl?dateEl.value:today();
+  // Get my leads (asesor) or all leads (priv filtered by date of update)
+  const base=myLeads();
+  // Filter leads whose fu (last update) matches selected date
+  const arr=base.filter(l=>(l.fu||l.fa||'')===fecha);
+
+  function pill(label,val,color){
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;background:${color}18;border-radius:8px;margin-bottom:5px">
+      <span style="font-size:12px;color:var(--txt)">${label}</span>
+      <span style="font-size:14px;font-weight:700;color:${color};min-width:24px;text-align:right">${val}</span>
+    </div>`;
+  }
+
+  // ── Interés ──
+  const interesOpts=['No Cumple PANT','No Interesado','Cotizando','Interesad@ en Compra'];
+  const intColors={'No Cumple PANT':'#EF5350','No Interesado':'#EF5350','Cotizando':'#F47920','Interesad@ en Compra':'#4CAF50'};
+  const sinInteres=arr.filter(l=>!l.interes).length;
+  const intEl=document.getElementById('daily-interes');
+  if(intEl){
+    const total=arr.length;
+    intEl.innerHTML=
+      interesOpts.map(o=>{
+        const c=arr.filter(l=>l.interes===o).length;
+        return pill(o,c,intColors[o]||'#1B2F6E');
+      }).join('')+
+      pill('Sin registrar',sinInteres,'#9E9E9E')+
+      `<div style="font-size:10px;color:var(--mut);margin-top:4px;text-align:right">Total actualizados: <strong>${total}</strong></div>`;
+  }
+
+  // ── Responde ──
+  const respOpts=['Responde','No responde'];
+  const respColors={'Responde':'#4CAF50','No responde':'#EF5350'};
+  const sinResp=arr.filter(l=>!l.responde).length;
+  const respEl=document.getElementById('daily-responde');
+  if(respEl){
+    respEl.innerHTML=
+      respOpts.map(o=>{
+        const c=arr.filter(l=>l.responde===o).length;
+        return pill(o,c,respColors[o]||'#1B2F6E');
+      }).join('')+
+      pill('Sin registrar',sinResp,'#9E9E9E')+
+      `<div style="font-size:10px;color:var(--mut);margin-top:4px;text-align:right">Total actualizados: <strong>${arr.length}</strong></div>`;
+  }
+
+  // ── Regestión ──
+  const regestOpts=['Regestionado','Sin Regestión'];
+  const regestColors={'Regestionado':'#4CAF50','Sin Regestión':'#EF5350'};
+  const sinRegest=arr.filter(l=>!l.regest).length;
+  const regestEl=document.getElementById('daily-regest');
+  if(regestEl){
+    regestEl.innerHTML=
+      regestOpts.map(o=>{
+        const c=arr.filter(l=>l.regest===o).length;
+        return pill(o,c,regestColors[o]||'#1B2F6E');
+      }).join('')+
+      pill('Sin registrar',sinRegest,'#9E9E9E')+
+      `<div style="font-size:10px;color:var(--mut);margin-top:4px;text-align:right">Total actualizados: <strong>${arr.length}</strong></div>`;
+  }
+
+  // ── Lead list for that day ──
+  const listEl=document.getElementById('daily-leads-list');
+  if(listEl){
+    if(arr.length===0){
+      listEl.innerHTML=`<div style="text-align:center;color:var(--mut);font-size:12px;padding:.8rem">Sin leads actualizados el ${fecha||'día seleccionado'}</div>`;
+    } else {
+      listEl.innerHTML=`
+        <div style="font-size:10px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Leads actualizados ese día (${arr.length})</div>
+        <div class="tw" style="max-height:220px;overflow-y:auto"><table>
+          <thead><tr><th>Nombre</th><th>Estado</th><th>Interés</th><th>Responde</th><th>Regestión</th></tr></thead>
+          <tbody>${arr.map(l=>`<tr>
+            <td style="font-weight:600;font-size:12px">${l.nom}</td>
+            <td>${eBadge(l.est)}</td>
+            <td style="font-size:11px;color:${l.interes?'var(--navy)':'var(--mut)'}">${l.interes||'—'}</td>
+            <td style="font-size:11px;color:${l.responde==='Responde'?'#1B5E20':l.responde==='No responde'?'var(--red)':'var(--mut)'}">${l.responde||'—'}</td>
+            <td style="font-size:11px;color:${l.regest==='Regestionado'?'#1B5E20':l.regest==='Sin Regestión'?'var(--red)':'var(--mut)'}">${l.regest||'—'}</td>
+          </tr>`).join('')}
+          </tbody>
+        </table></div>`;
+    }
+  }
+}
+
 // ═══════════════════════════════════════
 // RENDER LEADS
 // ═══════════════════════════════════════
@@ -1380,6 +1498,10 @@ function renderPipeline(){
   }).join('');
 }
 function renderDashboard(){
+  // Init daily date picker to today if empty
+  const _ddp=document.getElementById('dash-daily-date');
+  if(_ddp&&!_ddp.value)_ddp.value=today();
+  renderDailyStats();
   const arr=myLeads(),venta=arr.filter(l=>l.est==='VENTA').length,perdido=arr.filter(l=>l.est==='PERDIDO').length,proceso=arr.filter(l=>l.est==='PROCESO').length,pct=arr.length>0?Math.round(venta/arr.length*100):0;
   // ── PERFORMANCE CARD ──
   if(!isPriv()){
