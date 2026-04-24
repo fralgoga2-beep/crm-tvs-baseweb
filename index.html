@@ -1128,20 +1128,25 @@ function initRealtimeSync(){
       const localMap=new Map(leads.map(l=>[String(l.id),l]));
       // Compare by fu (update date string) — more reliable than _ts which may be null locally
       // If fu is equal, prefer cloud. If local fu is strictly newer, keep local.
-      const getFu=l=>(l.fu||l.fa||'');
       const merged=[];
       const seen=new Set();
+      const toUpload=[];
       const allIds=new Set([...cloudMap.keys(),...localMap.keys()]);
       allIds.forEach(id=>{
         if(seen.has(id))return;seen.add(id);
         const cloud=cloudMap.get(id),local=localMap.get(id);
         if(cloud&&local){
-          // Keep local only if its fu is strictly newer than cloud's fu
-          merged.push(getFu(local)>getFu(cloud)?local:cloud);
+          // _localTs is set only when asesor explicitly saved — reliable signal
+          // If local has _localTs newer than cloud _ts seconds, local wins
+          const cloudTs=cloud._ts&&cloud._ts.seconds?cloud._ts.seconds*1000:(cloud._ts||0);
+          const localTs=local._localTs||0;
+          if(localTs>cloudTs){merged.push(local);toUpload.push(local);}
+          else{merged.push(cloud);}
         } else if(cloud){
           merged.push(cloud);
         } else if(local){
-          merged.push(local);
+          // Local-only: needs to go to cloud
+          merged.push(local);toUpload.push(local);
         }
       });
       leads=merged.sort((a,b)=>b.id-a.id);
@@ -1149,8 +1154,6 @@ function initRealtimeSync(){
       if(CU)renderAll();
       setSyncStatus('ok');
       realtimeActive=true;
-      // Upload local-only leads or leads where local fu is newer than cloud
-      const toUpload=leads.filter(l=>{const cloud=cloudMap.get(String(l.id));return !cloud||(getFu(l)>getFu(cloud));});
       if(toUpload.length>0)toUpload.forEach(l=>window._fb.saveLeadCloud(l));
     } else {
       window._fb.saveAllLeads(leads);
@@ -1221,6 +1224,9 @@ function persist(){
 async function cloudSaveLead(lead,silent=false){
   if(useCloud&&window._fb.isReady()){
     if(!silent)setSyncStatus('syncing');
+    // Stamp _localTs so the merge knows this local version is newer
+    lead._localTs=Date.now();
+    lsS('tvs8_leads_bk',leads.slice(0,2000));
     await window._fb.saveLeadCloud(lead);
     if(!silent)setSyncStatus('ok');
   }
