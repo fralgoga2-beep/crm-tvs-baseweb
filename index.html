@@ -1125,25 +1125,36 @@ function isProtected(id){ const t=recentlySaved.get(String(id)); return t&&(Date
 function initRealtimeSync(){
   if(!window._fb.isReady())return;
   setSyncStatus('syncing');
+  let fullSyncDone=false;
   window._fb.listenLeads(cloudLeads=>{
-    const cloudMap=new Map(cloudLeads.map(l=>[String(l.id),l]));
     if(cloudLeads.length>0||realtimeActive){
-      // Merge: cloud wins EXCEPT for leads recently saved locally
-      cloudLeads.forEach(cl=>{
-        const id=String(cl.id);
-        if(isProtected(id)) return; // skip — asesor just saved this, keep local version
-        const idx=leads.findIndex(l=>String(l.id)===id);
-        if(idx>=0){ leads[idx]=cl; } else { leads.push(cl); }
+      if(!fullSyncDone){
+        // First snapshot: full replace — this is the complete dataset from Firebase
+        const protected_leads=leads.filter(l=>isProtected(l.id));
+        const cloudMap=new Map(cloudLeads.map(l=>[String(l.id),l]));
+        // Keep protected leads, merge rest from cloud
+        protected_leads.forEach(pl=>{cloudMap.set(String(pl.id),pl);});
+        leads=Array.from(cloudMap.values());
+        fullSyncDone=true;
+      } else {
+        // Subsequent snapshots: only update/add changed leads, never delete
+        cloudLeads.forEach(cl=>{
+          if(isProtected(cl.id)) return;
+          const idx=leads.findIndex(l=>String(l.id)===String(cl.id));
+          if(idx>=0){leads[idx]=cl;}else{leads.push(cl);}
+        });
+      }
+      // Sort by fa desc (newest activity first), fallback to id desc
+      leads.sort((a,b)=>{
+        const fa=(x=>x.fa||'')(a),fb=(x=>x.fa||'')(b);
+        if(fb>fa)return 1;if(fa>fb)return -1;
+        return b.id-a.id;
       });
-      // Remove leads deleted from cloud (not protected)
-      leads=leads.filter(l=>cloudMap.has(String(l.id))||isProtected(l.id));
-      leads.sort((a,b)=>b.id-a.id);
       lsS('tvs8_leads_bk',leads.slice(0,2000));
       if(CU)renderAll();
       setSyncStatus('ok');
       realtimeActive=true;
     } else {
-      // First connection and no cloud data — push local leads up
       if(leads.length>0) window._fb.saveAllLeads(leads);
       setSyncStatus('ok');
       realtimeActive=true;
@@ -2157,7 +2168,7 @@ async function loadHistorico(){
     if(snap&&snap.leads&&snap.leads.length>0){
       const existingIds=new Set(leads.map(l=>l.id));
       const nuevos=snap.leads.filter(l=>!existingIds.has(l.id));
-      leads=[...leads,...nuevos].sort((a,b)=>b.id-a.id);
+      leads=[...leads,...nuevos].sort((a,b)=>{const fa=a.fa||'',fb=b.fa||'';if(fb>fa)return 1;if(fa>fb)return -1;return b.id-a.id;});
       lsS('tvs8_leads_bk',leads.slice(0,500));
       renderAll();
       toast(nuevos.length>0?`✅ ${nuevos.length} leads históricos cargados`:'✅ No hay leads adicionales');
