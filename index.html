@@ -580,6 +580,8 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <button class="btn bsm" style="background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.25)" onclick="bulkNone()">☐ Ninguno</button>
       <select id="blk-est" class="btn bsm" style="background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.25);font-family:inherit"><option value="">Cambiar estado...</option><option>PROCESO</option><option>VENTA</option><option>PERDIDO</option><option>SEGUIMIENTO</option><option>PENDIENTE</option><option>CITA</option><option>NUEVO</option><option>PRECALIFICADO</option></select>
       <button class="btn bsm" style="background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.25)" onclick="bulkEst()">✓ Aplicar</button>
+      <select id="blk-tp" class="btn bsm" style="background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.25);font-family:inherit"><option value="">Cambiar tipo pago...</option><option>Contado</option><option>Visa Cuotas</option><option>Crédito</option><option>Otro</option><option>No Informa</option></select>
+      <button class="btn bsm" style="background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.25)" onclick="bulkTp()">✓ Aplicar</button>
       <button id="btn-bulk-assign" class="btn bsm" style="background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.25);display:none" onclick="openBulkAssign()">👤 Asignar</button>
       <button class="btn bsm" style="background:rgba(200,16,46,.85);color:white" onclick="bulkDel()">🗑 Eliminar</button>
       <button class="btn bsm" style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.2)" onclick="exitBulk()">✕</button>
@@ -1049,7 +1051,7 @@ let perfMeta={leads:30,gestiones:20};
 const _pm=lsG('tvs8_perfmeta',null);if(_pm)perfMeta=_pm;
 let perfGest=lsG('tvs8_perfgest',{});
 function todayGest(uid){const t=today();if(!perfGest[uid])perfGest[uid]={};return perfGest[uid][t]||0;}
-function addGest(uid,n){const t=today();if(!perfGest[uid])perfGest[uid]={};perfGest[uid][t]=(perfGest[uid][t]||0)+n;lsS('tvs8_perfgest',perfGest);}
+function addGest(uid,n){const t=today();if(!perfGest[uid])perfGest[uid]={};perfGest[uid][t]=(perfGest[uid][t]||0)+n;lsS('tvs8_perfgest',perfGest);if(useCloud&&window._fb&&window._fb.isReady()){window._fb.saveMeta({nuid,nlid,driveConn,perfGest}).catch(()=>{});}}
 function todayLeads(uid){const t=today();return leads.filter(l=>l.uid===uid&&(l.fa===t||l.fu===t)).length;}
 function calcPerf(uid){const tl=todayLeads(uid),tg=todayGest(uid),pL=Math.min(Math.round(tl/perfMeta.leads*100),100),pG=Math.min(Math.round(tg/perfMeta.gestiones*100),100),tot=Math.round((pL+pG)/2);return{pLeads:pL,pGest:pG,total:tot,tl,tg};}
 function perfColor(p){return p>=81?'#16a34a':p>=60?'#ea580c':'#dc2626';}
@@ -1119,27 +1121,26 @@ function showLoginScreen(cloud){
 function initRealtimeSync(){
   if(!window._fb.isReady())return;
   setSyncStatus('syncing');
-  // Listen leads — merge by timestamp: most recently modified version wins
+  // Listen leads — merge by fu date: most recently updated version wins
   window._fb.listenLeads(cloudLeads=>{
     if(cloudLeads.length>0||realtimeActive){
       const cloudMap=new Map(cloudLeads.map(l=>[String(l.id),l]));
       const localMap=new Map(leads.map(l=>[String(l.id),l]));
-      // For each lead, keep whichever version was modified more recently
-      const getTs=l=>{if(l._ts&&l._ts.seconds)return l._ts.seconds;if(l._ts&&typeof l._ts==='number')return l._ts;if(l.fu)return new Date(l.fu).getTime()/1000;return 0;};
+      // Compare by fu (update date string) — more reliable than _ts which may be null locally
+      // If fu is equal, prefer cloud. If local fu is strictly newer, keep local.
+      const getFu=l=>(l.fu||l.fa||'');
       const merged=[];
       const seen=new Set();
-      // Process all ids from both sources
       const allIds=new Set([...cloudMap.keys(),...localMap.keys()]);
       allIds.forEach(id=>{
         if(seen.has(id))return;seen.add(id);
         const cloud=cloudMap.get(id),local=localMap.get(id);
         if(cloud&&local){
-          // Both exist: keep the one with the newer timestamp
-          merged.push(getTs(local)>getTs(cloud)?local:cloud);
+          // Keep local only if its fu is strictly newer than cloud's fu
+          merged.push(getFu(local)>getFu(cloud)?local:cloud);
         } else if(cloud){
           merged.push(cloud);
         } else if(local){
-          // Local-only: push to cloud and keep locally
           merged.push(local);
         }
       });
@@ -1148,11 +1149,10 @@ function initRealtimeSync(){
       if(CU)renderAll();
       setSyncStatus('ok');
       realtimeActive=true;
-      // Upload any local-only or locally-newer leads to cloud
-      const toUpload=leads.filter(l=>{const cloud=cloudMap.get(String(l.id));return !cloud||(getTs(l)>getTs(cloud));});
+      // Upload local-only leads or leads where local fu is newer than cloud
+      const toUpload=leads.filter(l=>{const cloud=cloudMap.get(String(l.id));return !cloud||(getFu(l)>getFu(cloud));});
       if(toUpload.length>0)toUpload.forEach(l=>window._fb.saveLeadCloud(l));
     } else {
-      // First run, push local data to cloud
       window._fb.saveAllLeads(leads);
       setSyncStatus('ok');
       realtimeActive=true;
@@ -1175,6 +1175,20 @@ function initRealtimeSync(){
       users.forEach(u=>window._fb.saveUserCloud(u));
     }
   });
+  // Load perfGest from cloud so admin dashboard shows real performance data
+  window._fb.getMeta().then(meta=>{
+    if(meta&&meta.perfGest){
+      // Merge cloud perfGest with local (take max value per user per day)
+      Object.entries(meta.perfGest).forEach(([uid,days])=>{
+        if(!perfGest[uid])perfGest[uid]={};
+        Object.entries(days).forEach(([day,val])=>{
+          perfGest[uid][day]=Math.max(perfGest[uid][day]||0, val);
+        });
+      });
+      lsS('tvs8_perfgest',perfGest);
+      if(CU)renderAll();
+    }
+  }).catch(()=>{});
 }
 function setSyncStatus(status){
   syncStatus=status;
@@ -1214,7 +1228,7 @@ async function cloudSaveLead(lead,silent=false){
 async function cloudDelLead(id){if(useCloud&&window._fb.isReady()){await window._fb.deleteLeadCloud(id);}}
 async function cloudSaveUser(user){if(useCloud&&window._fb.isReady()){await window._fb.saveUserCloud(user);}}
 async function cloudDelUser(id){if(useCloud&&window._fb.isReady()){await window._fb.deleteUserCloud(id);}}
-async function cloudSaveMeta(){if(useCloud&&window._fb.isReady()){await window._fb.saveMeta({nuid,nlid,driveConn});}}
+async function cloudSaveMeta(){if(useCloud&&window._fb.isReady()){await window._fb.saveMeta({nuid,nlid,driveConn,perfGest});}}
 
 function updateStorageInfo(){
   const sz=document.getElementById('st-sz');
@@ -2078,6 +2092,7 @@ function bulkAll(){filteredLeads().forEach(l=>selIds.add(l.id));renderLeads();}
 function bulkNone(){selIds.clear();renderLeads();}
 async function bulkDel(){if(selIds.size===0){toast('Sin leads seleccionados');return;}if(!confirm(`¿Eliminar ${selIds.size} leads?`))return;const ids=[...selIds];leads=leads.filter(l=>!selIds.has(l.id));if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all(ids.map(id=>window._fb.deleteLeadCloud(id)));setSyncStatus('ok');}selIds.clear();persist();exitBulk();renderAll();toast(`${ids.length} leads eliminados ✓`);}
 function bulkEst(){const est=document.getElementById('blk-est').value;if(!est){toast('Selecciona estado');return;}if(selIds.size===0){toast('Sin leads seleccionados');return;}leads.forEach(l=>{if(selIds.has(l.id)){l.est=est;l.fu=today();}});const n=selIds.size;persist();if(useCloud&&window._fb.isReady())leads.filter(l=>selIds.has(l.id)).forEach(l=>cloudSaveLead(l));selIds.clear();exitBulk();renderAll();toast(`Estado en ${n} leads ✓`);}
+function bulkTp(){const tp=document.getElementById('blk-tp').value;if(!tp){toast('Selecciona tipo de pago');return;}if(selIds.size===0){toast('Sin leads seleccionados');return;}leads.forEach(l=>{if(selIds.has(l.id)){l.tp=tp;l.fu=today();}});const n=selIds.size;persist();if(useCloud&&window._fb.isReady())leads.filter(l=>selIds.has(l.id)).forEach(l=>cloudSaveLead(l));selIds.clear();exitBulk();renderAll();toast(`Tipo de pago actualizado en ${n} leads ✓`);}
 
 // IMPORT / EXPORT
 function parseCSV(text){const rows=[];const lines=text.split(/\r?\n/);const firstLine=lines.find(l=>l.trim())||'';const sep=(firstLine.split(';').length>firstLine.split(',').length)?';':',';for(const ln of lines){if(!ln.trim())continue;const cols=[];let cur='',inQ=false;for(let i=0;i<ln.length;i++){if(ln[i]==='"'&&ln[i+1]==='"'){cur+='"';i++;}else if(ln[i]==='"'){inQ=!inQ;}else if(ln[i]===sep&&!inQ){cols.push(cur.trim());cur='';}else cur+=ln[i];}cols.push(cur.trim());rows.push(cols);}return rows;}
