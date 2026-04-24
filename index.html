@@ -88,7 +88,7 @@ window._fb = {
   listenLeads(callback) {
     if(!fbDb) return;
     if(leadsUnsub) leadsUnsub();
-    const cutoff = Timestamp.fromDate(new Date(Date.now() - 150 * 24 * 60 * 60 * 1000));
+    const cutoff = Timestamp.fromDate(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000));
     const q = query(collection(fbDb, 'leads'), where('_ts', '>=', cutoff));
     leadsUnsub = onSnapshot(q, snap => {
       const arr = [];
@@ -119,8 +119,10 @@ window._fb = {
   async pullAll() {
     if(!fbDb) return null;
     try {
+      const cutoff = Timestamp.fromDate(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000));
+      const leadsQ = query(collection(fbDb, 'leads'), where('_ts', '>=', cutoff));
       const [lSnap, uSnap, mSnap] = await Promise.all([
-        getDocs(collection(fbDb, 'leads')),
+        getDocs(leadsQ),
         getDocs(collection(fbDb, 'crm_users')),
         getDoc(doc(fbDb, 'meta', 'config'))
       ]);
@@ -1117,26 +1119,38 @@ function showLoginScreen(cloud){
 function initRealtimeSync(){
   if(!window._fb.isReady())return;
   setSyncStatus('syncing');
-  // Listen leads — merge cloud into local (never overwrite local-only leads)
+  // Listen leads — merge by timestamp: most recently modified version wins
   window._fb.listenLeads(cloudLeads=>{
     if(cloudLeads.length>0||realtimeActive){
-      // Build a map of cloud leads by id
       const cloudMap=new Map(cloudLeads.map(l=>[String(l.id),l]));
-      // Keep any local lead that is NOT yet in the cloud (just saved, pending upload)
-      const localOnly=leads.filter(l=>!cloudMap.has(String(l.id)));
-      // Merge: cloud is authoritative for existing leads, local-only leads are preserved
-      const merged=[...cloudLeads,...localOnly];
-      // Deduplicate by id (cloud wins for duplicates)
+      const localMap=new Map(leads.map(l=>[String(l.id),l]));
+      // For each lead, keep whichever version was modified more recently
+      const getTs=l=>{if(l._ts&&l._ts.seconds)return l._ts.seconds;if(l._ts&&typeof l._ts==='number')return l._ts;if(l.fu)return new Date(l.fu).getTime()/1000;return 0;};
+      const merged=[];
       const seen=new Set();
-      leads=merged.filter(l=>{const k=String(l.id);if(seen.has(k))return false;seen.add(k);return true;}).sort((a,b)=>b.id-a.id);
-      lsS('tvs8_leads_bk',leads.slice(0,500));
+      // Process all ids from both sources
+      const allIds=new Set([...cloudMap.keys(),...localMap.keys()]);
+      allIds.forEach(id=>{
+        if(seen.has(id))return;seen.add(id);
+        const cloud=cloudMap.get(id),local=localMap.get(id);
+        if(cloud&&local){
+          // Both exist: keep the one with the newer timestamp
+          merged.push(getTs(local)>getTs(cloud)?local:cloud);
+        } else if(cloud){
+          merged.push(cloud);
+        } else if(local){
+          // Local-only: push to cloud and keep locally
+          merged.push(local);
+        }
+      });
+      leads=merged.sort((a,b)=>b.id-a.id);
+      lsS('tvs8_leads_bk',leads.slice(0,2000));
       if(CU)renderAll();
       setSyncStatus('ok');
       realtimeActive=true;
-      // Upload any local-only leads that weren't in the cloud yet
-      if(localOnly.length>0){
-        localOnly.forEach(l=>window._fb.saveLeadCloud(l));
-      }
+      // Upload any local-only or locally-newer leads to cloud
+      const toUpload=leads.filter(l=>{const cloud=cloudMap.get(String(l.id));return !cloud||(getTs(l)>getTs(cloud));});
+      if(toUpload.length>0)toUpload.forEach(l=>window._fb.saveLeadCloud(l));
     } else {
       // First run, push local data to cloud
       window._fb.saveAllLeads(leads);
@@ -1183,7 +1197,7 @@ function setSyncStatus(status){
 // ═══════════════════════════════════════
 function persist(){
   lsS('tvs8_agencias',agencias);
-  lsS('tvs8_leads_bk',leads.slice(0,500));
+  lsS('tvs8_leads_bk',leads.slice(0,2000));
   lsS('tvs8_users_bk',users);
   lsS('tvs8_next',{u:nuid,l:nlid});
   lsS('tvs8_imphist',impHist);
@@ -2067,7 +2081,10 @@ function bulkEst(){const est=document.getElementById('blk-est').value;if(!est){t
 
 // IMPORT / EXPORT
 function parseCSV(text){const rows=[];const lines=text.split(/\r?\n/);const firstLine=lines.find(l=>l.trim())||'';const sep=(firstLine.split(';').length>firstLine.split(',').length)?';':',';for(const ln of lines){if(!ln.trim())continue;const cols=[];let cur='',inQ=false;for(let i=0;i<ln.length;i++){if(ln[i]==='"'&&ln[i+1]==='"'){cur+='"';i++;}else if(ln[i]==='"'){inQ=!inQ;}else if(ln[i]===sep&&!inQ){cols.push(cur.trim());cur='';}else cur+=ln[i];}cols.push(cur.trim());rows.push(cols);}return rows;}
-function importRows(rows){if(!rows||rows.length<2)return 0;const h=rows[0].map(c=>(c||'').toLowerCase().replace(/[^a-záéíóúüñ_\s]/gi,'').trim());const fi=(...ks)=>{for(const k of ks){const i=h.findIndex(c=>c.includes(k.toLowerCase()));if(i>=0)return i;}return -1;};const iOri=fi('origen'),iFa=fi('fecha_act','fecha act','fecha_actividad'),iFu=fi('fecha_upd','fecha actual','fecha_act'),iEst=fi('estado'),iTp=fi('tipo','pago'),iLin=fi('linea','l nea','modelo'),iUbi=fi('ubic'),iNom=fi('nombre_lead','nombre lead','nombre'),iTel=fi('tel','phone'),iAse=fi('asesor'),iCom=fi('comentar','observ','nota');if(iNom<0)return -1;let added=0;const newLeads=[];for(let i=1;i<rows.length;i++){const r=rows[i];if(!r[iNom]||!r[iNom].trim())continue;const nom=r[iNom].trim(),tel=(r[iTel]||'').trim();if(leads.find(l=>l.nom.trim().toLowerCase()===nom.toLowerCase()&&l.tel===tel))continue;const anom=(r[iAse]||'').trim(),u=anom?users.find(x=>x.leadsname?.trim().toLowerCase()===anom.toLowerCase()):null;const comTxt=(r[iCom]||'').trim();const nl={id:nlid++,ori:(r[iOri]||'Otro').trim(),fa:(r[iFa]||'').trim(),fu:(r[iFu]||today()),est:((r[iEst]||'PROCESO').trim()).toUpperCase(),tp:(r[iTp]||'Contado').trim(),linea:(r[iLin]||'Otra').trim(),ubi:(r[iUbi]||'').trim(),nom,tel,uid:u?u.id:null,anom,notas:comTxt?[{txt:comTxt,by:'Importación',ts:new Date().toLocaleString()}]:[],reminder:null};leads.push(nl);newLeads.push(nl);added++;}if(useCloud&&window._fb.isReady()&&newLeads.length>0){setSyncStatus('syncing');Promise.all(newLeads.map(l=>window._fb.saveLeadCloud(l))).then(()=>{setSyncStatus('ok');}).catch(e=>{console.warn('import cloud save error',e);setSyncStatus('err');});}return added;}
+function importRows(rows){if(!rows||rows.length<2)return 0;const h=rows[0].map(c=>(c||'').toLowerCase().replace(/[^a-záéíóúüñ_\s]/gi,'').trim());const fi=(...ks)=>{for(const k of ks){const i=h.findIndex(c=>c.includes(k.toLowerCase()));if(i>=0)return i;}return -1;};const iOri=fi('origen'),iFa=fi('fecha_act','fecha act','fecha_actividad'),iFu=fi('fecha_upd','fecha actual','fecha_act'),iEst=fi('estado'),iTp=fi('tipo','pago'),iLin=fi('linea','l nea','modelo'),iUbi=fi('ubic'),iNom=fi('nombre_lead','nombre lead','nombre'),iTel=fi('tel','phone'),iAse=fi('asesor'),iCom=fi('comentar','observ','nota');if(iNom<0)return -1;let added=0;const newLeads=[];for(let i=1;i<rows.length;i++){const r=rows[i];if(!r[iNom]||!r[iNom].trim())continue;const nom=r[iNom].trim(),tel=(r[iTel]||'').trim(),fa=(r[iFa]||'').trim();
+// Duplicate check: same name + phone + same activity date (allows re-import with new date)
+const isDup=leads.find(l=>l.nom.trim().toLowerCase()===nom.toLowerCase()&&l.tel===tel&&(l.fa||'')===(fa||l.fa||''));
+if(isDup)continue;const anom=(r[iAse]||'').trim(),u=anom?users.find(x=>x.leadsname?.trim().toLowerCase()===anom.toLowerCase()):null;const comTxt=(r[iCom]||'').trim();const nl={id:nlid++,ori:(r[iOri]||'Otro').trim(),fa:fa,fu:(r[iFu]||today()),est:((r[iEst]||'PROCESO').trim()).toUpperCase(),tp:(r[iTp]||'Contado').trim(),linea:(r[iLin]||'Otra').trim(),ubi:(r[iUbi]||'').trim(),nom,tel,uid:u?u.id:null,anom,notas:comTxt?[{txt:comTxt,by:'Importación',ts:new Date().toLocaleString()}]:[],reminder:null};leads.push(nl);newLeads.push(nl);added++;}if(useCloud&&window._fb.isReady()&&newLeads.length>0){setSyncStatus('syncing');Promise.all(newLeads.map(l=>window._fb.saveLeadCloud(l))).then(()=>{setSyncStatus('ok');}).catch(e=>{console.warn('import cloud save error',e);setSyncStatus('err');});}return added;}
 function handleDrop(e){const f=e.dataTransfer.files[0];if(f)procFile(f);}
 function handleFileImport(e){const f=e.target.files[0];if(f)procFile(f);}
 function procFile(file){const n=file.name.toLowerCase();if(n.endsWith('.csv')||n.endsWith('.txt')){const r=new FileReader();r.onload=ev=>{showPrev(parseCSV(ev.target.result),file.name);};r.readAsText(file,'UTF-8');}else if(n.endsWith('.xlsx')||n.endsWith('.xls')){if(typeof XLSX==='undefined'){toast('Cargando...');return;}const r=new FileReader();r.onload=ev=>{try{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];showPrev(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),file.name);}catch(e){toast('Error: '+e.message);}};r.readAsArrayBuffer(file);}else toast('Usa CSV o Excel');}
