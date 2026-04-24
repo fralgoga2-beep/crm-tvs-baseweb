@@ -88,8 +88,8 @@ window._fb = {
   listenLeads(callback) {
     if(!fbDb) return;
     if(leadsUnsub) leadsUnsub();
-    const cutoff = Timestamp.fromDate(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000));
-    const q = query(collection(fbDb, 'leads'), where('_ts', '>=', cutoff));
+    // No date filter — load ALL leads so nothing is hidden
+    const q = query(collection(fbDb, 'leads'));
     leadsUnsub = onSnapshot(q, snap => {
       const arr = [];
       snap.forEach(d => arr.push({ ...d.data() }));
@@ -119,10 +119,8 @@ window._fb = {
   async pullAll() {
     if(!fbDb) return null;
     try {
-      const cutoff = Timestamp.fromDate(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000));
-      const leadsQ = query(collection(fbDb, 'leads'), where('_ts', '>=', cutoff));
       const [lSnap, uSnap, mSnap] = await Promise.all([
-        getDocs(leadsQ),
+        getDocs(collection(fbDb, 'leads')),
         getDocs(collection(fbDb, 'crm_users')),
         getDoc(doc(fbDb, 'meta', 'config'))
       ]);
@@ -1052,7 +1050,7 @@ const _pm=lsG('tvs8_perfmeta',null);if(_pm)perfMeta=_pm;
 let perfGest=lsG('tvs8_perfgest',{});
 function todayGest(uid){const t=today();if(!perfGest[uid])perfGest[uid]={};return perfGest[uid][t]||0;}
 function addGest(uid,n){const t=today();if(!perfGest[uid])perfGest[uid]={};perfGest[uid][t]=(perfGest[uid][t]||0)+n;lsS('tvs8_perfgest',perfGest);if(useCloud&&window._fb&&window._fb.isReady()){window._fb.saveMeta({nuid,nlid,driveConn,perfGest}).catch(()=>{});}}
-function todayLeads(uid){const t=today();return leads.filter(l=>l.uid===uid&&(l.fa===t||l.fu===t)).length;}
+function todayLeads(uid){const t=today();return leads.filter(l=>l.uid===uid&&l.fa===t).length;}
 function calcPerf(uid){const tl=todayLeads(uid),tg=todayGest(uid),pL=Math.min(Math.round(tl/perfMeta.leads*100),100),pG=Math.min(Math.round(tg/perfMeta.gestiones*100),100),tot=Math.round((pL+pG)/2);return{pLeads:pL,pGest:pG,total:tot,tl,tg};}
 function perfColor(p){return p>=81?'#16a34a':p>=60?'#ea580c':'#dc2626';}
 function perfBadge(p){const c=perfColor(p);return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:44px;padding:3px 8px;border-radius:20px;background:${c}18;color:${c};font-weight:700;font-size:12px">${p}%</span>`;}
@@ -1614,7 +1612,8 @@ function renderRecordatorios(){
 function fRem(f,btn){remFilter=f;document.querySelectorAll('#tab-recordatorios .ni').forEach(b=>{b.classList.remove('active');b.style.borderBottom='none';b.style.color='var(--txt)';});if(btn){btn.classList.add('active');btn.style.borderBottom='2px solid var(--navy)';btn.style.color='var(--navy)';}renderRecordatorios();}
 function dismissRem(id){const l=leads.find(x=>x.id===id);if(!l)return;if(!confirm('¿Marcar como atendido?'))return;l.reminder=null;persist();cloudSaveLead(l);renderAll();toast('Recordatorio atendido ✓');}
 function openRem(id){remL=id;const l=leads.find(x=>x.id===id);document.getElementById('mr-title').textContent='Recordatorio — '+l.nom;document.getElementById('rem-lead-info').innerHTML=`${l.nom} · <span style="font-size:11px;color:var(--mut)">${l.linea} · ${l.ubi}</span>`;document.getElementById('rm-d').value=l.reminder?.date||today();document.getElementById('rm-t').value=l.reminder?.time||'09:00';document.getElementById('rm-n').value=l.reminder?.note||'';openM('m-rem');}
-function saveRemind(){const d=document.getElementById('rm-d').value;if(!d){toast('Selecciona una fecha');return;}const l=leads.find(x=>x.id===remL);l.reminder={date:d,time:document.getElementById('rm-t').value,note:document.getElementById('rm-n').value};l.fu=today();persist();cloudSaveLead(l);closeM('m-rem');renderAll();toast('Recordatorio guardado ✓');}
+function saveRemind(){const d=document.getElementById('rm-d').value;if(!d){toast('Selecciona una fecha');return;}const l=leads.find(x=>x.id===remL);l.reminder={date:d,time:document.getElementById('rm-t').value,note:document.getElementById('rm-n').value};l.fu=today();// Auto-regest: si fa es anterior a hoy, marcar como regestionado
+if(l.fa&&l.fa<today())l.regest='Regestionado';persist();cloudSaveLead(l);closeM('m-rem');renderAll();toast('Recordatorio guardado ✓');}
 
 // ═══════════════════════════════════════
 // LEAD DETAIL
@@ -1697,10 +1696,11 @@ function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas
   const _dagEl=document.getElementById('ds-agencia');if(_dagEl)_dagEl.innerHTML='<option value="">— Sin agencia —</option>'+_dagOpts;
 }
 function renderNotas(l){if(!l.notas||l.notas.length===0)return `<div style="color:var(--mut);font-size:12px;text-align:center;padding:.75rem">Sin comentarios</div>`;return l.notas.map((n,i)=>`<div class="ni2"><div class="nt">${n.txt}</div><div class="nm"><span>✍️ ${n.by||'Asesor'}</span><span>${n.ts||''}</span></div><button class="nd" onclick="delNota(${l.id},${i})">✕</button></div>`).join('');}
-function addNota(lid){const txt=document.getElementById('new-nota')?.value?.trim();if(!txt){toast('Escribe algo');return;}const l=leads.find(x=>x.id===lid);if(!l.notas)l.notas=[];l.notas.push({txt,by:CU.nombre,ts:new Date().toLocaleString()});l.fu=today();document.getElementById('new-nota').value='';document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);renderAll();toast('Comentario agregado ✓');// contar gestión del asesor asignado
-const gestUid=l.uid||CU.id;addGest(gestUid,1);}
+function addNota(lid){const txt=document.getElementById('new-nota')?.value?.trim();if(!txt){toast('Escribe algo');return;}const l=leads.find(x=>x.id===lid);if(!l.notas)l.notas=[];l.notas.push({txt,by:CU.nombre,ts:new Date().toLocaleString()});l.fu=today();// Auto-regest: si la fa es anterior a hoy, contar como regestión
+if(l.fa&&l.fa<today())l.regest='Regestionado';document.getElementById('new-nota').value='';document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);renderAll();toast('Comentario agregado ✓');const gestUid=l.uid||CU.id;addGest(gestUid,1);}
 function delNota(lid,idx){if(!confirm('¿Eliminar?'))return;const l=leads.find(x=>x.id===lid);l.notas.splice(idx,1);document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);toast('Eliminado');}
-function saveDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver leads, no editarlos');return;}const l=leads.find(x=>x.id===id);l.est=document.getElementById('ds-est').value;l.tp=document.getElementById('ds-tp').value;l.agencia=document.getElementById('ds-agencia')?.value||'';l.interes=document.getElementById('ds-interes')?.value||'';l.responde=document.getElementById('ds-responde')?.value||'';l.regest=document.getElementById('ds-regest')?.value||'';l.fu=today();if(isPriv()){const v=document.getElementById('ds-ase')?.value;l.uid=v?parseInt(v):null;if(l.uid){const u=users.find(x=>x.id===l.uid);if(u)l.anom=u.nombre;}}persist();cloudSaveLead(l);closeM('m-det');renderAll();toast('Lead actualizado ✓');}
+function saveDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver leads, no editarlos');return;}const l=leads.find(x=>x.id===id);l.est=document.getElementById('ds-est').value;l.tp=document.getElementById('ds-tp').value;l.agencia=document.getElementById('ds-agencia')?.value||'';l.interes=document.getElementById('ds-interes')?.value||'';// Auto-regest: si manual está vacío y fa es anterior a hoy, marcar automático
+const manualRegest=document.getElementById('ds-regest')?.value||'';l.regest=manualRegest||(l.fa&&l.fa<today()?'Regestionado':'');l.responde=document.getElementById('ds-responde')?.value||'';l.fu=today();if(isPriv()){const v=document.getElementById('ds-ase')?.value;l.uid=v?parseInt(v):null;if(l.uid){const u=users.find(x=>x.id===l.uid);if(u)l.anom=u.nombre;}}persist();cloudSaveLead(l);closeM('m-det');renderAll();toast('Lead actualizado ✓');}
 
 // ═══════════════════════════════════════
 // LEAD CRUD
@@ -2094,7 +2094,7 @@ function parseCSV(text){const rows=[];const lines=text.split(/\r?\n/);const firs
 function importRows(rows){if(!rows||rows.length<2)return 0;const h=rows[0].map(c=>(c||'').toLowerCase().replace(/[^a-záéíóúüñ_\s]/gi,'').trim());const fi=(...ks)=>{for(const k of ks){const i=h.findIndex(c=>c.includes(k.toLowerCase()));if(i>=0)return i;}return -1;};const iOri=fi('origen'),iFa=fi('fecha_act','fecha act','fecha_actividad'),iFu=fi('fecha_upd','fecha actual','fecha_act'),iEst=fi('estado'),iTp=fi('tipo','pago'),iLin=fi('linea','l nea','modelo'),iUbi=fi('ubic'),iNom=fi('nombre_lead','nombre lead','nombre'),iTel=fi('tel','phone'),iAse=fi('asesor'),iCom=fi('comentar','observ','nota');if(iNom<0)return -1;let added=0;const newLeads=[];for(let i=1;i<rows.length;i++){const r=rows[i];if(!r[iNom]||!r[iNom].trim())continue;const nom=r[iNom].trim(),tel=(r[iTel]||'').trim(),fa=(r[iFa]||'').trim();
 // Duplicate check: same name + phone + same activity date (allows re-import with new date)
 const isDup=leads.find(l=>l.nom.trim().toLowerCase()===nom.toLowerCase()&&l.tel===tel&&(l.fa||'')===(fa||l.fa||''));
-if(isDup)continue;const anom=(r[iAse]||'').trim(),u=anom?users.find(x=>x.leadsname?.trim().toLowerCase()===anom.toLowerCase()):null;const comTxt=(r[iCom]||'').trim();const nl={id:nlid++,ori:(r[iOri]||'Otro').trim(),fa:fa,fu:(r[iFu]||today()),est:((r[iEst]||'PROCESO').trim()).toUpperCase(),tp:(r[iTp]||'Contado').trim(),linea:(r[iLin]||'Otra').trim(),ubi:(r[iUbi]||'').trim(),nom,tel,uid:u?u.id:null,anom,notas:comTxt?[{txt:comTxt,by:'Importación',ts:new Date().toLocaleString()}]:[],reminder:null};leads.push(nl);newLeads.push(nl);added++;}if(useCloud&&window._fb.isReady()&&newLeads.length>0){setSyncStatus('syncing');Promise.all(newLeads.map(l=>window._fb.saveLeadCloud(l))).then(()=>{setSyncStatus('ok');}).catch(e=>{console.warn('import cloud save error',e);setSyncStatus('err');});}return added;}
+if(isDup)continue;const anom=(r[iAse]||'').trim(),u=anom?users.find(x=>x.leadsname?.trim().toLowerCase()===anom.toLowerCase()):null;const comTxt=(r[iCom]||'').trim();const nl={id:nlid++,ori:(r[iOri]||'Otro').trim(),fa:fa||today(),fu:(r[iFu]||today()),est:((r[iEst]||'PROCESO').trim()).toUpperCase(),tp:(r[iTp]||'Contado').trim(),linea:(r[iLin]||'Otra').trim(),ubi:(r[iUbi]||'').trim(),nom,tel,uid:u?u.id:null,anom,notas:comTxt?[{txt:comTxt,by:'Importación',ts:new Date().toLocaleString()}]:[],reminder:null};leads.push(nl);newLeads.push(nl);added++;}if(useCloud&&window._fb.isReady()&&newLeads.length>0){setSyncStatus('syncing');Promise.all(newLeads.map(l=>window._fb.saveLeadCloud(l))).then(()=>{setSyncStatus('ok');}).catch(e=>{console.warn('import cloud save error',e);setSyncStatus('err');});}return added;}
 function handleDrop(e){const f=e.dataTransfer.files[0];if(f)procFile(f);}
 function handleFileImport(e){const f=e.target.files[0];if(f)procFile(f);}
 function procFile(file){const n=file.name.toLowerCase();if(n.endsWith('.csv')||n.endsWith('.txt')){const r=new FileReader();r.onload=ev=>{showPrev(parseCSV(ev.target.result),file.name);};r.readAsText(file,'UTF-8');}else if(n.endsWith('.xlsx')||n.endsWith('.xls')){if(typeof XLSX==='undefined'){toast('Cargando...');return;}const r=new FileReader();r.onload=ev=>{try{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];showPrev(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),file.name);}catch(e){toast('Error: '+e.message);}};r.readAsArrayBuffer(file);}else toast('Usa CSV o Excel');}
