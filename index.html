@@ -1325,10 +1325,11 @@ function myLeads(){
 }
 function parseFecha(f){
   if(!f)return '';
+  f=String(f).trim();
   if(f.includes('-')&&f.length>=8)return f.substring(0,10);
   const p=f.split('/');
   if(p.length===3){
-    let y=p[2],m=p[0].padStart(2,'0'),d=p[1].padStart(2,'0');
+    let d=p[0].padStart(2,'0'),m=p[1].padStart(2,'0'),y=p[2];
     if(y.length===2)y='20'+y;
     return y+'-'+m+'-'+d;
   }
