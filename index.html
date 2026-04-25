@@ -1118,35 +1118,35 @@ function showLoginScreen(cloud){
 // ═══════════════════════════════════════
 // recentlySaved: map of leadId -> timestamp of last local save
 // Leads saved in the last 15s are protected from cloud overwrite
-const recentlySaved = new Map();
-function protectLead(id){ recentlySaved.set(String(id), Date.now()); setTimeout(()=>recentlySaved.delete(String(id)), 15000); }
-function isProtected(id){ const t=recentlySaved.get(String(id)); return t&&(Date.now()-t)<15000; }
+// pendingSave: leads saved locally but not yet confirmed by Firebase
+const pendingSave = new Map(); // id -> {lead, savedAt}
+function markPending(lead){ pendingSave.set(String(lead.id),{lead:{...lead},savedAt:Date.now()}); }
+function clearPending(id){ pendingSave.delete(String(id)); }
+function getPending(id){ const p=pendingSave.get(String(id)); return p&&(Date.now()-p.savedAt)<30000?p.lead:null; }
 
 function initRealtimeSync(){
   if(!window._fb.isReady())return;
   setSyncStatus('syncing');
-  let fullSyncDone=false;
   window._fb.listenLeads(cloudLeads=>{
     if(cloudLeads.length>0||realtimeActive){
-      if(!fullSyncDone){
-        // First snapshot: full replace — this is the complete dataset from Firebase
-        const protected_leads=leads.filter(l=>isProtected(l.id));
-        const cloudMap=new Map(cloudLeads.map(l=>[String(l.id),l]));
-        // Keep protected leads, merge rest from cloud
-        protected_leads.forEach(pl=>{cloudMap.set(String(pl.id),pl);});
-        leads=Array.from(cloudMap.values());
-        fullSyncDone=true;
-      } else {
-        // Subsequent snapshots: only update/add changed leads, never delete
-        cloudLeads.forEach(cl=>{
-          if(isProtected(cl.id)) return;
-          const idx=leads.findIndex(l=>String(l.id)===String(cl.id));
-          if(idx>=0){leads[idx]=cl;}else{leads.push(cl);}
-        });
-      }
-      // Sort by fa desc (newest activity first), fallback to id desc
+      // For each lead from cloud, check if we have a newer pending local save
+      const result=new Map();
+      cloudLeads.forEach(cl=>{
+        const pending=getPending(cl.id);
+        if(pending){
+          // We have a local version saved after this cloud version — keep local
+          result.set(String(cl.id),pending);
+        } else {
+          result.set(String(cl.id),cl);
+        }
+      });
+      // Add any pending leads not yet in cloud
+      pendingSave.forEach((p,id)=>{
+        if(!result.has(id)) result.set(id,p.lead);
+      });
+      leads=Array.from(result.values());
       leads.sort((a,b)=>{
-        const fa=(x=>x.fa||'')(a),fb=(x=>x.fa||'')(b);
+        const fa=parseFecha(a.fa||''),fb=parseFecha(b.fa||'');
         if(fb>fa)return 1;if(fa>fb)return -1;
         return b.id-a.id;
       });
@@ -1223,9 +1223,14 @@ function persist(){
 async function cloudSaveLead(lead,silent=false){
   if(useCloud&&window._fb.isReady()){
     if(!silent)setSyncStatus('syncing');
-    // Protect this lead from being overwritten by the listener for 15 seconds
-    protectLead(lead.id);
-    await window._fb.saveLeadCloud(lead);
+    markPending(lead); // mark as pending BEFORE upload so listener can't overwrite it
+    try{
+      await window._fb.saveLeadCloud(lead);
+      clearPending(lead.id); // confirmed by Firebase — safe to clear
+    }catch(e){
+      console.warn('cloudSaveLead error',e);
+      // keep in pendingSave so it retries on next sync
+    }
     if(!silent)setSyncStatus('ok');
   }
 }
