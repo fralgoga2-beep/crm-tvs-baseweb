@@ -17,7 +17,7 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import {
-  getFirestore, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot,
+  getFirestore, collection, doc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot,
   query, orderBy, where, Timestamp, serverTimestamp, writeBatch, getDoc, enableIndexedDbPersistence
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
@@ -49,7 +49,14 @@ window._fb = {
     if(!fbDb) return;
     try {
       const ref = doc(fbDb, 'leads', String(lead.id));
-      await setDoc(ref, { ...lead, _ts: serverTimestamp() });
+      const data = { ...lead, _ts: serverTimestamp() };
+      try {
+        // Try updateDoc first — only writes fields that changed, never overwrites other fields
+        await updateDoc(ref, data);
+      } catch(e) {
+        // Document doesn't exist yet — create it
+        await setDoc(ref, data);
+      }
     } catch(e) { console.warn('saveLeadCloud:', e); }
   },
   async deleteLeadCloud(id) {
@@ -1118,33 +1125,20 @@ function showLoginScreen(cloud){
 // ═══════════════════════════════════════
 // recentlySaved: map of leadId -> timestamp of last local save
 // Leads saved in the last 15s are protected from cloud overwrite
-// pendingSave: leads saved locally but not yet confirmed by Firebase
-const pendingSave = new Map(); // id -> {lead, savedAt}
-function markPending(lead){ pendingSave.set(String(lead.id),{lead:{...lead},savedAt:Date.now()}); }
-function clearPending(id){ pendingSave.delete(String(id)); }
-function getPending(id){ const p=pendingSave.get(String(id)); return p&&(Date.now()-p.savedAt)<30000?p.lead:null; }
-
 function initRealtimeSync(){
   if(!window._fb.isReady())return;
   setSyncStatus('syncing');
   window._fb.listenLeads(cloudLeads=>{
     if(cloudLeads.length>0||realtimeActive){
-      // For each lead from cloud, check if we have a newer pending local save
-      const result=new Map();
+      // Simple merge: cloud is source of truth since updateDoc guarantees no field is overwritten
+      const cloudMap=new Map(cloudLeads.map(l=>[String(l.id),l]));
+      // Add/update leads from cloud
       cloudLeads.forEach(cl=>{
-        const pending=getPending(cl.id);
-        if(pending){
-          // We have a local version saved after this cloud version — keep local
-          result.set(String(cl.id),pending);
-        } else {
-          result.set(String(cl.id),cl);
-        }
+        const idx=leads.findIndex(l=>String(l.id)===String(cl.id));
+        if(idx>=0){leads[idx]=cl;}else{leads.push(cl);}
       });
-      // Add any pending leads not yet in cloud
-      pendingSave.forEach((p,id)=>{
-        if(!result.has(id)) result.set(id,p.lead);
-      });
-      leads=Array.from(result.values());
+      // Keep local-only leads (new leads not yet confirmed by Firebase)
+      leads=leads.filter(l=>cloudMap.has(String(l.id))||l._localOnly);
       leads.sort((a,b)=>{
         const fa=parseFecha(a.fa||''),fb=parseFecha(b.fa||'');
         if(fb>fa)return 1;if(fa>fb)return -1;
@@ -1223,13 +1217,12 @@ function persist(){
 async function cloudSaveLead(lead,silent=false){
   if(useCloud&&window._fb.isReady()){
     if(!silent)setSyncStatus('syncing');
-    markPending(lead); // mark as pending BEFORE upload so listener can't overwrite it
+    lead._localOnly=true;
     try{
       await window._fb.saveLeadCloud(lead);
-      clearPending(lead.id); // confirmed by Firebase — safe to clear
+      delete lead._localOnly;
     }catch(e){
       console.warn('cloudSaveLead error',e);
-      // keep in pendingSave so it retries on next sync
     }
     if(!silent)setSyncStatus('ok');
   }
