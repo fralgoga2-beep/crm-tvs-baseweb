@@ -1125,20 +1125,25 @@ function showLoginScreen(cloud){
 // ═══════════════════════════════════════
 // recentlySaved: map of leadId -> timestamp of last local save
 // Leads saved in the last 15s are protected from cloud overwrite
+// saveLock: set of lead IDs currently being saved — listener will not touch these
+const saveLock=new Set();
+function lockLead(id){saveLock.add(String(id));}
+function unlockLead(id){saveLock.delete(String(id));}
+function isLocked(id){return saveLock.has(String(id));}
+
 function initRealtimeSync(){
   if(!window._fb.isReady())return;
   setSyncStatus('syncing');
   window._fb.listenLeads(cloudLeads=>{
     if(cloudLeads.length>0||realtimeActive){
-      // Simple merge: cloud is source of truth since updateDoc guarantees no field is overwritten
-      const cloudMap=new Map(cloudLeads.map(l=>[String(l.id),l]));
-      // Add/update leads from cloud
       cloudLeads.forEach(cl=>{
+        if(isLocked(cl.id))return; // asesor just saved this — skip
         const idx=leads.findIndex(l=>String(l.id)===String(cl.id));
         if(idx>=0){leads[idx]=cl;}else{leads.push(cl);}
       });
-      // Keep local-only leads (new leads not yet confirmed by Firebase)
-      leads=leads.filter(l=>cloudMap.has(String(l.id))||l._localOnly);
+      // Keep local-only leads not yet in cloud
+      const cloudIds=new Set(cloudLeads.map(l=>String(l.id)));
+      leads=leads.filter(l=>cloudIds.has(String(l.id))||isLocked(l.id)||l._localOnly);
       leads.sort((a,b)=>{
         const fa=parseFecha(a.fa||''),fb=parseFecha(b.fa||'');
         if(fb>fa)return 1;if(fa>fb)return -1;
@@ -1217,12 +1222,15 @@ function persist(){
 async function cloudSaveLead(lead,silent=false){
   if(useCloud&&window._fb.isReady()){
     if(!silent)setSyncStatus('syncing');
-    lead._localOnly=true;
+    lockLead(lead.id); // LOCK: listener cannot overwrite this lead until Firebase confirms
     try{
       await window._fb.saveLeadCloud(lead);
-      delete lead._localOnly;
     }catch(e){
       console.warn('cloudSaveLead error',e);
+    }finally{
+      // Keep locked for 5 more seconds after Firebase confirms
+      // to absorb any delayed snapshots still in transit
+      setTimeout(()=>unlockLead(lead.id), 5000);
     }
     if(!silent)setSyncStatus('ok');
   }
