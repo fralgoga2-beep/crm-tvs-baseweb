@@ -866,7 +866,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <div class="dm-hd">⚡ Acciones rápidas</div>
     <div class="dm-body">
       <div class="dm-row"><div><div class="dm-label">Eliminar leads sin asesor</div><div class="dm-sub" id="dm-unass">Calculando...</div></div><button class="btn bd bsm" onclick="delUnassigned()">🗑 Eliminar</button></div>
-      <div class="dm-row"><div><div class="dm-label">Eliminar duplicados</div><div class="dm-sub" id="dm-dups">Detectando...</div></div><button class="btn bd bsm" onclick="delDups()">🗑 Eliminar</button></div>
+      <div class="dm-row"><div><div class="dm-label">Duplicados (mismo nombre + teléfono)</div><div class="dm-sub" id="dm-dups">Detectando...</div></div><button class="btn bo bsm" onclick="openDupsByNameReview()">🔍 Revisar</button></div>
       <div class="dm-row"><div><div class="dm-label">IDs duplicados (abren la ficha equivocada)</div><div class="dm-sub" id="dm-dupids">Detectando...</div></div><button class="btn bo bsm" onclick="openDupsReview()">🔍 Revisar</button></div>
       <div class="dm-row"><div><div class="dm-label">Limpiar historial importaciones</div><div class="dm-sub" id="dm-imh">Calculando...</div></div><button class="btn bo bsm" onclick="clearImpHistAdmin()">🧹 Limpiar</button></div>
     </div>
@@ -1043,6 +1043,33 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   </div>
 </div>
 
+<!-- DUPS BY NAME+TEL (shows leads that look like duplicates by person, lets admin select) -->
+<div class="ov" id="m-dups-name-review">
+  <div class="mo mlg">
+    <div class="mh"><span class="mt2">🔍 Revisar Leads Duplicados (mismo nombre + teléfono)</span><button class="xb" onclick="closeM('m-dups-name-review')">×</button></div>
+    <div class="mb2">
+      <div class="ibox" style="margin-bottom:.8rem">
+        <strong>ℹ️ Cómo se detectan:</strong> Leads agrupados por <strong>nombre + teléfono idénticos</strong> (insensible a mayúsculas y espacios). Marca los que quieras eliminar. Sugerencia: conserva el más reciente de cada grupo o el que tenga más comentarios/datos.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:.8rem;align-items:center">
+        <input class="fc" id="dupn-filter" placeholder="🔎 Filtrar por nombre o teléfono..." style="flex:1;min-width:160px;font-size:12px" oninput="renderDupsByNameReview()">
+        <button class="btn bo bsm" onclick="dupsByNameSelectOlder()">📅 Marcar los más viejos</button>
+        <button class="btn bo bsm" onclick="dupsByNameSelectAllExceptBest()">✨ Marcar todos menos el "mejor"</button>
+        <button class="btn bo bsm" onclick="dupsByNameSelectNone()">❌ Desmarcar todos</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:.8rem;align-items:center">
+        <span style="font-size:12px;color:var(--mut)" id="dupn-stats">Calculando...</span>
+        <span style="margin-left:auto;font-size:13px;font-weight:700;color:var(--red)" id="dupn-count">0 marcados</span>
+      </div>
+      <div id="dupn-list" style="max-height:60vh;overflow-y:auto"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:.8rem;border-top:1px solid var(--bd);margin-top:.8rem">
+        <button class="btn bo" onclick="closeM('m-dups-name-review')">Cancelar</button>
+        <button class="btn bd" onclick="dupsByNameDelMarked()">🗑 Eliminar marcados</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -1174,6 +1201,29 @@ const saveLock=new Set();
 function lockLead(id){saveLock.add(String(id));}
 function unlockLead(id){saveLock.delete(String(id));}
 function isLocked(id){return saveLock.has(String(id));}
+// deletedRecently: set of lead IDs deleted in the last 30s.
+// The listener must NOT re-add these leads (prevents "zombie" resurrection
+// when a stale snapshot arrives after we deleted from Firebase).
+const deletedRecently=new Set();
+function markDeleted(id){
+  deletedRecently.add(String(id));
+  setTimeout(()=>deletedRecently.delete(String(id)), 30000);
+}
+function isRecentlyDeleted(id){return deletedRecently.has(String(id));}
+// Robust cloud delete that waits for confirmation before removing locally
+async function deleteLeadFully(id){
+  const key=String(id);
+  markDeleted(key);
+  // Remove from local array first (UI feels instant)
+  leads=leads.filter(x=>String(x.id)!==key);
+  if(useCloud&&window._fb.isReady()){
+    try{
+      await window._fb.deleteLeadCloud(key);
+    }catch(e){
+      console.warn('deleteLeadFully:',e);
+    }
+  }
+}
 
 function initRealtimeSync(){
   if(!window._fb.isReady())return;
@@ -1184,8 +1234,10 @@ function initRealtimeSync(){
       const cloudById={};
       cloudLeads.forEach(cl=>{ cloudById[String(cl.id)]=cl; });
       // 1) Update existing leads from cloud, EXCEPT locked ones (recently saved locally)
+      //    AND skip any lead we just deleted (prevent zombie resurrection)
       cloudLeads.forEach(cl=>{
         if(isLocked(cl.id))return; // user just saved this — preserve local version
+        if(isRecentlyDeleted(cl.id))return; // we just deleted this — don't bring it back
         const idx=leads.findIndex(l=>String(l.id)===String(cl.id));
         if(idx>=0){leads[idx]=cl;}else{leads.push(cl);}
       });
@@ -1876,7 +1928,14 @@ function saveLead(){
   });
   cloudSaveMeta();renderAll();
 }
-function delLead(id){if(!confirm('¿Eliminar este lead?'))return;const key=String(id);leads=leads.filter(x=>String(x.id)!==key);persist();cloudDelLead(id);closeM('m-det');renderAll();toast('Lead eliminado');}
+async function delLead(id){
+  if(!confirm('¿Eliminar este lead?'))return;
+  setSyncStatus('syncing');
+  await deleteLeadFully(id);
+  persist();
+  setSyncStatus('ok');
+  closeM('m-det');renderAll();toast('Lead eliminado ✓');
+}
 
 // ═══════════════════════════════════════
 // REPORTES
@@ -2239,7 +2298,25 @@ function toggleAllChk(cb){const arr=filteredLeads();if(cb.checked)arr.forEach(l=
 function tChk(id,cb){if(cb.checked)selIds.add(id);else selIds.delete(id);if(!bulkMode&&selIds.size>0)enterBulk();updBlk();}
 function bulkAll(){filteredLeads().forEach(l=>selIds.add(l.id));renderLeads();}
 function bulkNone(){selIds.clear();renderLeads();}
-async function bulkDel(){if(selIds.size===0){toast('Sin leads seleccionados');return;}if(!confirm(`¿Eliminar ${selIds.size} leads?`))return;const ids=[...selIds];leads=leads.filter(l=>!selIds.has(l.id));if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all(ids.map(id=>window._fb.deleteLeadCloud(id)));setSyncStatus('ok');}selIds.clear();persist();exitBulk();renderAll();toast(`${ids.length} leads eliminados ✓`);}
+async function bulkDel(){
+  if(selIds.size===0){toast('Sin leads seleccionados');return;}
+  if(!confirm(`¿Eliminar ${selIds.size} leads?`))return;
+  // Convert selIds to string keys for type-safe comparison
+  const keys=new Set([...selIds].map(x=>String(x)));
+  const targets=leads.filter(l=>keys.has(String(l.id)));
+  setSyncStatus('syncing');
+  // Mark all as deleted-recently BEFORE removing from local array
+  targets.forEach(l=>markDeleted(l.id));
+  leads=leads.filter(l=>!keys.has(String(l.id)));
+  if(useCloud&&window._fb.isReady()){
+    await Promise.all([...keys].map(id=>{
+      try{return window._fb.deleteLeadCloud(id);}catch(e){return Promise.resolve();}
+    }));
+  }
+  setSyncStatus('ok');
+  selIds.clear();persist();exitBulk();renderAll();
+  toast(`${targets.length} leads eliminados ✓`);
+}
 function bulkEst(){const est=document.getElementById('blk-est').value;if(!est){toast('Selecciona estado');return;}if(selIds.size===0){toast('Sin leads seleccionados');return;}leads.forEach(l=>{if(selIds.has(l.id)){l.est=est;l.fu=today();}});const n=selIds.size;persist();if(useCloud&&window._fb.isReady())leads.filter(l=>selIds.has(l.id)).forEach(l=>cloudSaveLead(l));selIds.clear();exitBulk();renderAll();toast(`Estado en ${n} leads ✓`);}
 function bulkTp(){const tp=document.getElementById('blk-tp').value;if(!tp){toast('Selecciona tipo de pago');return;}if(selIds.size===0){toast('Sin leads seleccionados');return;}leads.forEach(l=>{if(selIds.has(l.id)){l.tp=tp;l.fu=today();}});const n=selIds.size;persist();if(useCloud&&window._fb.isReady())leads.filter(l=>selIds.has(l.id)).forEach(l=>cloudSaveLead(l));selIds.clear();exitBulk();renderAll();toast(`Tipo de pago actualizado en ${n} leads ✓`);}
 
@@ -2352,7 +2429,25 @@ function renderDataManager(){
 }
 function getFilterDel(){const est=document.getElementById('dm-est')?.value||'',antig=parseInt(document.getElementById('dm-antig')?.value||'0'),aseId=document.getElementById('dm-ase')?.value||'',ori=document.getElementById('dm-ori')?.value||'',fdDesde=document.getElementById('dm-fd')?.value||'',fdHasta=document.getElementById('dm-fh')?.value||'';return leads.filter(l=>{if(fdDesde&&(l.fa||'').substring(0,10)<fdDesde)return false;if(fdHasta&&(l.fa||'').substring(0,10)>fdHasta)return false;if(est&&l.est!==est)return false;if(antig){try{const d=new Date(l.fa||l.fu);if(isNaN(d.getTime()))return false;if((Date.now()-d.getTime())<antig*86400000)return false;}catch(e){return false;}}if(aseId&&String(l.uid)!==aseId)return false;if(ori&&l.ori!==ori)return false;return true;});}
 function previewDel(){const est=document.getElementById('dm-est')?.value||'',antig=document.getElementById('dm-antig')?.value||'',aseId=document.getElementById('dm-ase')?.value||'',ori=document.getElementById('dm-ori')?.value||'',fdDesde=document.getElementById('dm-fd')?.value||'',fdHasta=document.getElementById('dm-fh')?.value||'';const prev=document.getElementById('dm-prev'),nm=document.getElementById('dm-nomatch');if(!est&&!antig&&!aseId&&!ori&&!fdDesde&&!fdHasta){if(prev)prev.style.display='none';if(nm)nm.style.display='none';return;}const arr=getFilterDel();if(arr.length===0){if(prev)prev.style.display='none';if(nm)nm.style.display='block';return;}if(nm)nm.style.display='none';if(prev){prev.style.display='block';const parts=[];if(fdDesde)parts.push('Desde: '+fdDesde);if(fdHasta)parts.push('Hasta: '+fdHasta);if(est)parts.push('Estado: '+est);if(antig)parts.push(antig+' días');if(aseId){const u=users.find(x=>x.id===parseInt(aseId));if(u)parts.push(u.nombre);}if(ori)parts.push(ori);document.getElementById('dm-prev-c').textContent=`${arr.length} leads`;document.getElementById('dm-prev-d').textContent=parts.join(' · ');}}
-async function execDel(){const arr=getFilterDel();if(arr.length===0){toast('Sin coincidencias');return;}if(!confirm(`¿Eliminar ${arr.length} leads?\nIRREVERSIBLE.`))return;const ids=new Set(arr.map(l=>l.id));leads=leads.filter(l=>!ids.has(l.id));if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all([...ids].map(id=>window._fb.deleteLeadCloud(id)));setSyncStatus('ok');}['dm-est','dm-antig','dm-ase','dm-ori','dm-fd','dm-fh'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('dm-prev').style.display='none';persist();renderAll();renderDataManager();toast(`${arr.length} leads eliminados ✓`);}
+async function execDel(){
+  const arr=getFilterDel();
+  if(arr.length===0){toast('Sin coincidencias');return;}
+  if(!confirm(`¿Eliminar ${arr.length} leads?\nIRREVERSIBLE.`))return;
+  setSyncStatus('syncing');
+  arr.forEach(l=>markDeleted(l.id));
+  const keys=new Set(arr.map(l=>String(l.id)));
+  leads=leads.filter(l=>!keys.has(String(l.id)));
+  if(useCloud&&window._fb.isReady()){
+    await Promise.all([...keys].map(id=>{
+      try{return window._fb.deleteLeadCloud(id);}catch(e){return Promise.resolve();}
+    }));
+  }
+  setSyncStatus('ok');
+  ['dm-est','dm-antig','dm-ase','dm-ori','dm-fd','dm-fh'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('dm-prev').style.display='none';
+  persist();renderAll();renderDataManager();
+  toast(`${arr.length} leads eliminados ✓`);
+}
 function findDups(){const seen=new Map(),dups=[];leads.forEach(l=>{const k=(l.nom||'').trim().toLowerCase()+'|'+(l.tel||'').trim();if(k==='|')return;if(seen.has(k))dups.push(l);else seen.set(k,l);});return dups;}
 // findDupIds: returns leads whose `id` is shared with another lead (different person, same id).
 // Excludes the "first occurrence" of each id — only the duplicates that need repair.
@@ -2489,6 +2584,8 @@ async function dupsDelMarked(){
   // Strategy: for each marked lead, just remove it from the local array AND ensure the
   // remaining lead with that id gets its doc preserved by re-saving it after.
   setSyncStatus('syncing');
+  // Anti-zombie: mark all as recently deleted
+  toDel.forEach(l=>markDeleted(l.id));
   const idsToDelete=new Set();
   const idsToReSave=new Set();
   toDel.forEach(l=>{
@@ -2572,10 +2669,253 @@ async function dupsAssignNewIds(){
   renderDupsReview();
   toast(`${renamed} ID(s) reasignado(s) ✓`);
 }
-async function delDups(){const dups=findDups();if(dups.length===0){toast('Sin duplicados');return;}if(!confirm(`¿Eliminar ${dups.length} duplicados?`))return;const dids=new Set(dups.map(l=>l.id));leads=leads.filter(l=>!dids.has(l.id));if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all([...dids].map(id=>window._fb.deleteLeadCloud(id)));setSyncStatus('ok');}persist();renderAll();renderDataManager();toast(`${dups.length} eliminados ✓`);}
-async function delUnassigned(){const arr=leads.filter(l=>!l.uid);if(arr.length===0){toast('Sin leads sin asesor');return;}if(!confirm(`¿Eliminar ${arr.length} leads sin asesor?`))return;const ids=arr.map(l=>l.id);leads=leads.filter(l=>!!l.uid);if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all(ids.map(id=>window._fb.deleteLeadCloud(id)));setSyncStatus('ok');}persist();renderAll();renderDataManager();toast(`${arr.length} eliminados ✓`);}
+// ─── DUPLICADOS POR NOMBRE+TELÉFONO ─── //
+// Returns groups of leads that share the same normalized name + tel.
+// Each group has at least 2 leads.
+function findDupsByNameGroups(){
+  const map={};
+  leads.forEach(l=>{
+    const nom=(l.nom||'').trim().toLowerCase().replace(/\s+/g,' ');
+    const tel=(l.tel||'').replace(/\D/g,'');
+    if(!nom||!tel)return; // skip leads with missing data
+    const k=nom+'||'+tel;
+    if(!map[k])map[k]=[];
+    map[k].push(l);
+  });
+  return Object.values(map).filter(g=>g.length>1);
+}
+
+// Score a lead's "richness" — higher means more data, prefer to keep this one.
+function leadRichness(l){
+  let score=0;
+  if(l.notas&&l.notas.length)score+=l.notas.length*3;
+  if(l.agencia)score+=2;
+  if(l.linea)score+=1;
+  if(l.ubi)score+=1;
+  if(l.canal)score+=1;
+  if(l.interes)score+=1;
+  if(l.responde)score+=1;
+  if(l.regest)score+=1;
+  if(l.reminder&&l.reminder.date)score+=2;
+  if(l.uid)score+=1;
+  // Recent activity bonus
+  if(l.fu&&l.fu>='2026-01-01')score+=2;
+  return score;
+}
+
+// Marks for the duplicates-by-name modal
+let dupsByNameMarkedSet=new Set();
+
+function openDupsByNameReview(){
+  if(!isAdmin()){toast('Solo admin');return;}
+  const groups=findDupsByNameGroups();
+  if(groups.length===0){toast('No hay duplicados ✓');return;}
+  dupsByNameMarkedSet=new Set();
+  const flt=document.getElementById('dupn-filter');if(flt)flt.value='';
+  renderDupsByNameReview();
+  openM('m-dups-name-review');
+}
+
+function renderDupsByNameReview(){
+  const allGroups=findDupsByNameGroups();
+  const totalDups=allGroups.reduce((a,g)=>a+g.length-1,0); // duplicates = group size - 1
+  const filterEl=document.getElementById('dupn-filter');
+  const filter=filterEl?filterEl.value.trim().toLowerCase():'';
+  // Apply filter
+  const groups=filter?allGroups.filter(g=>{
+    return g.some(l=>(l.nom||'').toLowerCase().includes(filter)||(l.tel||'').includes(filter));
+  }):allGroups;
+  // Sort: most leads in conflict first
+  groups.sort((a,b)=>b.length-a.length);
+  // Stats
+  const statsEl=document.getElementById('dupn-stats');
+  if(statsEl)statsEl.textContent=`${allGroups.length} grupo(s) · ${totalDups} duplicados a eliminar${filter?` · mostrando ${groups.length} grupo(s) filtrado(s)`:''}`;
+  // Empty state
+  if(groups.length===0){
+    document.getElementById('dupn-list').innerHTML=filter
+      ?'<div style="text-align:center;color:var(--mut);padding:2rem">Sin coincidencias para el filtro</div>'
+      :'<div style="text-align:center;color:var(--mut);padding:2rem">✓ No hay duplicados</div>';
+    updateDupsByNameCount();
+    return;
+  }
+  // Limit to first 100 groups for performance — admin can use filter to see more
+  const MAX_GROUPS=100;
+  const shown=groups.slice(0,MAX_GROUPS);
+  const truncated=groups.length>MAX_GROUPS;
+  const html=shown.map(group=>{
+    // Sort within group: highest richness first, then most recent
+    const sorted=group.slice().sort((a,b)=>{
+      const ra=leadRichness(a),rb=leadRichness(b);
+      if(rb!==ra)return rb-ra;
+      const af=(a.fu||a.fa||'')+'',bf=(b.fu||b.fa||'')+'';
+      if(bf>af)return 1;if(af>bf)return -1;return 0;
+    });
+    const rows=sorted.map((l,i)=>{
+      const fp=leadFp(l);
+      const checked=dupsByNameMarkedSet.has(fp)?'checked':'';
+      const u=l.uid?users.find(x=>x.id===l.uid):null;
+      const aseN=u?u.nombre:(l.anom||'Sin asignar');
+      const isBest=i===0;
+      const isWorst=i===sorted.length-1&&sorted.length>1;
+      const badge=isBest?'<span style="background:var(--gbg);color:#1B5E20;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:6px">🏆 MEJOR</span>':isWorst?'<span style="background:var(--rbg);color:var(--red);font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:6px">📉 MENOS DATOS</span>':'';
+      const rich=leadRichness(l);
+      return `<label style="display:flex;align-items:flex-start;gap:10px;padding:10px;border:1px solid var(--bd);border-radius:var(--r);margin-bottom:6px;cursor:pointer;background:${checked?'var(--rbg)':'var(--surf)'}">
+        <input type="checkbox" ${checked} onchange="toggleDupByNameMark('${fp.replace(/'/g,"\\'").replace(/"/g,'&quot;')}',this.checked)" style="width:16px;height:16px;margin-top:2px;accent-color:var(--red);flex-shrink:0">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:4px">
+            <strong style="font-size:13px;color:var(--navy)">${l.nom||'(sin nombre)'}</strong>
+            ${badge}
+            ${eBadge(l.est)}
+            <span style="font-size:9px;color:var(--mut)">ID: ${l.id} · score: ${rich}</span>
+          </div>
+          <div style="font-size:11px;color:var(--mut);display:flex;flex-wrap:wrap;gap:10px">
+            <span>📞 ${l.tel||'—'}</span>
+            <span>🏍 ${l.linea||'—'}</span>
+            <span>👤 ${aseN}</span>
+            <span>📅 F.Act: ${l.fa||'—'}</span>
+            <span>🔄 F.Upd: ${l.fu||'—'}</span>
+            <span>🏢 ${l.agencia||'—'}</span>
+            <span>📌 Origen: ${l.ori||'—'}</span>
+            <span>💬 ${(l.notas||[]).length} coment.</span>
+          </div>
+          ${l.notas&&l.notas.length?`<div style="font-size:11px;color:var(--mut);margin-top:4px;font-style:italic">"${(l.notas[l.notas.length-1].txt||'').substring(0,100)}${(l.notas[l.notas.length-1].txt||'').length>100?'...':''}"</div>`:''}
+        </div>
+      </label>`;
+    }).join('');
+    const headName=sorted[0].nom||'(sin nombre)';
+    const headTel=sorted[0].tel||'—';
+    return `<div style="margin-bottom:1rem">
+      <div style="font-size:12px;font-weight:700;color:var(--navy);background:var(--s2);padding:6px 10px;border-radius:var(--r);margin-bottom:6px">
+        👥 ${headName} · 📞 ${headTel} · ${group.length} leads idénticos
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+  const truncMsg=truncated?`<div style="text-align:center;padding:1rem;color:var(--orange);font-size:12px;font-weight:600">⚠️ Mostrando primeros ${MAX_GROUPS} grupos de ${groups.length}. Usa el filtro para ver el resto.</div>`:'';
+  document.getElementById('dupn-list').innerHTML=html+truncMsg;
+  updateDupsByNameCount();
+}
+
+function toggleDupByNameMark(fp,checked){
+  if(checked)dupsByNameMarkedSet.add(fp);
+  else dupsByNameMarkedSet.delete(fp);
+  updateDupsByNameCount();
+  // Update only the visual of the row without re-rendering the whole list (faster for big lists)
+  // Find the label and update its background
+  document.querySelectorAll('#dupn-list label').forEach(lbl=>{
+    const inp=lbl.querySelector('input[type=checkbox]');
+    if(inp)lbl.style.background=inp.checked?'var(--rbg)':'var(--surf)';
+  });
+}
+
+function updateDupsByNameCount(){
+  const el=document.getElementById('dupn-count');
+  if(el)el.textContent=`${dupsByNameMarkedSet.size} marcado${dupsByNameMarkedSet.size!==1?'s':''} para eliminar`;
+}
+
+function dupsByNameSelectOlder(){
+  // For each group: keep most recently updated, mark the rest
+  dupsByNameMarkedSet=new Set();
+  findDupsByNameGroups().forEach(group=>{
+    const sorted=group.slice().sort((a,b)=>{
+      const af=(a.fu||a.fa||'')+'',bf=(b.fu||b.fa||'')+'';
+      if(bf>af)return 1;if(af>bf)return -1;return 0;
+    });
+    sorted.slice(1).forEach(l=>dupsByNameMarkedSet.add(leadFp(l)));
+  });
+  renderDupsByNameReview();
+  toast('Marcados los más viejos de cada grupo');
+}
+
+function dupsByNameSelectAllExceptBest(){
+  // For each group: keep the "richest" (most data), mark the rest
+  dupsByNameMarkedSet=new Set();
+  findDupsByNameGroups().forEach(group=>{
+    const sorted=group.slice().sort((a,b)=>{
+      const ra=leadRichness(a),rb=leadRichness(b);
+      if(rb!==ra)return rb-ra;
+      const af=(a.fu||a.fa||'')+'',bf=(b.fu||b.fa||'')+'';
+      if(bf>af)return 1;if(af>bf)return -1;return 0;
+    });
+    sorted.slice(1).forEach(l=>dupsByNameMarkedSet.add(leadFp(l)));
+  });
+  renderDupsByNameReview();
+  toast('Marcados todos menos el de más datos por grupo');
+}
+
+function dupsByNameSelectNone(){
+  dupsByNameMarkedSet=new Set();
+  renderDupsByNameReview();
+}
+
+async function dupsByNameDelMarked(){
+  if(dupsByNameMarkedSet.size===0){toast('Marca al menos un lead');return;}
+  const n=dupsByNameMarkedSet.size;
+  if(!confirm(`¿Eliminar ${n} lead(s) marcado(s)?\n\nEsta acción borra los leads localmente Y de Firebase. NO se puede deshacer.`))return;
+  const targets=leads.filter(l=>dupsByNameMarkedSet.has(leadFp(l)));
+  setSyncStatus('syncing');
+  // Anti-zombie: mark all as recently deleted
+  targets.forEach(l=>markDeleted(l.id));
+  const fpSet=new Set([...dupsByNameMarkedSet]);
+  leads=leads.filter(l=>!fpSet.has(leadFp(l)));
+  // Delete from Firebase — process in batches to avoid overwhelming the network
+  if(useCloud&&window._fb.isReady()){
+    const ids=targets.map(l=>String(l.id));
+    const BATCH=20;
+    for(let i=0;i<ids.length;i+=BATCH){
+      const batch=ids.slice(i,i+BATCH);
+      await Promise.all(batch.map(id=>{
+        try{return window._fb.deleteLeadCloud(id);}catch(e){return Promise.resolve();}
+      }));
+    }
+  }
+  setSyncStatus('ok');
+  dupsByNameMarkedSet=new Set();
+  persist();renderAll();renderDataManager();
+  renderDupsByNameReview();
+  toast(`${targets.length} lead(s) eliminado(s) ✓`);
+  if(findDupsByNameGroups().length===0){
+    setTimeout(()=>closeM('m-dups-name-review'),800);
+  }
+}
+
+// Old delDups — keep for backward compat but redirect to the new modal
+async function delDups(){openDupsByNameReview();}
+async function delUnassigned(){
+  const arr=leads.filter(l=>!l.uid);
+  if(arr.length===0){toast('Sin leads sin asesor');return;}
+  if(!confirm(`¿Eliminar ${arr.length} leads sin asesor?`))return;
+  setSyncStatus('syncing');
+  arr.forEach(l=>markDeleted(l.id));
+  const keys=new Set(arr.map(l=>String(l.id)));
+  leads=leads.filter(l=>!keys.has(String(l.id)));
+  if(useCloud&&window._fb.isReady()){
+    await Promise.all([...keys].map(id=>{
+      try{return window._fb.deleteLeadCloud(id);}catch(e){return Promise.resolve();}
+    }));
+  }
+  setSyncStatus('ok');
+  persist();renderAll();renderDataManager();
+  toast(`${arr.length} eliminados ✓`);
+}
 function clearImpHistAdmin(){if(!confirm('¿Limpiar historial?'))return;impHist=[];persist();renderImpHist();renderDataManager();toast('Historial borrado ✓');}
-async function delAllLeads(){if(leads.length===0){toast('Sin leads');return;}const conf=prompt(`¿Eliminar TODOS los ${leads.length} leads?\nEscribe CONFIRMAR:`);if(conf!=='CONFIRMAR'){toast('Cancelado');return;}const ids=leads.map(l=>l.id);leads=[];nlid=1;if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all(ids.map(id=>window._fb.deleteLeadCloud(id)));setSyncStatus('ok');}persist();exitBulk();renderAll();renderDataManager();toast('Todos los leads eliminados ✓');}
+async function delAllLeads(){
+  if(leads.length===0){toast('Sin leads');return;}
+  const conf=prompt(`¿Eliminar TODOS los ${leads.length} leads?\nEscribe CONFIRMAR:`);
+  if(conf!=='CONFIRMAR'){toast('Cancelado');return;}
+  setSyncStatus('syncing');
+  const ids=leads.map(l=>String(l.id));
+  ids.forEach(id=>markDeleted(id));
+  leads=[];nlid=1;
+  if(useCloud&&window._fb.isReady()){
+    await Promise.all(ids.map(id=>{
+      try{return window._fb.deleteLeadCloud(id);}catch(e){return Promise.resolve();}
+    }));
+  }
+  setSyncStatus('ok');
+  persist();exitBulk();renderAll();renderDataManager();
+  toast('Todos los leads eliminados ✓');
+}
 async function fullReset(){const conf=prompt('Reset total: borrará TODO en la nube.\nEscribe RESET TOTAL:');if(conf!=='RESET TOTAL'){toast('Cancelado');return;}const lids=leads.map(l=>l.id),uids=users.filter(u=>u.id>1).map(u=>u.id);leads=[];users=[DEF_USERS[0]];impHist=[];driveConn={url:'',lastSync:null,autoSync:false};nuid=9;nlid=1;clearInterval(autoTimer);if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all([...lids.map(id=>window._fb.deleteLeadCloud(id)),...uids.map(id=>window._fb.deleteUserCloud(id))]);setSyncStatus('ok');}Object.keys(localStorage).filter(k=>k.startsWith('tvs8_')).forEach(k=>localStorage.removeItem(k));persist();exitBulk();populateSel();renderAll();renderDataManager();toast('CRM reseteado ✓');}
 
 
