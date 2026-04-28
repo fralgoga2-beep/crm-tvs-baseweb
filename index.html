@@ -1070,6 +1070,32 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   </div>
 </div>
 
+<!-- CUADRO DE CITA — generates an editable visual card for the lead, downloadable as PNG / copyable to clipboard -->
+<div class="ov" id="m-cuadro">
+  <div class="mo mlg">
+    <div class="mh"><span class="mt2">📋 Cuadro de Cita</span><button class="xb" onclick="closeM('m-cuadro')">×</button></div>
+    <div class="mb2">
+      <div class="ibox" style="margin-bottom:.8rem">
+        <strong>ℹ️ Cómo funciona:</strong> Edita los campos abajo (los datos del lead se llenaron automáticamente). Cuando esté listo, dale <strong>📷 Generar imagen</strong> y luego <strong>📋 Copiar</strong> para pegar en WhatsApp, o <strong>⬇️ Descargar PNG</strong>.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:.8rem" id="cuadro-form">
+        <!-- form fields injected dynamically -->
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;margin-top:.5rem">Vista previa</div>
+      <div style="background:var(--s2);padding:1rem;border-radius:var(--r);text-align:center;margin-bottom:.8rem;overflow-x:auto">
+        <canvas id="cuadro-canvas" style="max-width:100%;background:white;box-shadow:0 4px 12px rgba(0,0,0,.15);border-radius:4px"></canvas>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding-top:.8rem;border-top:1px solid var(--bd)">
+        <button class="btn bo" onclick="closeM('m-cuadro')">Cerrar</button>
+        <button class="btn bo bsm" onclick="renderCuadroCanvas()">🔄 Actualizar vista</button>
+        <button class="btn bp bsm" onclick="copyCuadroToClipboard()">📋 Copiar imagen</button>
+        <button class="btn bn bsm" onclick="downloadCuadroPng()">⬇️ Descargar PNG</button>
+        <button class="btn bsm" style="background:#25D366;color:white;border:none" onclick="shareCuadroWhatsApp()">📱 WhatsApp</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -1878,7 +1904,7 @@ function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas
     </div>
     <div style="display:flex;gap:7px;justify-content:space-between;align-items:center;flex-wrap:wrap;padding-top:.9rem;border-top:1px solid var(--bd)">
       ${priv?`<button class="btn bd bsm" onclick="delLead(${l.id})">🗑 Eliminar</button>`:'<div></div>'}
-      <div style="display:flex;gap:6px;flex-wrap:wrap">${waBtn(l)}<button class="btn bo bsm" onclick="openLM(${l.id});closeM('m-det')">✏️ Editar</button><button class="btn bn bsm" onclick="saveDet(${l.id})">Guardar cambios</button></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${l.est==='CITA'?`<button class="btn bp bsm" onclick="openCuadroCita(${l.id})" style="background:#FF7043;border-color:#FF7043">📋 Generar Cuadro</button>`:''}${waBtn(l)}<button class="btn bo bsm" onclick="openLM(${l.id});closeM('m-det')">✏️ Editar</button><button class="btn bn bsm" onclick="saveDet(${l.id})">Guardar cambios</button></div>
     </div>`;
   openM('m-det');
   // Populate dynamic selects after DOM is set
@@ -3037,6 +3063,350 @@ document.addEventListener('click',e=>{const m=document.getElementById('mmenu');i
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')persist();});
 window.addEventListener('pagehide',persist);window.addEventListener('beforeunload',persist);
 setInterval(()=>{if(CU)updRemBadge();},60000);
+
+// ═══════════════════════════════════════
+// CUADRO DE CITA — generador de imagen para WhatsApp
+// ═══════════════════════════════════════
+// Tabla de agencias del template oficial: código + nombre + coordinador + número
+const AGENCIA_DATA={
+  '5101':{nom:'TVS YURRITA',coord:'JUAN JOSÉ CATALÁN',tel:'49405480'},
+  '5102':{nom:'TVS METRONORTE',coord:'BRANDON SALGUERO',tel:'35967239'},
+  '5103':{nom:'TVS VILLA CANALES',coord:'JEFFERSON GARCIA',tel:'45970827'},
+  '5104':{nom:'TVS 6TA AV',coord:'ROLANDO PORTILLO',tel:'39941954'},
+  '5105':{nom:'TVS ESCUINTLA',coord:'JACQUELINE ESCOBAR',tel:'39486833'},
+  '5106':{nom:'TVS RETALHULEU',coord:'CRISTIAN LOPEZ',tel:'41500849'},
+  '5108':{nom:'TVS AMATITLÁN',coord:'GUSTAVO DÍAZ',tel:'59472038'},
+  '5110':{nom:'TVS CHIQUIMULA',coord:'MARICRUZ DIVAS',tel:'42334237'},
+  '5111':{nom:'TVS ALAMOS',coord:'BYRON SANDOVAL',tel:'50095161'},
+  '5112':{nom:'TVS CALLE MARTI',coord:'JOSÉ GÓMEZ',tel:'59512688'},
+  '5113':{nom:'TVS BARCENAS',coord:'JAVIER HERNÁNDEZ',tel:'36034945'},
+  '5114':{nom:'TVS QUETZALTENANGO',coord:'ROBERTO MERIDA',tel:'45057324'},
+  '5115':{nom:'TVS ESKALA',coord:'RICARDO ORTIZ',tel:'42555667'},
+  '5116':{nom:'TVS JALAPA',coord:'LUIS FIGUEROA',tel:'55785555'},
+  '5118':{nom:'TVS EL CASTAÑO',coord:'ALEJANDRO VALLEJO',tel:'35958802'},
+  '5124':{nom:'TVS COATEPEQUE',coord:'HERMAN OTONIEL',tel:'37874514'},
+  '5125':{nom:'TVS COBAN',coord:'PACAY ACTÉ CESAR ANIBAL',tel:''},
+  '5126':{nom:'TVS SANARATE',coord:'AZUCENA ARGUETA',tel:'54585356'},
+  '5127':{nom:'TVS CHIMALTENANGO',coord:'IGNACIO RIVERA',tel:'33557204'},
+  '5180':{nom:'HT AMATITLAN ASIOLE',coord:'ANA VICTORIA GONZALES BARRERA',tel:''},
+  '5181':{nom:'HT SANTA LUCIA',coord:'GOMEZ COS DE LOPEZ VIVIANA',tel:''},
+  '5182':{nom:'HT COATEPEQUE',coord:'SILAS LOPEZ',tel:''},
+  '5183':{nom:'HT NUEVA CONCEPCIÓN',coord:'BRAN MARROQUIN ADONIA',tel:''},
+  '5185':{nom:'HT GUASTATOYA',coord:'OLIVA LÓPEZ JOSÉ HILIBERTO',tel:''},
+  '5187':{nom:'HT ESQUIPULAS',coord:'LANDAVERRY RAMÍREZ KAROL',tel:''},
+  '5188':{nom:'HT CHIMALTENANGO',coord:'AZÚRDIA BLANCO DE JIMÉNEZ',tel:''},
+  '5189':{nom:'HT JALAPA',coord:'',tel:''},
+  '5191':{nom:'HT SANTO TOMAS',coord:'',tel:''},
+  '5192':{nom:'HT GOMERA',coord:'ESLIN CAROLINA QUEVEDO',tel:''},
+  '5193':{nom:'HT QUETZALTENANGO',coord:'XIC AGUILAR ESWIN NEFTALI',tel:''},
+  '5194':{nom:'HT ESCUINTLA',coord:'',tel:''},
+  '5195':{nom:'HT QUICHE',coord:'',tel:''},
+  '5196':{nom:'HT COBAN',coord:'PACAY ACTÉ CESAR ANIBAL',tel:''},
+  '5197':{nom:'HT HUEHUETENANGO',coord:'FÚNES LÓPEZ HEIDY HELEN',tel:''},
+  '5198':{nom:'HT VILLA NUEVA PRADERA',coord:'CALDERON CRUZ JOHAN',tel:''},
+  '5199':{nom:'HT CASTAÑO',coord:'SANTIAGO SANTIAGO JUAN',tel:''},
+  '51A0':{nom:'HT PUERTO SAN JOSE',coord:'HERRARTE GATICA ESVIN',tel:''},
+  '51A1':{nom:'HT SAN PEDRO',coord:'',tel:''},
+  '51A3':{nom:'HT MAZATENANGO',coord:'HENRY ESQUIVEL',tel:''},
+  '51A4':{nom:'HT CHIQUIMULA',coord:'ANGEL GUTIERREZ CHEGUEN',tel:''},
+  '51B1':{nom:'HT RETALHULEU',coord:'MÉNDEZ CHIHUIL BAGNER',tel:''},
+  '51B2':{nom:'HT SALAMA',coord:'RODRÍGUEZ RAMOS YEISON',tel:''},
+  '51B4':{nom:'HT MALACATAN',coord:'GLORIA SALOMÉ LÓPEZ',tel:''},
+  '51B5':{nom:'HT AMATITLAN SATELITE',coord:'',tel:''},
+  '51B6':{nom:'HT LA LIBERTAD',coord:'',tel:''},
+  '51B7':{nom:'HT SANARATE',coord:'',tel:''},
+  '51B8':{nom:'HT TECUN UMAN',coord:'',tel:''},
+  '51B9':{nom:'HT NEBAJ',coord:'',tel:''},
+  '51C0':{nom:'HIPERTIENDA BARBERENA',coord:'',tel:''},
+  '51C1':{nom:'HT TECULUTAN',coord:'',tel:''},
+  '51C2':{nom:'HT SAYAXCHE',coord:'',tel:''},
+  '51C3':{nom:'HT MORALES',coord:'MARTINEZ DÍAZ YONI',tel:''},
+  '51C4':{nom:'HT SANTA ELENA',coord:'SUÁREZ CANCHÁN CARLOS',tel:''},
+  '51C6':{nom:'HT TIQUISATE',coord:'',tel:''},
+  '51C7':{nom:'HT PROGRESO JUTIAPA',coord:'',tel:''},
+  '51C8':{nom:'HT POPTUN',coord:'JUAN CARLOS FELIPE',tel:''},
+  '51C9':{nom:'HT PLAZA TECA COATEPEQUE',coord:'',tel:''},
+  '51D1':{nom:'HT SAN ANTONIO SUCHI',coord:'RODRÍGUEZ GARCÍA KATHERINE',tel:''},
+  '51D2':{nom:'HT CAMBOTE/HUEHUE',coord:'',tel:''},
+  '51D3':{nom:'HT EL ESTOR',coord:'',tel:''},
+  '51D4':{nom:'HT JUTIAPA',coord:'REYES PÁIZ JOSEPH RICARDO',tel:''},
+  '51D5':{nom:'HT PUERTO BARRIOS',coord:'URRUTIA CASTILLO EDUARDO',tel:''},
+  '51D8':{nom:'HT PETAPA',coord:'RAMÍREZ PÉREZ GLENDY',tel:''},
+  '51F4':{nom:'HT LOS AMATES',coord:'',tel:''},
+  '51F6':{nom:'HT ATLANTIDA',coord:'AGUIRRE HERNÁNDEZ HAMILTON',tel:''}
+};
+
+// Map a CRM agencia name -> code in AGENCIA_DATA (best-effort fuzzy match by normalized name)
+function findAgenciaCode(agName){
+  if(!agName)return '';
+  const norm=s=>s.toUpperCase().replace(/[ÁÀ]/g,'A').replace(/[ÉÈ]/g,'E').replace(/[ÍÌ]/g,'I').replace(/[ÓÒ]/g,'O').replace(/[ÚÙÜ]/g,'U').replace(/Ñ/g,'N').replace(/[^A-Z0-9 ]/g,'').replace(/\s+/g,' ').trim();
+  const target=norm(agName);
+  // First: exact match
+  for(const[code,d]of Object.entries(AGENCIA_DATA)){
+    if(norm(d.nom)===target)return code;
+  }
+  // Second: contains/contained
+  const targetWords=target.split(' ').filter(w=>w.length>2);
+  let best={code:'',score:0};
+  for(const[code,d]of Object.entries(AGENCIA_DATA)){
+    const cn=norm(d.nom);
+    let score=0;
+    targetWords.forEach(w=>{if(cn.includes(w))score++;});
+    if(score>best.score)best={code,score};
+  }
+  return best.score>=Math.max(1,targetWords.length-1)?best.code:'';
+}
+
+let cuadroLeadId=null;
+
+function openCuadroCita(id){
+  const l=findLead(id);
+  if(!l){toast('Lead no encontrado');return;}
+  if(l.est!=='CITA'){toast('El lead debe estar en estado CITA');return;}
+  cuadroLeadId=id;
+  // Pre-fill from lead data
+  const u=l.uid?users.find(x=>x.id===l.uid):null;
+  const code=findAgenciaCode(l.agencia)||'';
+  const ag=code?AGENCIA_DATA[code]:null;
+  // Format date as Spanish (e.g. "14 DE FEBRERO")
+  const fechaTxt=fmtFechaCuadro(l.fa||today());
+  // Build form
+  const fields=[
+    {k:'codigo',label:'CÓDIGO DE AGENCIA',val:code,placeholder:'5115'},
+    {k:'cliente',label:'CLIENTE',val:(l.nom||'').toUpperCase(),placeholder:'NOMBRE COMPLETO'},
+    {k:'celular',label:'CELULAR',val:(l.tel||'').replace(/^502/,''),placeholder:'33126254'},
+    {k:'producto',label:'PRODUCTO',val:l.linea||'',placeholder:'RAIDER 125 2026'},
+    {k:'color',label:'COLOR DE LA MOTO',val:'',placeholder:'NEGRO / ROJO / AZUL'},
+    {k:'modelo',label:'MODELO',val:'2026',placeholder:'2026'},
+    {k:'precio',label:'PRECIO',val:'',placeholder:'Q 15,199.00'},
+    {k:'precio_placas',label:'PRECIO DE PLACAS',val:'0',placeholder:'0 ó Q 365.00'},
+    {k:'forma_pago',label:'FORMA DE PAGO',val:l.tp||'',placeholder:'Visa Cuotas / Contado / Crédito'},
+    {k:'tarjeta',label:'TARJETA PARA CUOTAS',val:'',placeholder:'BAC / BI / Banrural...'},
+    {k:'fecha',label:'FECHA DE VISITA',val:fechaTxt,placeholder:'14 DE FEBRERO'},
+    {k:'perfil',label:'PERFIL DEL CRÉDITO',val:'NINGUNA',placeholder:'NEGOCIO PROPIO / RELACIÓN DEPENDENCIA / NINGUNA'},
+    {k:'hora_llegada',label:'HORA DE LLEGADA A LA AGENCIA',val:'Por la Tarde',placeholder:'Por la Mañana / Por la Tarde'},
+    {k:'horario_llamar',label:'HORARIO PARA LLAMAR AL CLIENTE',val:'Por la Tarde',placeholder:'Por la Mañana / Por la Tarde'},
+    {k:'agencia',label:'AGENCIA',val:ag?ag.nom:(l.agencia||''),placeholder:'TVS ESKALA'},
+    {k:'coordinador',label:'COORDINADOR',val:ag?ag.coord:'',placeholder:'NOMBRE DEL COORDINADOR'},
+    {k:'gestor',label:'GESTOR',val:(u?u.nombre:CU.nombre).toUpperCase(),placeholder:'NOMBRE DEL ASESOR'},
+    {k:'nota',label:'NOTA',val:l.notas&&l.notas.length?l.notas[l.notas.length-1].txt:'',placeholder:'Nota / Observación'}
+  ];
+  const form=document.getElementById('cuadro-form');
+  form.innerHTML=fields.map(f=>`<div class="fg" style="margin-bottom:0">
+    <label class="fl" style="font-size:10px">${f.label}</label>
+    <input class="fc cuadro-fld" id="cu-${f.k}" data-k="${f.k}" value="${(f.val||'').replace(/"/g,'&quot;')}" placeholder="${f.placeholder}" style="font-size:12px" oninput="renderCuadroCanvas()">
+  </div>`).join('');
+  // If user changes the codigo, auto-fill agencia + coordinador
+  document.getElementById('cu-codigo').addEventListener('input',e=>{
+    const code=e.target.value.trim().toUpperCase();
+    const ag=AGENCIA_DATA[code];
+    if(ag){
+      document.getElementById('cu-agencia').value=ag.nom;
+      document.getElementById('cu-coordinador').value=ag.coord;
+      renderCuadroCanvas();
+    }
+  });
+  openM('m-cuadro');
+  // Initial render
+  setTimeout(renderCuadroCanvas,100);
+}
+
+function fmtFechaCuadro(iso){
+  if(!iso)return '';
+  const m=iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m)return iso;
+  const meses=['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  return parseInt(m[3],10)+' DE '+meses[parseInt(m[2],10)-1];
+}
+
+function getCuadroValues(){
+  const o={};
+  document.querySelectorAll('.cuadro-fld').forEach(el=>{o[el.dataset.k]=el.value;});
+  return o;
+}
+
+// Render the cuadro on canvas — replicates the Excel template visually
+function renderCuadroCanvas(){
+  const canvas=document.getElementById('cuadro-canvas');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const v=getCuadroValues();
+  // Sizing — high-DPI for crisp WhatsApp rendering
+  const W=900;
+  const titleY=20, titleH=40;
+  const introY=80, introH=110;
+  const rowH=34;
+  const numRows=18;
+  const rowY0=introY+introH;
+  const H=rowY0+numRows*rowH+20; // dynamic height — no blank space
+  const scale=2; // 2x for retina
+  canvas.width=W*scale;
+  canvas.height=H*scale;
+  canvas.style.width=W+'px';
+  canvas.style.height='auto';
+  ctx.scale(scale,scale);
+  // White background
+  ctx.fillStyle='#FFFFFF';
+  ctx.fillRect(0,0,W,H);
+  // Title bar (black border)
+  ctx.fillStyle='#FFFFFF';
+  ctx.strokeStyle='#000000';
+  ctx.lineWidth=2;
+  ctx.strokeRect(140,titleY,W-280,titleH);
+  ctx.fillStyle='#000000';
+  ctx.font='bold 18px Arial, sans-serif';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText('Cuadro Formal para enviar a las Agencias',W/2,titleY+titleH/2);
+  // Blue intro box
+  ctx.fillStyle='#0033CC';
+  ctx.fillRect(20,introY,W-40,introH);
+  ctx.fillStyle='#FFFFFF';
+  ctx.font='bold 14px Arial, sans-serif';
+  ctx.textAlign='center';
+  const introTxt='Buen día, favor contactar al cliente y darle el respectivo seguimiento. Este ya se encuentra cargado en su Salesforce. Quedo al pendiente de sus comentarios. ¡Gracias por el apoyo!';
+  wrapText(ctx,introTxt,W/2,introY+30,W-80,22);
+  // Rows — left red (label), right white (value)
+  const rows=[
+    ['CÓDIGO DE AGENCIA:',v.codigo],
+    ['CLIENTE:',v.cliente],
+    ['CELULAR:',v.celular],
+    ['PRODUCTO:',v.producto],
+    ['COLOR DE LA MOTO:',v.color],
+    ['MODELO:',v.modelo],
+    ['PRECIO:',v.precio],
+    ['PRECIO DE PLACAS:',v.precio_placas],
+    ['FORMA DE PAGO:',v.forma_pago],
+    ['TARJETA PARA CUOTAS:',v.tarjeta],
+    ['FECHA DE VISITA:',v.fecha],
+    ['PERFIL DEL CRÉDITO:',v.perfil],
+    ['HORA DE LLEGADA A LA AGENCIA:',v.hora_llegada],
+    ['HORARIO PARA LLAMAR AL CLIENTE:',v.horario_llamar],
+    ['AGENCIA:',v.agencia],
+    ['COORDINADOR:',v.coordinador],
+    ['GESTOR:',v.gestor],
+    ['NOTA:',v.nota]
+  ];
+  const labelW=320;
+  ctx.font='bold 13px Arial, sans-serif';
+  ctx.textBaseline='middle';
+  rows.forEach((r,i)=>{
+    const y=rowY0+i*rowH;
+    // Label (red bg, white text)
+    ctx.fillStyle='#E60000';
+    ctx.fillRect(20,y,labelW,rowH);
+    ctx.fillStyle='#FFFFFF';
+    ctx.font='bold 13px Arial, sans-serif';
+    ctx.textAlign='left';
+    ctx.fillText(r[0],30,y+rowH/2);
+    // Value (white bg, black text, right-aligned to match Excel template)
+    ctx.fillStyle='#FFFFFF';
+    ctx.fillRect(20+labelW,y,W-40-labelW,rowH);
+    // Border around value box
+    ctx.strokeStyle='#000000';
+    ctx.lineWidth=1;
+    ctx.strokeRect(20+labelW,y,W-40-labelW,rowH);
+    // Value text — special color for NOTA
+    ctx.fillStyle=r[0]==='NOTA:'?'#E60000':'#000000';
+    ctx.font=r[0]==='NOTA:'?'bold italic 13px Arial, sans-serif':'bold 14px Arial, sans-serif';
+    ctx.textAlign='right';
+    const valTxt=String(r[1]||'');
+    // Truncate if too wide
+    const maxW=W-40-labelW-20;
+    let displayTxt=valTxt;
+    if(ctx.measureText(displayTxt).width>maxW){
+      while(displayTxt.length>3&&ctx.measureText(displayTxt+'...').width>maxW){
+        displayTxt=displayTxt.slice(0,-1);
+      }
+      displayTxt+='...';
+    }
+    ctx.fillText(displayTxt,W-30,y+rowH/2);
+    // Outer border for label
+    ctx.strokeStyle='#000000';
+    ctx.lineWidth=1;
+    ctx.strokeRect(20,y,labelW,rowH);
+  });
+  // Reset alignment
+  ctx.textAlign='left';
+}
+
+function wrapText(ctx,text,x,y,maxWidth,lineHeight){
+  const words=text.split(' ');
+  let line='';
+  let lines=[];
+  for(let i=0;i<words.length;i++){
+    const test=line+words[i]+' ';
+    if(ctx.measureText(test).width>maxWidth&&i>0){
+      lines.push(line);
+      line=words[i]+' ';
+    } else {
+      line=test;
+    }
+  }
+  lines.push(line);
+  // Center vertically: shift up
+  const totalH=lines.length*lineHeight;
+  const startY=y;
+  lines.forEach((ln,i)=>{
+    ctx.fillText(ln.trim(),x,startY+i*lineHeight);
+  });
+}
+
+function downloadCuadroPng(){
+  const canvas=document.getElementById('cuadro-canvas');
+  const v=getCuadroValues();
+  const fname='Cuadro_'+(v.cliente||'cliente').replace(/[^a-zA-Z0-9]/g,'_').substring(0,30)+'.png';
+  canvas.toBlob(blob=>{
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=fname;a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    toast('PNG descargado ✓');
+  },'image/png');
+}
+
+async function copyCuadroToClipboard(){
+  const canvas=document.getElementById('cuadro-canvas');
+  try{
+    canvas.toBlob(async blob=>{
+      try{
+        await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+        toast('Imagen copiada ✓ Pégala en WhatsApp');
+      }catch(e){
+        console.warn('clipboard:',e);
+        toast('No se pudo copiar — usa Descargar PNG');
+      }
+    },'image/png');
+  }catch(e){
+    toast('No se pudo copiar — usa Descargar PNG');
+  }
+}
+
+function shareCuadroWhatsApp(){
+  // WhatsApp web/app doesn't accept images via URL — best path is download + manual share.
+  // We open WhatsApp with a text fallback message and prompt the user to attach the downloaded image.
+  const canvas=document.getElementById('cuadro-canvas');
+  const v=getCuadroValues();
+  // First try Web Share API with file (works on mobile)
+  canvas.toBlob(async blob=>{
+    const file=new File([blob],'Cuadro_'+(v.cliente||'cliente').replace(/[^a-zA-Z0-9]/g,'_')+'.png',{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{
+        await navigator.share({files:[file],title:'Cuadro de Cita',text:`Cuadro de Cita — ${v.cliente}`});
+        toast('Compartido ✓');
+        return;
+      }catch(e){if(e.name!=='AbortError')console.warn('share:',e);}
+    }
+    // Fallback: download + open WhatsApp with text
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download='Cuadro_'+(v.cliente||'cliente').replace(/[^a-zA-Z0-9]/g,'_')+'.png';a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    const msg=encodeURIComponent(`Cuadro de Cita — ${v.cliente}\nProducto: ${v.producto}\nFecha: ${v.fecha}\nAgencia: ${v.agencia}`);
+    window.open('https://wa.me/?text='+msg,'_blank');
+    toast('PNG descargado — adjúntalo en WhatsApp');
+  },'image/png');
+}
 
 // AUTO-CONNECT
 function doAutoConnect(){
