@@ -867,6 +867,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <div class="dm-body">
       <div class="dm-row"><div><div class="dm-label">Eliminar leads sin asesor</div><div class="dm-sub" id="dm-unass">Calculando...</div></div><button class="btn bd bsm" onclick="delUnassigned()">🗑 Eliminar</button></div>
       <div class="dm-row"><div><div class="dm-label">Eliminar duplicados</div><div class="dm-sub" id="dm-dups">Detectando...</div></div><button class="btn bd bsm" onclick="delDups()">🗑 Eliminar</button></div>
+      <div class="dm-row"><div><div class="dm-label">IDs duplicados (abren la ficha equivocada)</div><div class="dm-sub" id="dm-dupids">Detectando...</div></div><button class="btn bo bsm" onclick="openDupsReview()">🔍 Revisar</button></div>
       <div class="dm-row"><div><div class="dm-label">Limpiar historial importaciones</div><div class="dm-sub" id="dm-imh">Calculando...</div></div><button class="btn bo bsm" onclick="clearImpHistAdmin()">🧹 Limpiar</button></div>
     </div>
   </div>
@@ -1017,6 +1018,29 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
 <div class="ov" id="m-pass">
   <div class="mo msm"><div class="mh"><span class="mt2">Cambiar Contraseña</span><button class="xb" onclick="closeM('m-pass')">×</button></div>
   <div class="mb2"><div class="fg"><label class="fl">Nueva contraseña</label><input class="fc" type="password" id="pm-p1" placeholder="Mínimo 6 caracteres"></div><div class="fg"><label class="fl">Confirmar</label><input class="fc" type="password" id="pm-p2"></div><div id="pm-err" class="wbox" style="display:none"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn bo" onclick="closeM('m-pass')">Cancelar</button><button class="btn bp" onclick="doChgPass()">Cambiar</button></div></div></div>
+</div>
+
+<!-- DUPS REVIEW (shows leads with duplicate IDs and lets admin select & delete) -->
+<div class="ov" id="m-dups-review">
+  <div class="mo mlg">
+    <div class="mh"><span class="mt2">🔍 Revisar Leads con ID Duplicado</span><button class="xb" onclick="closeM('m-dups-review')">×</button></div>
+    <div class="mb2">
+      <div class="ibox" style="margin-bottom:.8rem">
+        <strong>⚠️ Importante:</strong> Cuando dos leads comparten el mismo ID, Firebase guarda solo uno y al hacer refresh se pierden cambios. Revisa los grupos abajo y <strong>marca los que quieras eliminar</strong>. Los que queden conservarán su ID actual o se les asignará uno nuevo automáticamente.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:.8rem;align-items:center">
+        <button class="btn bo bsm" onclick="dupsSelectOlder()">📅 Marcar los más viejos</button>
+        <button class="btn bo bsm" onclick="dupsSelectNone()">❌ Desmarcar todos</button>
+        <button class="btn bp bsm" onclick="dupsAssignNewIds()">🔧 Asignar IDs nuevos a los no marcados</button>
+        <span style="margin-left:auto;font-size:12px;color:var(--mut)" id="dups-count">0 marcados para eliminar</span>
+      </div>
+      <div id="dups-list" style="max-height:60vh;overflow-y:auto"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:.8rem;border-top:1px solid var(--bd);margin-top:.8rem">
+        <button class="btn bo" onclick="closeM('m-dups-review')">Cancelar</button>
+        <button class="btn bd" onclick="dupsDelMarked()">🗑 Eliminar marcados</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1393,6 +1417,27 @@ function avU(u,cls=''){return avH(u.nombre,u.color,cls);}
 function eBadge(e){return `<span class="badge ${EC_CLS[e]||'e-proc'}">${e}</span>`;}
 function tpBadge(tp){return `<span class="tp ${TP_CLS[tp]||'tp-otro'}">${tp||'—'}</span>`;}
 function oriBadge(o){return `<span class="ori ${ORI_CLS[o]||'o-ot'}">${o}</span>`;}
+// findLead: type-insensitive match. IDs may be number (from inline onclick) or string (from Firestore).
+// If multiple leads share the same id (legacy duplicates), returns the most recently updated one.
+function findLead(id){
+  if(id===null||id===undefined)return null;
+  const key=String(id);
+  const matches=leads.filter(l=>String(l.id)===key);
+  if(matches.length===0)return null;
+  if(matches.length===1)return matches[0];
+  // Duplicate ids — pick the one most recently touched (fu, then fa)
+  matches.sort((a,b)=>{
+    const af=(a.fu||a.fa||'')+'',bf=(b.fu||b.fa||'')+'';
+    if(bf>af)return 1;if(af>bf)return -1;return 0;
+  });
+  console.warn('[findLead] Duplicate id',id,'— resolved to most recent:',matches[0].nom);
+  return matches[0];
+}
+function findLeadIndex(id){
+  if(id===null||id===undefined)return -1;
+  const key=String(id);
+  return leads.findIndex(l=>String(l.id)===key);
+}
 function atag(uid){if(!uid)return `<span style="font-size:10px;color:var(--hin)">Sin asignar</span>`;const u=users.find(x=>x.id===uid);if(!u)return '—';return `<span class="atag">${avU(u)} ${u.nombre.split(' ')[0]}</span>`;}
 function waBtn(l){if(!l.tel)return '';const u=users.find(x=>x.id===l.uid);const msg=encodeURIComponent(u&&u.wa?u.wa.replace('{nombre}',l.nom).replace('{asesor}',(u.nombre||'').split(' ')[0]).replace('{linea}',l.linea||''):'Hola, te contactamos de TVS Motos');return `<a href="https://wa.me/${l.tel.replace(/\D/g,'')}?text=${msg}" target="_blank" class="btn bg bsm" style="text-decoration:none;font-size:10px" title="WhatsApp">📱</a>`;}
 function myLeads(){
@@ -1704,15 +1749,15 @@ function renderRecordatorios(){
   updRemBadge();
 }
 function fRem(f,btn){remFilter=f;document.querySelectorAll('#tab-recordatorios .ni').forEach(b=>{b.classList.remove('active');b.style.borderBottom='none';b.style.color='var(--txt)';});if(btn){btn.classList.add('active');btn.style.borderBottom='2px solid var(--navy)';btn.style.color='var(--navy)';}renderRecordatorios();}
-function dismissRem(id){const l=leads.find(x=>x.id===id);if(!l)return;if(!confirm('¿Marcar como atendido?'))return;l.reminder=null;persist();cloudSaveLead(l);renderAll();toast('Recordatorio atendido ✓');}
-function openRem(id){remL=id;const l=leads.find(x=>x.id===id);document.getElementById('mr-title').textContent='Recordatorio — '+l.nom;document.getElementById('rem-lead-info').innerHTML=`${l.nom} · <span style="font-size:11px;color:var(--mut)">${l.linea} · ${l.ubi}</span>`;document.getElementById('rm-d').value=l.reminder?.date||today();document.getElementById('rm-t').value=l.reminder?.time||'09:00';document.getElementById('rm-n').value=l.reminder?.note||'';openM('m-rem');}
-function saveRemind(){const d=document.getElementById('rm-d').value;if(!d){toast('Selecciona una fecha');return;}const l=leads.find(x=>x.id===remL);l.reminder={date:d,time:document.getElementById('rm-t').value,note:document.getElementById('rm-n').value};l.fu=today();if(l.fa&&l.fa<today())l.regest='Regestionado';persist();cloudSaveLead(l);closeM('m-rem');renderAll();toast('Recordatorio guardado ✓');}
+function dismissRem(id){const l=findLead(id);if(!l)return;if(!confirm('¿Marcar como atendido?'))return;l.reminder=null;persist();cloudSaveLead(l);renderAll();toast('Recordatorio atendido ✓');}
+function openRem(id){remL=id;const l=findLead(id);document.getElementById('mr-title').textContent='Recordatorio — '+l.nom;document.getElementById('rem-lead-info').innerHTML=`${l.nom} · <span style="font-size:11px;color:var(--mut)">${l.linea} · ${l.ubi}</span>`;document.getElementById('rm-d').value=l.reminder?.date||today();document.getElementById('rm-t').value=l.reminder?.time||'09:00';document.getElementById('rm-n').value=l.reminder?.note||'';openM('m-rem');}
+function saveRemind(){const d=document.getElementById('rm-d').value;if(!d){toast('Selecciona una fecha');return;}const l=findLead(remL);l.reminder={date:d,time:document.getElementById('rm-t').value,note:document.getElementById('rm-n').value};l.fu=today();if(l.fa&&l.fa<today())l.regest='Regestionado';persist();cloudSaveLead(l);closeM('m-rem');renderAll();toast('Recordatorio guardado ✓');}
 
 // ═══════════════════════════════════════
 // LEAD DETAIL
 // ═══════════════════════════════════════
 function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas, no fichas individuales');return;}
-  const l=leads.find(x=>x.id===id),priv=isPriv();
+  const l=findLead(id),priv=isPriv();
   const aseSel=priv?`<select class="fc" id="ds-ase" style="font-size:12px"><option value="">— Sin asignar</option>${users.map(u=>`<option value="${u.id}" ${u.id===l.uid?'selected':''}>${u.nombre}</option>`).join('')}</select>`:`<div style="display:flex;align-items:center;gap:6px">${atag(l.uid)}${isAdmin()?'<button class="btn bo bsm" style="font-size:10px" onclick="openQuickAssign('+l.id+')">✏️ Asignar</button>':''}</div>`;
   const rs=remSt(l.reminder);
   document.getElementById('det-body').innerHTML=`
@@ -1789,16 +1834,16 @@ function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas
   const _dagEl=document.getElementById('ds-agencia');if(_dagEl)_dagEl.innerHTML='<option value="">— Sin agencia —</option>'+_dagOpts;
 }
 function renderNotas(l){if(!l.notas||l.notas.length===0)return `<div style="color:var(--mut);font-size:12px;text-align:center;padding:.75rem">Sin comentarios</div>`;return l.notas.map((n,i)=>`<div class="ni2"><div class="nt">${n.txt}</div><div class="nm"><span>✍️ ${n.by||'Asesor'}</span><span>${n.ts||''}</span></div><button class="nd" onclick="delNota(${l.id},${i})">✕</button></div>`).join('');}
-function addNota(lid){const txt=document.getElementById('new-nota')?.value?.trim();if(!txt){toast('Escribe algo');return;}const l=leads.find(x=>x.id===lid);if(!l.notas)l.notas=[];l.notas.push({txt,by:CU.nombre,ts:new Date().toLocaleString()});l.fu=today();if(l.fa&&l.fa<today())l.regest='Regestionado';document.getElementById('new-nota').value='';document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);renderAll();toast('Comentario agregado ✓');const gestUid=l.uid||CU.id;addGest(gestUid,1);}
-function delNota(lid,idx){if(!confirm('¿Eliminar?'))return;const l=leads.find(x=>x.id===lid);l.notas.splice(idx,1);document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);toast('Eliminado');}
-function saveDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver leads, no editarlos');return;}const l=leads.find(x=>x.id===id);l.est=document.getElementById('ds-est').value;l.tp=document.getElementById('ds-tp').value;l.agencia=document.getElementById('ds-agencia')?.value||'';l.interes=document.getElementById('ds-interes')?.value||'';const manualRegest=document.getElementById('ds-regest')?.value||'';l.regest=manualRegest||(l.fa&&l.fa<today()?'Regestionado':'');l.responde=document.getElementById('ds-responde')?.value||'';l.fu=today();if(isPriv()){const v=document.getElementById('ds-ase')?.value;l.uid=v?parseInt(v):null;if(l.uid){const u=users.find(x=>x.id===l.uid);if(u)l.anom=u.nombre;}}persist();cloudSaveLead(l);closeM('m-det');renderAll();toast('Lead actualizado ✓');}
+function addNota(lid){const txt=document.getElementById('new-nota')?.value?.trim();if(!txt){toast('Escribe algo');return;}const l=findLead(lid);if(!l.notas)l.notas=[];l.notas.push({txt,by:CU.nombre,ts:new Date().toLocaleString()});l.fu=today();if(l.fa&&l.fa<today())l.regest='Regestionado';document.getElementById('new-nota').value='';document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);renderAll();toast('Comentario agregado ✓');const gestUid=l.uid||CU.id;addGest(gestUid,1);}
+function delNota(lid,idx){if(!confirm('¿Eliminar?'))return;const l=findLead(lid);l.notas.splice(idx,1);document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);toast('Eliminado');}
+function saveDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver leads, no editarlos');return;}const l=findLead(id);l.est=document.getElementById('ds-est').value;l.tp=document.getElementById('ds-tp').value;l.agencia=document.getElementById('ds-agencia')?.value||'';l.interes=document.getElementById('ds-interes')?.value||'';const manualRegest=document.getElementById('ds-regest')?.value||'';l.regest=manualRegest||(l.fa&&l.fa<today()?'Regestionado':'');l.responde=document.getElementById('ds-responde')?.value||'';l.fu=today();if(isPriv()){const v=document.getElementById('ds-ase')?.value;l.uid=v?parseInt(v):null;if(l.uid){const u=users.find(x=>x.id===l.uid);if(u)l.anom=u.nombre;}}persist();cloudSaveLead(l);closeM('m-det');renderAll();toast('Lead actualizado ✓');}
 
 // ═══════════════════════════════════════
 // LEAD CRUD
 // ═══════════════════════════════════════
 function openLM(id){
   editL=id;
-  if(id){const l=leads.find(x=>x.id===id);document.getElementById('ml-title').textContent='Editar Lead';document.getElementById('lf-btn').textContent='Guardar cambios';document.getElementById('lf-nom').value=l.nom;document.getElementById('lf-tel').value=l.tel;document.getElementById('lf-ori').value=l.ori;document.getElementById('lf-tp').value=l.tp||'Contado';document.getElementById('lf-lin').value=l.linea;document.getElementById('lf-ubi').value=l.ubi;document.getElementById('lf-est').value=l.est;document.getElementById('lf-fa').value=l.fa||'';document.getElementById('lf-fu').value=l.fu||'';document.getElementById('lf-rd').value=l.reminder?.date||'';document.getElementById('lf-rt').value=l.reminder?.time||'09:00';document.getElementById('lf-rn').value=l.reminder?.note||'';document.getElementById('lf-com').value='';const af=document.getElementById('lf-ase');if(af)af.value=l.uid||'';const _cf=document.getElementById('lf-canal');if(_cf)_cf.value=l.canal||'';const _ag=document.getElementById('lf-agencia');if(_ag)_ag.value=l.agencia||'';const _in=document.getElementById('lf-interes');if(_in)_in.value=l.interes||'';const _re=document.getElementById('lf-responde');if(_re)_re.value=l.responde||'';const _rg=document.getElementById('lf-regest');if(_rg)_rg.value=l.regest||'';toggleCanalField();}
+  if(id){const l=findLead(id);document.getElementById('ml-title').textContent='Editar Lead';document.getElementById('lf-btn').textContent='Guardar cambios';document.getElementById('lf-nom').value=l.nom;document.getElementById('lf-tel').value=l.tel;document.getElementById('lf-ori').value=l.ori;document.getElementById('lf-tp').value=l.tp||'Contado';document.getElementById('lf-lin').value=l.linea;document.getElementById('lf-ubi').value=l.ubi;document.getElementById('lf-est').value=l.est;document.getElementById('lf-fa').value=l.fa||'';document.getElementById('lf-fu').value=l.fu||'';document.getElementById('lf-rd').value=l.reminder?.date||'';document.getElementById('lf-rt').value=l.reminder?.time||'09:00';document.getElementById('lf-rn').value=l.reminder?.note||'';document.getElementById('lf-com').value='';const af=document.getElementById('lf-ase');if(af)af.value=l.uid||'';const _cf=document.getElementById('lf-canal');if(_cf)_cf.value=l.canal||'';const _ag=document.getElementById('lf-agencia');if(_ag)_ag.value=l.agencia||'';const _in=document.getElementById('lf-interes');if(_in)_in.value=l.interes||'';const _re=document.getElementById('lf-responde');if(_re)_re.value=l.responde||'';const _rg=document.getElementById('lf-regest');if(_rg)_rg.value=l.regest||'';toggleCanalField();}
   else{document.getElementById('ml-title').textContent='Nuevo Lead';document.getElementById('lf-btn').textContent='Guardar Lead';['lf-nom','lf-tel','lf-ubi','lf-com','lf-rd','lf-rn'].forEach(i=>document.getElementById(i).value='');document.getElementById('lf-fa').value=today();document.getElementById('lf-fu').value=today();document.getElementById('lf-rt').value='09:00';const af=document.getElementById('lf-ase');if(af)af.value=isPriv()?'':String(CU.id);const _cff=document.getElementById('lf-canal');if(_cff)_cff.value='';const _agn=document.getElementById('lf-agencia');if(_agn)_agn.value='';const _inn=document.getElementById('lf-interes');if(_inn)_inn.value='';const _ren=document.getElementById('lf-responde');if(_ren)_ren.value='';const _rgn=document.getElementById('lf-regest');if(_rgn)_rgn.value='';toggleCanalField();}
   openM('m-lead');
 }
@@ -1809,7 +1854,7 @@ function saveLead(){
   const rd=document.getElementById('lf-rd').value,reminder=rd?{date:rd,time:document.getElementById('lf-rt').value,note:document.getElementById('lf-rn').value}:null;
   const _tp=document.getElementById('lf-tp').value||'No Informa';const _canal=document.getElementById('lf-est').value==='CITA'?(document.getElementById('lf-canal')?.value||''):'';const _agencia=document.getElementById('lf-agencia')?.value||'';const _interes=document.getElementById('lf-interes')?.value||'';const _responde=document.getElementById('lf-responde')?.value||'';const _regest=document.getElementById('lf-regest')?.value||'';const data={nom,tel:document.getElementById('lf-tel').value,ori:document.getElementById('lf-ori').value,tp:_tp,canal:_canal,agencia:_agencia,interes:_interes,responde:_responde,regest:_regest,linea:document.getElementById('lf-lin').value,ubi:document.getElementById('lf-ubi').value,est:document.getElementById('lf-est').value,fa:document.getElementById('lf-fa').value,fu:today(),uid,anom:u?u.nombre:'',reminder};
   let savedLead;
-  if(editL){const i=leads.findIndex(x=>x.id===editL);const ex=leads[i];if(comTxt)ex.notas=[...(ex.notas||[]),{txt:comTxt,by:CU.nombre,ts:new Date().toLocaleString()}];leads[i]={...ex,...data,notas:ex.notas};savedLead=leads[i];toast('Lead actualizado ✓');}
+  if(editL){const i=findLeadIndex(editL);const ex=leads[i];if(comTxt)ex.notas=[...(ex.notas||[]),{txt:comTxt,by:CU.nombre,ts:new Date().toLocaleString()}];leads[i]={...ex,...data,notas:ex.notas};savedLead=leads[i];toast('Lead actualizado ✓');}
   else{
     const notas=comTxt?[{txt:comTxt,by:CU.nombre,ts:new Date().toLocaleString()}]:[];
     // Globally-unique ID: timestamp (ms) + random 4-digit suffix.
@@ -1826,12 +1871,12 @@ function saveLead(){
   closeM('m-lead');persist();
   cloudSaveLead(savedLead).then(()=>{
     // Once cloud confirms, drop the local-only flag — it now lives in Firebase.
-    const ix=leads.findIndex(x=>x.id===savedLead.id);
+    const ix=findLeadIndex(savedLead.id);
     if(ix>=0&&leads[ix]._localOnly){delete leads[ix]._localOnly;persist();}
   });
   cloudSaveMeta();renderAll();
 }
-function delLead(id){if(!confirm('¿Eliminar este lead?'))return;leads=leads.filter(x=>x.id!==id);persist();cloudDelLead(id);closeM('m-det');renderAll();toast('Lead eliminado');}
+function delLead(id){if(!confirm('¿Eliminar este lead?'))return;const key=String(id);leads=leads.filter(x=>String(x.id)!==key);persist();cloudDelLead(id);closeM('m-det');renderAll();toast('Lead eliminado');}
 
 // ═══════════════════════════════════════
 // REPORTES
@@ -2161,7 +2206,7 @@ async function saveBulkAssign(){
 function openQuickAssign(lid){
   if(!isAdmin()){toast('Solo el administrador puede asignar leads');return;}
   const existing=document.getElementById('m-qassign');if(existing)existing.remove();
-  const l=leads.find(x=>x.id===lid);if(!l)return;
+  const l=findLead(lid);if(!l)return;
   const div=document.createElement('div');div.id='m-qassign';div.className='ov';
   div.innerHTML=`<div class="mo msm" style="max-width:320px">
     <div class="mh"><span class="mt2">👤 Asignar Asesor</span><button class="xb" onclick="closeM('m-qassign')">×</button></div>
@@ -2178,7 +2223,7 @@ function openQuickAssign(lid){
   document.body.appendChild(div);openM('m-qassign');
 }
 async function saveQuickAssign(lid){
-  const l=leads.find(x=>x.id===lid);if(!l)return;
+  const l=findLead(lid);if(!l)return;
   const val=document.getElementById('qa-ase')?.value;
   l.uid=val?parseInt(val):null;if(l.uid){const u=users.find(x=>x.id===l.uid);if(u)l.anom=u.nombre;}else l.anom='';
   l.fu=today();persist();
@@ -2290,7 +2335,7 @@ function exportCSV(){const arr=myLeads();const rows=[COL_NAMES,...arr.map(l=>{co
 // DATA MANAGER
 function renderDataManager(){
   if(!isPriv())return;
-  const perdidos=leads.filter(l=>l.est==='PERDIDO').length,ventas=leads.filter(l=>l.est==='VENTA').length,unass=leads.filter(l=>!l.uid).length,dups=findDups().length;
+  const perdidos=leads.filter(l=>l.est==='PERDIDO').length,ventas=leads.filter(l=>l.est==='VENTA').length,unass=leads.filter(l=>!l.uid).length,dups=findDups().length,dupIds=findDupIds().length;
   document.getElementById('dm-overview').innerHTML=`
     <div style="background:var(--s2);border-radius:var(--r);padding:.8rem;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--navy)">${leads.length}</div><div style="font-size:10px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.3px">Total leads</div></div>
     <div style="background:var(--rbg);border-radius:var(--r);padding:.8rem;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--red)">${perdidos}</div><div style="font-size:10px;color:var(--red);font-weight:600;text-transform:uppercase">Perdidos</div></div>
@@ -2300,6 +2345,8 @@ function renderDataManager(){
   const dmAse=document.getElementById('dm-ase');if(dmAse)dmAse.innerHTML='<option value="">— Todos —</option>'+users.map(u=>`<option value="${u.id}">${u.nombre}</option>`).join('');
   document.getElementById('dm-unass').textContent=`${unass} lead${unass!==1?'s':''} sin asignar`;
   document.getElementById('dm-dups').textContent=`${dups} duplicados detectados`;
+  const dmDupIds=document.getElementById('dm-dupids');
+  if(dmDupIds)dmDupIds.textContent=dupIds===0?'Sin IDs duplicados ✓':`${dupIds} lead${dupIds!==1?'s':''} con ID duplicado — abren la ficha equivocada`;
   document.getElementById('dm-imh').textContent=`${impHist.length} registros de importación`;
   updateStorageInfo();
 }
@@ -2307,6 +2354,224 @@ function getFilterDel(){const est=document.getElementById('dm-est')?.value||'',a
 function previewDel(){const est=document.getElementById('dm-est')?.value||'',antig=document.getElementById('dm-antig')?.value||'',aseId=document.getElementById('dm-ase')?.value||'',ori=document.getElementById('dm-ori')?.value||'',fdDesde=document.getElementById('dm-fd')?.value||'',fdHasta=document.getElementById('dm-fh')?.value||'';const prev=document.getElementById('dm-prev'),nm=document.getElementById('dm-nomatch');if(!est&&!antig&&!aseId&&!ori&&!fdDesde&&!fdHasta){if(prev)prev.style.display='none';if(nm)nm.style.display='none';return;}const arr=getFilterDel();if(arr.length===0){if(prev)prev.style.display='none';if(nm)nm.style.display='block';return;}if(nm)nm.style.display='none';if(prev){prev.style.display='block';const parts=[];if(fdDesde)parts.push('Desde: '+fdDesde);if(fdHasta)parts.push('Hasta: '+fdHasta);if(est)parts.push('Estado: '+est);if(antig)parts.push(antig+' días');if(aseId){const u=users.find(x=>x.id===parseInt(aseId));if(u)parts.push(u.nombre);}if(ori)parts.push(ori);document.getElementById('dm-prev-c').textContent=`${arr.length} leads`;document.getElementById('dm-prev-d').textContent=parts.join(' · ');}}
 async function execDel(){const arr=getFilterDel();if(arr.length===0){toast('Sin coincidencias');return;}if(!confirm(`¿Eliminar ${arr.length} leads?\nIRREVERSIBLE.`))return;const ids=new Set(arr.map(l=>l.id));leads=leads.filter(l=>!ids.has(l.id));if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all([...ids].map(id=>window._fb.deleteLeadCloud(id)));setSyncStatus('ok');}['dm-est','dm-antig','dm-ase','dm-ori','dm-fd','dm-fh'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('dm-prev').style.display='none';persist();renderAll();renderDataManager();toast(`${arr.length} leads eliminados ✓`);}
 function findDups(){const seen=new Map(),dups=[];leads.forEach(l=>{const k=(l.nom||'').trim().toLowerCase()+'|'+(l.tel||'').trim();if(k==='|')return;if(seen.has(k))dups.push(l);else seen.set(k,l);});return dups;}
+// findDupIds: returns leads whose `id` is shared with another lead (different person, same id).
+// Excludes the "first occurrence" of each id — only the duplicates that need repair.
+function findDupIds(){
+  const counts={},dups=[];
+  leads.forEach(l=>{const k=String(l.id);counts[k]=(counts[k]||0)+1;});
+  const seenFirst={};
+  leads.forEach(l=>{
+    const k=String(l.id);
+    if(counts[k]>1){
+      if(!seenFirst[k]){seenFirst[k]=true;}
+      else{dups.push(l);}
+    }
+  });
+  return dups;
+}
+// findDupIdGroups: returns groups of leads that share the same id, e.g.
+// [ [lead1, lead2], [lead3, lead4, lead5] ] — each inner array is a conflict group.
+function findDupIdGroups(){
+  const map={};
+  leads.forEach(l=>{
+    const k=String(l.id);
+    if(!map[k])map[k]=[];
+    map[k].push(l);
+  });
+  return Object.values(map).filter(g=>g.length>1);
+}
+// Set of lead "fingerprints" the user has marked for deletion.
+// Fingerprint = id + '||' + name + '||' + tel — uniquely identifies a row in the duplicate group.
+let dupsMarkedSet=new Set();
+function leadFp(l){return String(l.id)+'||'+(l.nom||'')+'||'+(l.tel||'');}
+
+function openDupsReview(){
+  if(!isAdmin()){toast('Solo admin');return;}
+  const groups=findDupIdGroups();
+  if(groups.length===0){toast('No hay IDs duplicados ✓');return;}
+  dupsMarkedSet=new Set();
+  renderDupsReview();
+  openM('m-dups-review');
+}
+
+function renderDupsReview(){
+  const groups=findDupIdGroups();
+  if(groups.length===0){
+    document.getElementById('dups-list').innerHTML='<div style="text-align:center;color:var(--mut);padding:2rem">✓ No quedan IDs duplicados</div>';
+    updateDupsCount();
+    return;
+  }
+  // Sort groups: most leads in conflict first
+  groups.sort((a,b)=>b.length-a.length);
+  const html=groups.map(group=>{
+    const id=group[0].id;
+    // Sort within group: most recent activity first
+    const sorted=group.slice().sort((a,b)=>{
+      const af=(a.fu||a.fa||'')+'',bf=(b.fu||b.fa||'')+'';
+      if(bf>af)return 1;if(af>bf)return -1;return 0;
+    });
+    const rows=sorted.map((l,i)=>{
+      const fp=leadFp(l);
+      const checked=dupsMarkedSet.has(fp)?'checked':'';
+      const u=l.uid?users.find(x=>x.id===l.uid):null;
+      const aseN=u?u.nombre:(l.anom||'Sin asignar');
+      const isOldest=i===sorted.length-1&&sorted.length>1;
+      const badge=i===0?'<span style="background:var(--gbg);color:#1B5E20;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:6px">MÁS RECIENTE</span>':isOldest?'<span style="background:var(--rbg);color:var(--red);font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:6px">MÁS VIEJO</span>':'';
+      return `<label style="display:flex;align-items:flex-start;gap:10px;padding:10px;border:1px solid var(--bd);border-radius:var(--r);margin-bottom:6px;cursor:pointer;background:${checked?'var(--rbg)':'var(--surf)'}">
+        <input type="checkbox" ${checked} onchange="toggleDupMark('${fp.replace(/'/g,"\\'")}',this.checked)" style="width:16px;height:16px;margin-top:2px;accent-color:var(--red);flex-shrink:0">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:4px">
+            <strong style="font-size:13px;color:var(--navy)">${l.nom||'(sin nombre)'}</strong>
+            ${badge}
+            ${eBadge(l.est)}
+          </div>
+          <div style="font-size:11px;color:var(--mut);display:flex;flex-wrap:wrap;gap:10px">
+            <span>📞 ${l.tel||'—'}</span>
+            <span>🏍 ${l.linea||'—'}</span>
+            <span>👤 ${aseN}</span>
+            <span>📅 F.Act: ${l.fa||'—'}</span>
+            <span>🔄 F.Upd: ${l.fu||'—'}</span>
+            <span>🏢 ${l.agencia||'—'}</span>
+          </div>
+          ${l.notas&&l.notas.length?`<div style="font-size:11px;color:var(--mut);margin-top:4px;font-style:italic">💬 "${(l.notas[l.notas.length-1].txt||'').substring(0,80)}${(l.notas[l.notas.length-1].txt||'').length>80?'...':''}"</div>`:''}
+        </div>
+      </label>`;
+    }).join('');
+    return `<div style="margin-bottom:1rem">
+      <div style="font-size:12px;font-weight:700;color:var(--navy);background:var(--s2);padding:6px 10px;border-radius:var(--r);margin-bottom:6px">
+        🆔 ID compartido: <code style="background:white;padding:2px 6px;border-radius:4px">${id}</code> · ${group.length} leads en conflicto
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+  document.getElementById('dups-list').innerHTML=html;
+  updateDupsCount();
+}
+
+function toggleDupMark(fp,checked){
+  if(checked)dupsMarkedSet.add(fp);
+  else dupsMarkedSet.delete(fp);
+  renderDupsReview();
+}
+
+function updateDupsCount(){
+  const el=document.getElementById('dups-count');
+  if(el)el.textContent=`${dupsMarkedSet.size} marcado${dupsMarkedSet.size!==1?'s':''} para eliminar`;
+}
+
+function dupsSelectOlder(){
+  // For each conflict group, mark all except the most-recently-updated one
+  dupsMarkedSet=new Set();
+  findDupIdGroups().forEach(group=>{
+    const sorted=group.slice().sort((a,b)=>{
+      const af=(a.fu||a.fa||'')+'',bf=(b.fu||b.fa||'')+'';
+      if(bf>af)return 1;if(af>bf)return -1;return 0;
+    });
+    // Keep [0] (most recent), mark the rest
+    sorted.slice(1).forEach(l=>dupsMarkedSet.add(leadFp(l)));
+  });
+  renderDupsReview();
+  toast('Marcados los más viejos de cada grupo');
+}
+
+function dupsSelectNone(){
+  dupsMarkedSet=new Set();
+  renderDupsReview();
+}
+
+async function dupsDelMarked(){
+  if(dupsMarkedSet.size===0){toast('Marca al menos un lead');return;}
+  if(!confirm(`¿Eliminar ${dupsMarkedSet.size} lead(s) marcado(s)?\n\nEsta acción NO se puede deshacer.`))return;
+  // Find the actual lead objects by fingerprint
+  const toDel=leads.filter(l=>dupsMarkedSet.has(leadFp(l)));
+  // CRITICAL: when 2 leads share an ID and we delete only one, Firebase has only ONE doc
+  // for that id. Deleting that doc would remove BOTH locally on next snapshot.
+  // Strategy: for each marked lead, just remove it from the local array AND ensure the
+  // remaining lead with that id gets its doc preserved by re-saving it after.
+  setSyncStatus('syncing');
+  const idsToDelete=new Set();
+  const idsToReSave=new Set();
+  toDel.forEach(l=>{
+    const others=leads.filter(x=>String(x.id)===String(l.id)&&leadFp(x)!==leadFp(l));
+    if(others.length===0){
+      // No other lead shares this id — safe to delete the cloud doc
+      idsToDelete.add(String(l.id));
+    } else {
+      // Other leads still share this id — DON'T delete the cloud doc.
+      // Instead, after removing locally, re-save the surviving lead so cloud has its data.
+      idsToReSave.add(String(l.id));
+    }
+  });
+  // Remove marked leads from local array
+  const delFps=new Set([...dupsMarkedSet]);
+  leads=leads.filter(l=>!delFps.has(leadFp(l)));
+  // Delete cloud docs for IDs that no longer have any local lead
+  if(useCloud&&window._fb.isReady()){
+    for(const id of idsToDelete){
+      try{await window._fb.deleteLeadCloud(id);}catch(e){console.warn('del cloud:',e);}
+    }
+    // Re-save the surviving leads so cloud reflects the correct data
+    for(const id of idsToReSave){
+      const survivor=leads.find(l=>String(l.id)===id);
+      if(survivor)try{await window._fb.saveLeadCloud(survivor);}catch(e){console.warn('resave:',e);}
+    }
+  }
+  dupsMarkedSet=new Set();
+  persist();
+  setSyncStatus('ok');
+  renderAll();renderDataManager();
+  // Refresh the modal — it may now be empty or have fewer groups
+  renderDupsReview();
+  toast(`${toDel.length} lead(s) eliminado(s) ✓`);
+  // Auto-close if no more groups
+  if(findDupIdGroups().length===0){
+    setTimeout(()=>closeM('m-dups-review'),800);
+  }
+}
+
+async function dupsAssignNewIds(){
+  // For every group, keep the FIRST one with its current id, and assign new unique ids
+  // to the rest (except those marked for deletion — those stay marked).
+  const groups=findDupIdGroups();
+  if(groups.length===0){toast('Sin duplicados');return;}
+  if(!confirm(`Esto asignará un ID único nuevo a los leads NO marcados que comparten ID con otros.\n\nLos marcados permanecen para que los borres con "Eliminar marcados".\n\n¿Continuar?`))return;
+  setSyncStatus('syncing');
+  let renamed=0;
+  for(const group of groups){
+    // Sort: most recent first — this one keeps its id
+    const sorted=group.slice().sort((a,b)=>{
+      const af=(a.fu||a.fa||'')+'',bf=(b.fu||b.fa||'')+'';
+      if(bf>af)return 1;if(af>bf)return -1;return 0;
+    });
+    // First in sorted keeps id; rest get new ids (unless marked for deletion)
+    for(let i=1;i<sorted.length;i++){
+      const l=sorted[i];
+      if(dupsMarkedSet.has(leadFp(l)))continue; // marked for deletion — skip
+      const newId=Date.now()*1000+Math.floor(Math.random()*1000)+renamed;
+      // Update the local lead with new id
+      l.id=newId;
+      l._localOnly=true;
+      lockLead(newId);
+      try{
+        if(useCloud&&window._fb.isReady()){
+          await window._fb.saveLeadCloud(l);
+        }
+        delete l._localOnly;
+        renamed++;
+      }catch(e){console.warn('reassign id:',e);}
+    }
+  }
+  // Re-build dupsMarkedSet because fingerprints changed for renamed leads
+  // (only the marked ones still have old ids)
+  const newMarked=new Set();
+  leads.forEach(l=>{const fp=leadFp(l);if(dupsMarkedSet.has(fp))newMarked.add(fp);});
+  dupsMarkedSet=newMarked;
+  persist();
+  setSyncStatus('ok');
+  renderAll();renderDataManager();
+  renderDupsReview();
+  toast(`${renamed} ID(s) reasignado(s) ✓`);
+}
 async function delDups(){const dups=findDups();if(dups.length===0){toast('Sin duplicados');return;}if(!confirm(`¿Eliminar ${dups.length} duplicados?`))return;const dids=new Set(dups.map(l=>l.id));leads=leads.filter(l=>!dids.has(l.id));if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all([...dids].map(id=>window._fb.deleteLeadCloud(id)));setSyncStatus('ok');}persist();renderAll();renderDataManager();toast(`${dups.length} eliminados ✓`);}
 async function delUnassigned(){const arr=leads.filter(l=>!l.uid);if(arr.length===0){toast('Sin leads sin asesor');return;}if(!confirm(`¿Eliminar ${arr.length} leads sin asesor?`))return;const ids=arr.map(l=>l.id);leads=leads.filter(l=>!!l.uid);if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all(ids.map(id=>window._fb.deleteLeadCloud(id)));setSyncStatus('ok');}persist();renderAll();renderDataManager();toast(`${arr.length} eliminados ✓`);}
 function clearImpHistAdmin(){if(!confirm('¿Limpiar historial?'))return;impHist=[];persist();renderImpHist();renderDataManager();toast('Historial borrado ✓');}
