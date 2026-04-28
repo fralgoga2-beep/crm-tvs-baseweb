@@ -97,7 +97,15 @@ window._fb = {
       onSnapshot(doc(fbDb, 'meta', 'agencias'), snap => {
         if(snap.exists()) {
           const d = snap.data();
-          if(Array.isArray(d.list)) callback(d.list);
+          if(Array.isArray(d.list)) {
+            console.log('[agencias] Received', d.list.length, 'agencias from cloud');
+            callback(d.list);
+          }
+        } else {
+          // Doc doesn't exist yet — signal callback with null so the caller
+          // knows the cloud is empty and can decide whether to seed it.
+          console.log('[agencias] Cloud doc does not exist yet');
+          callback(null);
         }
       }, err => console.warn('agencias listener:', err));
     } catch(e) { console.warn('listenAgencias:', e); }
@@ -1210,19 +1218,36 @@ function initRealtimeSync(){
       if(CU)renderAll();
     }
   }).catch(()=>{});
-  // Listen for agencias changes — all users see new agencias in real-time
+  // Listen for agencias changes — all users see new agencias in real-time.
+  // Callback receives an array (cloud has data) or null (cloud doc missing).
   window._fb.listenAgencias(cloudAgencias=>{
+    if(cloudAgencias===null){
+      // Cloud doc doesn't exist. If we're admin, push our current list to seed it.
+      if(typeof isAdmin==='function'&&isAdmin()){
+        console.log('[agencias] Seeding cloud with local list (',agencias.length,'agencias)');
+        window._fb.saveAgenciasCloud(agencias);
+      }
+      return;
+    }
     if(!Array.isArray(cloudAgencias))return;
     // Merge: master list + cloud list, dedup, preserve order
     const merged=_AGENCIAS_MASTER.slice();
-    cloudAgencias.forEach(a=>{ if(merged.indexOf(a)===-1) merged.push(a); });
+    cloudAgencias.forEach(a=>{ if(typeof a==='string'&&merged.indexOf(a)===-1) merged.push(a); });
     agencias=merged;
     lsS('tvs8_agencias',agencias);
+    console.log('[agencias] Updated local list, total:',agencias.length);
     if(CU){populateSel();renderAgencias&&renderAgencias();}
   });
-  // First-run push: if cloud agencias doc is empty, upload current list (admin-only effective)
-  if(isAdmin&&typeof isAdmin==='function'){
-    setTimeout(()=>{ if(isAdmin()) window._fb.saveAgenciasCloud(agencias); }, 1500);
+  // First-run push: if admin, force-upload current list after a short delay.
+  // This guarantees that any agencias added BEFORE this fix get pushed to the cloud
+  // the next time the admin opens the app.
+  if(typeof isAdmin==='function'){
+    setTimeout(()=>{
+      if(isAdmin()){
+        console.log('[agencias] Force-uploading current list to cloud (',agencias.length,'agencias)');
+        window._fb.saveAgenciasCloud(agencias);
+      }
+    }, 2000);
   }
 }
 function setSyncStatus(status){
@@ -1349,6 +1374,14 @@ function setupUI(){
   }
   if(driveConn.url){document.getElementById('gs-url').value=driveConn.url;document.getElementById('btn-sync').style.display='inline-flex';document.getElementById('btn-autosync').style.display='inline-flex';document.getElementById('btn-disco').style.display='inline-flex';if(driveConn.lastSync)document.getElementById('sync-st').textContent='✅ '+new Date(driveConn.lastSync).toLocaleString();}
   renderAll();updateStorageInfo();
+  // After admin login: force-push agencias to cloud so asesores see them.
+  // This catches the case where the admin had local agencias from before this fix.
+  if(isAdmin()&&useCloud&&window._fb&&window._fb.isReady()){
+    setTimeout(()=>{
+      console.log('[agencias] Admin login — pushing',agencias.length,'agencias to cloud');
+      window._fb.saveAgenciasCloud(agencias);
+    }, 500);
+  }
 }
 
 // ═══════════════════════════════════════
