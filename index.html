@@ -3157,6 +3157,84 @@ function findAgenciaCode(agName){
   return best.score>=Math.max(1,targetWords.length-1)?best.code:'';
 }
 
+// ─── TABLA DE PRECIOS OFICIALES (Q) — TVS Motos Guatemala ─── //
+// Key: nombre del modelo normalizado (mayúsculas, sin tildes, sin paréntesis).
+// Si el lead trae "2025" o "2026" en linea, se busca primero la versión con año.
+const PRECIOS_MOTOS={
+  'APACHE 160 2V':14999,
+  'APACHE RTR 160 2V REF 2025':15299,
+  'APACHE RTR 160 2V REF 2026':16499,
+  'APACHE RTR 160 2V REF':16499,
+  'APACHE RTR 160 4V 2025':19990,
+  'APACHE RTR 160 4V 2026':20999,
+  'APACHE RTR 160 4V':20999,
+  'APACHE RTR 160 4V RM 2025':20999,
+  'APACHE RTR 160 4V RM 2026':21999,
+  'APACHE RTR 160 4V RM':21999,
+  'APACHE RTR 180 2025':15999,
+  'APACHE RTR 180 2026':18599,
+  'APACHE RTR 180':18599,
+  'APACHE RTR 200 4V 2026':22399,
+  'APACHE RTR 200 4V':22399,
+  'APACHE RTR 200 FI 2025':24499,
+  'APACHE RTR 200 FI 2026':24999,
+  'APACHE RTR 200 FI':24999,
+  'APACHE RR310 2025':46990,
+  'APACHE RR310':46990,
+  'APACHE RTR 310 2026':48499,
+  'APACHE RTR 310':48499,
+  'APACHE RTR 310 E5 2026':48499,
+  'APACHE RTR 310 E5':48499,
+  'RAIDER 125 2025':13999,
+  'RAIDER 125 2026':15199,
+  'RAIDER 125':15199,
+  'RAIDER 125 FI 2026':15499,
+  'RAIDER 125 FI':15499,
+  'RONIN 225 2025':27499,
+  'RONIN 225':27499,
+  'NEO 110 NX':10199,
+  'DAZZ CW':11999,
+  'NTORQ 125':14999,
+  'NTORQ 125 RACE':16490,
+  'STRYKER 125':12499,
+  'HLX 150':11999,
+  'HLX 125':9999,
+  'ZT 125':11999,
+  'SPORT 100 ELS':9499,
+  'KING DELUXE BLUETOOTH':45490,
+  'KING DELUXE PLUS':45490,
+  'KING DURAMAX':49250,
+  'KING KARGO':52490
+};
+
+function findPrecioMoto(linea){
+  if(!linea)return '';
+  const norm=s=>s.toUpperCase().replace(/[ÁÀ]/g,'A').replace(/[ÉÈ]/g,'E').replace(/[ÍÌ]/g,'I').replace(/[ÓÒ]/g,'O').replace(/[ÚÙÜ]/g,'U').replace(/[()]/g,'').replace(/\s+/g,' ').trim();
+  const target=norm(linea);
+  // Direct match
+  if(PRECIOS_MOTOS[target])return PRECIOS_MOTOS[target];
+  // Match without year
+  const noYear=target.replace(/\s*20\d{2}\s*/g,' ').trim();
+  if(PRECIOS_MOTOS[noYear])return PRECIOS_MOTOS[noYear];
+  // Best fuzzy match: most words matched
+  const targetWords=target.split(' ').filter(w=>w.length>1);
+  let best={key:'',score:0};
+  for(const key of Object.keys(PRECIOS_MOTOS)){
+    const kw=key.split(' ');
+    let score=0;
+    targetWords.forEach(w=>{if(kw.includes(w))score++;});
+    if(score>best.score)best={key,score};
+  }
+  return best.score>=Math.max(2,targetWords.length-1)?PRECIOS_MOTOS[best.key]:'';
+}
+
+function fmtQuetzales(amount){
+  if(amount===''||amount===null||amount===undefined)return '';
+  const n=typeof amount==='number'?amount:parseFloat(String(amount).replace(/[^0-9.-]/g,''));
+  if(isNaN(n)||n===0)return amount===0||amount==='0'?'Q 0.00':'';
+  return 'Q '+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
 let cuadroLeadId=null;
 
 function openCuadroCita(id){
@@ -3170,6 +3248,9 @@ function openCuadroCita(id){
   const ag=code?AGENCIA_DATA[code]:null;
   // Format date as Spanish (e.g. "14 DE FEBRERO")
   const fechaTxt=fmtFechaCuadro(l.fa||today());
+  // Auto-detect price from line
+  const precioNum=findPrecioMoto(l.linea);
+  const precioTxt=precioNum?fmtQuetzales(precioNum):'';
   // Build form
   const fields=[
     {k:'codigo',label:'CÓDIGO DE AGENCIA',val:code,placeholder:'5115'},
@@ -3178,8 +3259,8 @@ function openCuadroCita(id){
     {k:'producto',label:'PRODUCTO',val:l.linea||'',placeholder:'RAIDER 125 2026'},
     {k:'color',label:'COLOR DE LA MOTO',val:'',placeholder:'NEGRO / ROJO / AZUL'},
     {k:'modelo',label:'MODELO',val:'2026',placeholder:'2026'},
-    {k:'precio',label:'PRECIO',val:'',placeholder:'Q 15,199.00'},
-    {k:'precio_placas',label:'PRECIO DE PLACAS',val:'0',placeholder:'0 ó Q 365.00'},
+    {k:'precio',label:'PRECIO',val:precioTxt,placeholder:'Q 15,199.00'},
+    {k:'precio_placas',label:'PRECIO DE PLACAS',val:'Q 0.00',placeholder:'Q 0.00 / Q 365.00'},
     {k:'forma_pago',label:'FORMA DE PAGO',val:l.tp||'',placeholder:'Visa Cuotas / Contado / Crédito'},
     {k:'tarjeta',label:'TARJETA PARA CUOTAS',val:'',placeholder:'BAC / BI / Banrural...'},
     {k:'fecha',label:'FECHA DE VISITA',val:fechaTxt,placeholder:'14 DE FEBRERO'},
@@ -3187,7 +3268,6 @@ function openCuadroCita(id){
     {k:'hora_llegada',label:'HORA DE LLEGADA A LA AGENCIA',val:'Por la Tarde',placeholder:'Por la Mañana / Por la Tarde'},
     {k:'horario_llamar',label:'HORARIO PARA LLAMAR AL CLIENTE',val:'Por la Tarde',placeholder:'Por la Mañana / Por la Tarde'},
     {k:'agencia',label:'AGENCIA',val:ag?ag.nom:(l.agencia||''),placeholder:'TVS ESKALA'},
-    {k:'coordinador',label:'COORDINADOR',val:ag?ag.coord:'',placeholder:'NOMBRE DEL COORDINADOR'},
     {k:'gestor',label:'GESTOR',val:(u?u.nombre:CU.nombre).toUpperCase(),placeholder:'NOMBRE DEL ASESOR'},
     {k:'nota',label:'NOTA',val:l.notas&&l.notas.length?l.notas[l.notas.length-1].txt:'',placeholder:'Nota / Observación'}
   ];
@@ -3196,15 +3276,36 @@ function openCuadroCita(id){
     <label class="fl" style="font-size:10px">${f.label}</label>
     <input class="fc cuadro-fld" id="cu-${f.k}" data-k="${f.k}" value="${(f.val||'').replace(/"/g,'&quot;')}" placeholder="${f.placeholder}" style="font-size:12px" oninput="renderCuadroCanvas()">
   </div>`).join('');
-  // If user changes the codigo, auto-fill agencia + coordinador
+  // If user changes the codigo, auto-fill agencia
   document.getElementById('cu-codigo').addEventListener('input',e=>{
     const code=e.target.value.trim().toUpperCase();
     const ag=AGENCIA_DATA[code];
     if(ag){
       document.getElementById('cu-agencia').value=ag.nom;
-      document.getElementById('cu-coordinador').value=ag.coord;
       renderCuadroCanvas();
     }
+  });
+  // If user changes producto, auto-fill price
+  document.getElementById('cu-producto').addEventListener('input',e=>{
+    const p=findPrecioMoto(e.target.value);
+    if(p){
+      document.getElementById('cu-precio').value=fmtQuetzales(p);
+      renderCuadroCanvas();
+    }
+  });
+  // Auto-format precio fields when user types numbers (e.g. 15199 → Q 15,199.00)
+  ['cu-precio','cu-precio_placas'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.addEventListener('blur',()=>{
+      const raw=el.value.trim();
+      if(!raw){el.value='';return;}
+      // If already starts with Q, leave as-is
+      if(/^Q\s/i.test(raw))return;
+      // Try to parse as number
+      const n=parseFloat(raw.replace(/[^0-9.]/g,''));
+      if(!isNaN(n)){el.value=fmtQuetzales(n);renderCuadroCanvas();}
+    });
   });
   openM('m-cuadro');
   // Initial render
@@ -3225,6 +3326,40 @@ function getCuadroValues(){
   return o;
 }
 
+// Official TVS Motos logo embedded as data URL (preloaded once)
+const TVS_LOGO_URL='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCACCAZADASIAAhEBAxEB/8QAHgABAAEEAwEBAAAAAAAAAAAAAAkBAgcIAwUGBAr/xABYEAABAwMCAwUDBgYKDgoDAAABAAIDBAURBgcIEiETMUFRYQlxgRQYIjKR0hlCUpOh0RUjVVZicoKDlcEWFyQzNDdDR3OEkpSx8CVFV2RlZnR2hbOy4fH/xAAcAQEAAgMBAQEAAAAAAAAAAAAABAUBAwYCBwj/xAA6EQABAwMBBQUFBgYDAQAAAAABAAIDBAURIQYSMUFRBxMUImEWMlJxkRUXI2KBoUKCkrHR4SQ0wfD/2gAMAwEAAhEDEQA/AJU0REREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREVgee89yrzDzRYyrkVObyVoceuc/Yiyr0RERERERERERERERUyB3pzBYC41t7r7sVsrUao0pVw099rK+nt9A+WEShrnkue7lPkxp+1R6u9o7xTBwA1PaOv/hUasaS11FYzfjxhaZKhkZ3XKYYuHgUDh4lQ9fhGuKP989o/oqNUPtG+KQHA1PaP6KjUv7AqhpotXi2HgphucJzBQ9D2jvFGT11Raf6KjVfwjnFF++e0/0VGns/VjonjI8KYTm8yqF481D5+Ec4o/DU9p/oqNek2347eKrXuvdO6Ng1Raw683SnoiWWmMkNe8An7Mn4LxJYqqNpc7GiyKthOFLBzhOducLS3j24rNf7D12ltM7a3GipbrcIpq2vknpWzgwghjBg9G5dzH4LUxvtGuKbODqy0D3WiL9S109nqKmMSsxgrLqljDgqYXnCF3qoffwjPFL++q0H/wCIjVD7Rjik8NU2f42iNb/Z+q6hefGRqYPmB7uqoXjPQrAvBxrzcvcvZGh3C3TutNU116qZ5qV0NK2BkdI08jeje/Ja859VpLu57RXfOl3M1LRbeX21U2nKS4zU1vZJ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';
+let _tvsLogoImg=null;
+let _tvsLogoReady=false;
+(function preloadTvsLogo(){
+  const img=new Image();
+  img.onload=()=>{_tvsLogoImg=img;_tvsLogoReady=true;
+    // If a cuadro is already open, re-render to show the logo
+    const c=document.getElementById('cuadro-canvas');
+    if(c&&c.width>0&&typeof renderCuadroCanvas==='function')renderCuadroCanvas();
+  };
+  img.onerror=()=>{console.warn('TVS logo failed to load');};
+  img.src=TVS_LOGO_URL;
+})();
+
+// Draw the TVS Motos logo on canvas. Uses the embedded image; if not yet
+// loaded, draws a simple placeholder so the rest of the cuadro still renders.
+function drawTvsLogo(ctx,x,y,maxW,maxH){
+  if(_tvsLogoReady&&_tvsLogoImg){
+    // Preserve aspect ratio inside the maxW x maxH bounding box
+    const ratio=_tvsLogoImg.width/_tvsLogoImg.height;
+    let w=maxW,h=maxW/ratio;
+    if(h>maxH){h=maxH;w=maxH*ratio;}
+    ctx.drawImage(_tvsLogoImg,x,y,w,h);
+  } else {
+    // Placeholder while loading
+    ctx.fillStyle='#1B2F6E';
+    ctx.font='bold 24px Arial, sans-serif';
+    ctx.textAlign='left';
+    ctx.textBaseline='middle';
+    ctx.fillText('TVS MOTOS',x,y+maxH/2);
+  }
+}
+
 // Render the cuadro on canvas — replicates the Excel template visually
 function renderCuadroCanvas(){
   const canvas=document.getElementById('cuadro-canvas');
@@ -3233,13 +3368,15 @@ function renderCuadroCanvas(){
   const v=getCuadroValues();
   // Sizing — high-DPI for crisp WhatsApp rendering
   const W=900;
-  const titleY=20, titleH=40;
-  const introY=80, introH=110;
-  const rowH=34;
-  const numRows=18;
-  const rowY0=introY+introH;
-  const H=rowY0+numRows*rowH+20; // dynamic height — no blank space
-  const scale=2; // 2x for retina
+  const logoY=20, logoH=85;        // logo area (taller for the wide official logo)
+  const logoW=260;                 // logo bounding width (3:1 aspect ratio)
+  const titleY=logoY+logoH+10, titleH=40;
+  const introY=titleY+titleH+15, introH=110;
+  const rowH=42;                    // taller rows for bigger text
+  const numRows=17;                 // 17 rows (no coordinador)
+  const rowY0=introY+introH+5;
+  const H=rowY0+numRows*rowH+25;    // dynamic height
+  const scale=2;                    // 2x for retina
   canvas.width=W*scale;
   canvas.height=H*scale;
   canvas.style.width=W+'px';
@@ -3248,25 +3385,27 @@ function renderCuadroCanvas(){
   // White background
   ctx.fillStyle='#FFFFFF';
   ctx.fillRect(0,0,W,H);
-  // Title bar (black border)
+  // ── LOGO (top-left, official TVS Motos image) ──
+  drawTvsLogo(ctx,30,logoY,logoW,logoH);
+  // ── Title bar (centered, with black border) ──
   ctx.fillStyle='#FFFFFF';
   ctx.strokeStyle='#000000';
   ctx.lineWidth=2;
   ctx.strokeRect(140,titleY,W-280,titleH);
   ctx.fillStyle='#000000';
-  ctx.font='bold 18px Arial, sans-serif';
+  ctx.font='bold 20px Arial, sans-serif';
   ctx.textAlign='center';
   ctx.textBaseline='middle';
   ctx.fillText('Cuadro Formal para enviar a las Agencias',W/2,titleY+titleH/2);
-  // Blue intro box
+  // ── Blue intro box ──
   ctx.fillStyle='#0033CC';
   ctx.fillRect(20,introY,W-40,introH);
   ctx.fillStyle='#FFFFFF';
-  ctx.font='bold 14px Arial, sans-serif';
+  ctx.font='bold 15px Arial, sans-serif';
   ctx.textAlign='center';
   const introTxt='Buen día, favor contactar al cliente y darle el respectivo seguimiento. Este ya se encuentra cargado en su Salesforce. Quedo al pendiente de sus comentarios. ¡Gracias por el apoyo!';
   wrapText(ctx,introTxt,W/2,introY+30,W-80,22);
-  // Rows — left red (label), right white (value)
+  // ── Rows: left red label, right white value (CENTERED) ──
   const rows=[
     ['CÓDIGO DE AGENCIA:',v.codigo],
     ['CLIENTE:',v.cliente],
@@ -3283,44 +3422,49 @@ function renderCuadroCanvas(){
     ['HORA DE LLEGADA A LA AGENCIA:',v.hora_llegada],
     ['HORARIO PARA LLAMAR AL CLIENTE:',v.horario_llamar],
     ['AGENCIA:',v.agencia],
-    ['COORDINADOR:',v.coordinador],
     ['GESTOR:',v.gestor],
     ['NOTA:',v.nota]
   ];
   const labelW=320;
-  ctx.font='bold 13px Arial, sans-serif';
+  const valX=20+labelW;
+  const valW=W-40-labelW;
   ctx.textBaseline='middle';
   rows.forEach((r,i)=>{
     const y=rowY0+i*rowH;
-    // Label (red bg, white text)
+    // Label background (red) and text (white, left-aligned)
     ctx.fillStyle='#E60000';
     ctx.fillRect(20,y,labelW,rowH);
     ctx.fillStyle='#FFFFFF';
-    ctx.font='bold 13px Arial, sans-serif';
+    ctx.font='bold 14px Arial, sans-serif';
     ctx.textAlign='left';
     ctx.fillText(r[0],30,y+rowH/2);
-    // Value (white bg, black text, right-aligned to match Excel template)
+    // Value background (white) — CENTERED
     ctx.fillStyle='#FFFFFF';
-    ctx.fillRect(20+labelW,y,W-40-labelW,rowH);
-    // Border around value box
+    ctx.fillRect(valX,y,valW,rowH);
     ctx.strokeStyle='#000000';
     ctx.lineWidth=1;
-    ctx.strokeRect(20+labelW,y,W-40-labelW,rowH);
-    // Value text — special color for NOTA
-    ctx.fillStyle=r[0]==='NOTA:'?'#E60000':'#000000';
-    ctx.font=r[0]==='NOTA:'?'bold italic 13px Arial, sans-serif':'bold 14px Arial, sans-serif';
-    ctx.textAlign='right';
-    const valTxt=String(r[1]||'');
-    // Truncate if too wide
-    const maxW=W-40-labelW-20;
-    let displayTxt=valTxt;
+    ctx.strokeRect(valX,y,valW,rowH);
+    // Value text — bigger + centered
+    const isNota=r[0]==='NOTA:';
+    ctx.fillStyle=isNota?'#E60000':'#000000';
+    ctx.font=isNota?'bold italic 15px Arial, sans-serif':'bold 17px Arial, sans-serif';
+    ctx.textAlign='center';
+    let displayTxt=String(r[1]||'');
+    const maxW=valW-20;
+    // Auto-shrink for long values rather than truncating with "..."
+    let fontSize=isNota?15:17;
+    while(ctx.measureText(displayTxt).width>maxW&&fontSize>10){
+      fontSize--;
+      ctx.font=isNota?`bold italic ${fontSize}px Arial, sans-serif`:`bold ${fontSize}px Arial, sans-serif`;
+    }
+    // If still too long after shrink, ellipsize
     if(ctx.measureText(displayTxt).width>maxW){
       while(displayTxt.length>3&&ctx.measureText(displayTxt+'...').width>maxW){
         displayTxt=displayTxt.slice(0,-1);
       }
       displayTxt+='...';
     }
-    ctx.fillText(displayTxt,W-30,y+rowH/2);
+    ctx.fillText(displayTxt,valX+valW/2,y+rowH/2);
     // Outer border for label
     ctx.strokeStyle='#000000';
     ctx.lineWidth=1;
@@ -3328,6 +3472,7 @@ function renderCuadroCanvas(){
   });
   // Reset alignment
   ctx.textAlign='left';
+  ctx.textBaseline='alphabetic';
 }
 
 function wrapText(ctx,text,x,y,maxWidth,lineHeight){
