@@ -50,13 +50,9 @@ window._fb = {
     try {
       const ref = doc(fbDb, 'leads', String(lead.id));
       const data = { ...lead, _ts: serverTimestamp() };
-      try {
-        // Try updateDoc first — only writes fields that changed, never overwrites other fields
-        await updateDoc(ref, data);
-      } catch(e) {
-        // Document doesn't exist yet — create it
-        await setDoc(ref, data);
-      }
+      // setDoc with merge:true is atomic — creates or updates in one call.
+      // This guarantees the write completes before we resolve.
+      await setDoc(ref, data, { merge: true });
     } catch(e) { console.warn('saveLeadCloud:', e); }
   },
   async deleteLeadCloud(id) {
@@ -84,11 +80,27 @@ window._fb = {
   // ─── META (counters, config) ───
   async saveMeta(data) {
     if(!fbDb) return;
-    try { await setDoc(doc(fbDb, 'meta', 'config'), { ...data, _ts: serverTimestamp() }); } catch(e) {}
+    try { await setDoc(doc(fbDb, 'meta', 'config'), { ...data, _ts: serverTimestamp() }, { merge: true }); } catch(e) {}
   },
   async getMeta() {
     if(!fbDb) return null;
     try { const snap = await getDoc(doc(fbDb, 'meta', 'config')); return snap.exists() ? snap.data() : null; } catch(e) { return null; }
+  },
+  // ─── AGENCIAS (shared list, all users see new ones) ───
+  async saveAgenciasCloud(agencias) {
+    if(!fbDb) return;
+    try { await setDoc(doc(fbDb, 'meta', 'agencias'), { list: agencias, _ts: serverTimestamp() }); } catch(e) { console.warn('saveAgenciasCloud:', e); }
+  },
+  listenAgencias(callback) {
+    if(!fbDb) return;
+    try {
+      onSnapshot(doc(fbDb, 'meta', 'agencias'), snap => {
+        if(snap.exists()) {
+          const d = snap.data();
+          if(Array.isArray(d.list)) callback(d.list);
+        }
+      }, err => console.warn('agencias listener:', err));
+    } catch(e) { console.warn('listenAgencias:', e); }
   },
   // ─── REAL-TIME LISTENERS ───
   // Solo escucha leads con _ts en los últimos 90 días → reduce lecturas ~80%
@@ -1136,14 +1148,22 @@ function initRealtimeSync(){
   setSyncStatus('syncing');
   window._fb.listenLeads(cloudLeads=>{
     if(cloudLeads.length>0||realtimeActive){
+      // Index cloud leads by id for fast lookup
+      const cloudById={};
+      cloudLeads.forEach(cl=>{ cloudById[String(cl.id)]=cl; });
+      // 1) Update existing leads from cloud, EXCEPT locked ones (recently saved locally)
       cloudLeads.forEach(cl=>{
-        if(isLocked(cl.id))return; // asesor just saved this — skip
+        if(isLocked(cl.id))return; // user just saved this — preserve local version
         const idx=leads.findIndex(l=>String(l.id)===String(cl.id));
         if(idx>=0){leads[idx]=cl;}else{leads.push(cl);}
       });
-      // Keep local-only leads not yet in cloud
-      const cloudIds=new Set(cloudLeads.map(l=>String(l.id)));
-      leads=leads.filter(l=>cloudIds.has(String(l.id))||isLocked(l.id)||l._localOnly);
+      // 2) Remove leads that no longer exist in the cloud,
+      //    BUT keep locked leads and local-only leads (still being saved)
+      leads=leads.filter(l=>{
+        if(isLocked(l.id))return true;        // currently being saved — protect
+        if(l._localOnly)return true;          // never made it to cloud yet — protect
+        return cloudById[String(l.id)]!==undefined; // keep only if exists in cloud
+      });
       leads.sort((a,b)=>{
         const fa=parseFecha(a.fa||''),fb=parseFecha(b.fa||'');
         if(fb>fa)return 1;if(fa>fb)return -1;
@@ -1190,6 +1210,20 @@ function initRealtimeSync(){
       if(CU)renderAll();
     }
   }).catch(()=>{});
+  // Listen for agencias changes — all users see new agencias in real-time
+  window._fb.listenAgencias(cloudAgencias=>{
+    if(!Array.isArray(cloudAgencias))return;
+    // Merge: master list + cloud list, dedup, preserve order
+    const merged=_AGENCIAS_MASTER.slice();
+    cloudAgencias.forEach(a=>{ if(merged.indexOf(a)===-1) merged.push(a); });
+    agencias=merged;
+    lsS('tvs8_agencias',agencias);
+    if(CU){populateSel();renderAgencias&&renderAgencias();}
+  });
+  // First-run push: if cloud agencias doc is empty, upload current list (admin-only effective)
+  if(isAdmin&&typeof isAdmin==='function'){
+    setTimeout(()=>{ if(isAdmin()) window._fb.saveAgenciasCloud(agencias); }, 1500);
+  }
 }
 function setSyncStatus(status){
   syncStatus=status;
@@ -1220,9 +1254,11 @@ function persist(){
   updateStorageInfo();
 }
 async function cloudSaveLead(lead,silent=false){
+  // Lock immediately — even if cloud is not ready, any pending snapshot in flight
+  // must not overwrite this lead. Lock is keyed by id (string).
+  lockLead(lead.id);
   if(useCloud&&window._fb.isReady()){
     if(!silent)setSyncStatus('syncing');
-    lockLead(lead.id); // LOCK: listener cannot overwrite this lead until Firebase confirms
     try{
       await window._fb.saveLeadCloud(lead);
     }catch(e){
@@ -1233,6 +1269,9 @@ async function cloudSaveLead(lead,silent=false){
       setTimeout(()=>unlockLead(lead.id), 5000);
     }
     if(!silent)setSyncStatus('ok');
+  } else {
+    // Local-only mode — release lock after a short delay
+    setTimeout(()=>unlockLead(lead.id), 1000);
   }
 }
 async function cloudDelLead(id){if(useCloud&&window._fb.isReady()){await window._fb.deleteLeadCloud(id);}}
@@ -1738,8 +1777,26 @@ function saveLead(){
   const _tp=document.getElementById('lf-tp').value||'No Informa';const _canal=document.getElementById('lf-est').value==='CITA'?(document.getElementById('lf-canal')?.value||''):'';const _agencia=document.getElementById('lf-agencia')?.value||'';const _interes=document.getElementById('lf-interes')?.value||'';const _responde=document.getElementById('lf-responde')?.value||'';const _regest=document.getElementById('lf-regest')?.value||'';const data={nom,tel:document.getElementById('lf-tel').value,ori:document.getElementById('lf-ori').value,tp:_tp,canal:_canal,agencia:_agencia,interes:_interes,responde:_responde,regest:_regest,linea:document.getElementById('lf-lin').value,ubi:document.getElementById('lf-ubi').value,est:document.getElementById('lf-est').value,fa:document.getElementById('lf-fa').value,fu:today(),uid,anom:u?u.nombre:'',reminder};
   let savedLead;
   if(editL){const i=leads.findIndex(x=>x.id===editL);const ex=leads[i];if(comTxt)ex.notas=[...(ex.notas||[]),{txt:comTxt,by:CU.nombre,ts:new Date().toLocaleString()}];leads[i]={...ex,...data,notas:ex.notas};savedLead=leads[i];toast('Lead actualizado ✓');}
-  else{const notas=comTxt?[{txt:comTxt,by:CU.nombre,ts:new Date().toLocaleString()}]:[];savedLead={id:nlid++,...data,notas};leads.unshift(savedLead);toast('Lead guardado ✓');}
-  closeM('m-lead');persist();cloudSaveLead(savedLead);cloudSaveMeta();renderAll();
+  else{
+    const notas=comTxt?[{txt:comTxt,by:CU.nombre,ts:new Date().toLocaleString()}]:[];
+    // Globally-unique ID: timestamp (ms) + random 4-digit suffix.
+    // Avoids collisions between devices that previously shared a simple counter.
+    const newId=Date.now()*1000 + Math.floor(Math.random()*1000);
+    savedLead={id:newId,...data,notas,_localOnly:true};
+    leads.unshift(savedLead);
+    nlid=Math.max(nlid, newId+1);
+    toast('Lead guardado ✓');
+  }
+  // Lock BEFORE we close the modal so any incoming snapshot cannot remove the lead.
+  // Lock is released ~5s after Firebase confirms the write (see cloudSaveLead).
+  lockLead(savedLead.id);
+  closeM('m-lead');persist();
+  cloudSaveLead(savedLead).then(()=>{
+    // Once cloud confirms, drop the local-only flag — it now lives in Firebase.
+    const ix=leads.findIndex(x=>x.id===savedLead.id);
+    if(ix>=0&&leads[ix]._localOnly){delete leads[ix]._localOnly;persist();}
+  });
+  cloudSaveMeta();renderAll();
 }
 function delLead(id){if(!confirm('¿Eliminar este lead?'))return;leads=leads.filter(x=>x.id!==id);persist();cloudDelLead(id);closeM('m-det');renderAll();toast('Lead eliminado');}
 
@@ -2142,11 +2199,15 @@ function addAgencia(){
   if(!v){toast('Escribe el nombre');return;}
   if(agencias.includes(v)){toast('Ya existe');return;}
   agencias.push(v);persist();populateSel();renderAgencias();
-  document.getElementById('new-agencia').value='';toast('Agencia agregada ✓');
+  // Push agencias list to cloud so all asesores see it
+  if(useCloud&&window._fb&&window._fb.isReady()){window._fb.saveAgenciasCloud(agencias);}
+  const _ne=document.getElementById('new-agencia');if(_ne)_ne.value='';toast('Agencia agregada ✓');
 }
 function delAgencia(i){
   if(!confirm('¿Eliminar esta agencia?'))return;
-  agencias.splice(i,1);persist();populateSel();renderAgencias();toast('Agencia eliminada');
+  agencias.splice(i,1);persist();populateSel();renderAgencias();
+  if(useCloud&&window._fb&&window._fb.isReady()){window._fb.saveAgenciasCloud(agencias);}
+  toast('Agencia eliminada');
 }
 function toggleCanalField(){
   const est=document.getElementById('lf-est')?.value;
@@ -2297,7 +2358,9 @@ function delAgenciaModal(){
   const sel=document.getElementById('del-ag-sel');if(!sel)return;
   const i=parseInt(sel.value);if(isNaN(i)){document.getElementById('del-ag-err').style.display='block';return;}
   if(!confirm('¿Quitar la agencia "'+agencias[i]+'"?'))return;
-  agencias.splice(i,1);persist();populateSel();renderAgencias();closeM('m-del-agencia');toast('Agencia eliminada ✓');
+  agencias.splice(i,1);persist();populateSel();renderAgencias();
+  if(useCloud&&window._fb&&window._fb.isReady()){window._fb.saveAgenciasCloud(agencias);}
+  closeM('m-del-agencia');toast('Agencia eliminada ✓');
 }
 
 // NAV
