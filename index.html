@@ -3838,22 +3838,15 @@ function findAgenciaCode(agName){
   if(!agName)return '';
   const norm=s=>s.toUpperCase().replace(/[ÁÀ]/g,'A').replace(/[ÉÈ]/g,'E').replace(/[ÍÌ]/g,'I').replace(/[ÓÒ]/g,'O').replace(/[ÚÙÜ]/g,'U').replace(/Ñ/g,'N').replace(/[^A-Z0-9 ]/g,'').replace(/\s+/g,' ').trim();
   const target=norm(agName);
-  // First: exact match (PRIORITIZE official codes — skip auto-generated unless no official exists)
-  for(const[code,d]of Object.entries(AGENCIA_DATA)){
-    if(d.auto)continue; // skip auto-generated placeholders
-    if(norm(d.nom)===target)return code;
-  }
-  // Second: fuzzy match — also skip auto entries
-  const targetWords=target.split(' ').filter(w=>w.length>2);
-  let best={code:'',score:0};
+  // Only EXACT match — no fuzzy matching, no fuzzy similarity.
+  // Fuzzy was wrong: it confused "AP KING SAN JOSE PINULA" with "AC SAN JOSE PINULA / ZONA 9".
+  // If the name doesn't have an official code, return empty so the cuadro shows the field empty.
+  // Skip auto-generated entries (their codes are placeholders, not real).
   for(const[code,d]of Object.entries(AGENCIA_DATA)){
     if(d.auto)continue;
-    const cn=norm(d.nom);
-    let score=0;
-    targetWords.forEach(w=>{if(cn.includes(w))score++;});
-    if(score>best.score)best={code,score};
+    if(norm(d.nom)===target)return code;
   }
-  return best.score>=Math.max(1,targetWords.length-1)?best.code:'';
+  return '';
 }
 
 // ─── TABLA DE PRECIOS OFICIALES (Q) — TVS Motos Guatemala ─── //
@@ -3941,6 +3934,13 @@ function openCuadroCita(id){
   if(!l){toast('Lead no encontrado');return;}
   if(l.est!=='CITA'){toast('El lead debe estar en estado CITA');return;}
   cuadroLeadId=id;
+  // Make sure EVERY agencia from agencias[] is registered in AGENCIA_DATA.
+  // Without this, agencies created on another device that synced through Firebase
+  // may not be in AGENCIA_DATA yet, so they'd be missing from the dropdown.
+  agencias.forEach(name=>{
+    const exists=Object.values(AGENCIA_DATA).some(d=>d.nom===name);
+    if(!exists)registerAgenciaCode(name); // adds as auto:true placeholder
+  });
   // Pre-fill from lead data
   const u=l.uid?users.find(x=>x.id===l.uid):null;
   const code=findAgenciaCode(l.agencia)||'';
@@ -3952,7 +3952,7 @@ function openCuadroCita(id){
   const precioTxt=precioNum?fmtQuetzales(precioNum):'';
   // Build TWO lists:
   //   - allAgencias  : every agencia (including auto-coded ones) — for the AGENCIA dropdown.
-  //                    These show the name only (no code) when the code is auto-generated.
+  //                    Names appear clean (no suffix) — the user only sees the agencia name.
   //   - officialOnly : only agencias with official codes — for the CÓDIGO datalist.
   //                    Auto-generated codes are placeholders, not real codes, so we hide them.
   const allAgencias=Object.entries(AGENCIA_DATA)
@@ -3963,9 +3963,9 @@ function openCuadroCita(id){
       return a[0].localeCompare(b[0]);
     });
   const officialOnly=allAgencias.filter(([c,d])=>!d.auto);
-  // Options arrays — note: AGENCIA dropdown labels show "(sin código)" for auto entries
+  // Options arrays — clean labels, no "(sin código)" suffix in the AGENCIA value.
   const codigoOptions=officialOnly.map(([c,d])=>({code:c,label:c+' — '+d.nom}));
-  const agenciaOptions=allAgencias.map(([c,d])=>({code:d.nom,label:d.auto?d.nom+' (sin código oficial)':c+' — '+d.nom}));
+  const agenciaOptions=allAgencias.map(([c,d])=>({code:d.nom,label:d.auto?d.nom:c+' — '+d.nom}));
   // Build form
   const fields=[
     {k:'codigo',label:'CÓDIGO DE AGENCIA',val:code,placeholder:'Ej: 5115 o escribe a mano',type:'datalist',options:codigoOptions},
@@ -3982,15 +3982,19 @@ function openCuadroCita(id){
     {k:'perfil',label:'PERFIL DEL CRÉDITO',val:'NINGUNA',placeholder:'NEGOCIO PROPIO / RELACIÓN DEPENDENCIA / NINGUNA'},
     {k:'hora_llegada',label:'HORA DE LLEGADA A LA AGENCIA',val:'Por la Tarde',placeholder:'Por la Mañana / Por la Tarde'},
     {k:'horario_llamar',label:'HORARIO PARA LLAMAR AL CLIENTE',val:'Por la Tarde',placeholder:'Por la Mañana / Por la Tarde'},
-    {k:'agencia',label:'AGENCIA',val:ag?ag.nom:(l.agencia||''),placeholder:'-- Selecciona --',type:'select',options:[{code:'',label:'-- Selecciona o escribe --'},...agenciaOptions.map(o=>({code:o.nom,label:o.label}))]},
+    {k:'agencia',label:'AGENCIA',val:l.agencia||'',placeholder:'-- Selecciona o escribe --',type:'select',options:[{code:'',label:'-- Selecciona o escribe --'},...agenciaOptions]},
     {k:'gestor',label:'GESTOR',val:(u?u.nombre:CU.nombre).toUpperCase(),placeholder:'NOMBRE DEL ASESOR'},
     {k:'nota',label:'NOTA',val:l.notas&&l.notas.length?l.notas[l.notas.length-1].txt:'',placeholder:'Nota / Observación'}
   ];
   const form=document.getElementById('cuadro-form');
   form.innerHTML=fields.map(f=>{
     if(f.type==='select'){
-      const opts=f.options.map(o=>{
-        const sel=String(o.code)===String(f.val||'')?'selected':'';
+      // Ensure the current value is present as an option (otherwise it disappears).
+      const valStr=String(f.val||'');
+      const found=f.options.some(o=>String(o.code)===valStr);
+      const allOpts=found||!valStr?f.options:[{code:f.val,label:f.val},...f.options];
+      const opts=allOpts.map(o=>{
+        const sel=String(o.code)===valStr?'selected':'';
         return `<option value="${(o.code||'').replace(/"/g,'&quot;')}" ${sel}>${o.label}</option>`;
       }).join('');
       return `<div class="fg" style="margin-bottom:0">
@@ -4122,12 +4126,12 @@ function renderCuadroCanvas(){
   const ctx=canvas.getContext('2d');
   const v=getCuadroValues();
   // Sizing — high-DPI for crisp WhatsApp rendering
-  const W=900;
-  const logoY=20, logoH=85;        // logo area (taller for the wide official logo)
-  const logoW=260;                 // logo bounding width (3:1 aspect ratio)
-  const titleY=logoY+logoH+10, titleH=40;
-  const introY=titleY+titleH+15, introH=110;
-  const rowH=42;                    // taller rows for bigger text
+  const W=1000;                     // wider for bigger text
+  const logoY=20, logoH=95;         // logo area
+  const logoW=290;                  // logo bounding width
+  const titleY=logoY+logoH+10, titleH=50;
+  const introY=titleY+titleH+15, introH=130;
+  const rowH=52;                    // taller rows for bigger text
   const numRows=17;                 // 17 rows (no coordinador)
   const rowY0=introY+introH+5;
   const H=rowY0+numRows*rowH+25;    // dynamic height
@@ -4146,9 +4150,9 @@ function renderCuadroCanvas(){
   ctx.fillStyle='#FFFFFF';
   ctx.strokeStyle='#000000';
   ctx.lineWidth=2;
-  ctx.strokeRect(140,titleY,W-280,titleH);
+  ctx.strokeRect(160,titleY,W-320,titleH);
   ctx.fillStyle='#000000';
-  ctx.font='bold 20px Arial, sans-serif';
+  ctx.font='bold 26px Arial, sans-serif';
   ctx.textAlign='center';
   ctx.textBaseline='middle';
   ctx.fillText('Cuadro Formal para enviar a las Agencias',W/2,titleY+titleH/2);
@@ -4156,10 +4160,10 @@ function renderCuadroCanvas(){
   ctx.fillStyle='#0033CC';
   ctx.fillRect(20,introY,W-40,introH);
   ctx.fillStyle='#FFFFFF';
-  ctx.font='bold 15px Arial, sans-serif';
+  ctx.font='bold 18px Arial, sans-serif';
   ctx.textAlign='center';
   const introTxt='Buen día, favor contactar al cliente y darle el respectivo seguimiento. Este ya se encuentra cargado en su Salesforce. Quedo al pendiente de sus comentarios. ¡Gracias por el apoyo!';
-  wrapText(ctx,introTxt,W/2,introY+30,W-80,22);
+  wrapText(ctx,introTxt,W/2,introY+35,W-80,26);
   // ── Rows: left red label, right white value (CENTERED) ──
   const rows=[
     ['CÓDIGO DE AGENCIA:',v.codigo],
@@ -4180,7 +4184,7 @@ function renderCuadroCanvas(){
     ['GESTOR:',v.gestor],
     ['NOTA:',v.nota]
   ];
-  const labelW=320;
+  const labelW=380;                 // wider label column for bigger labels
   const valX=20+labelW;
   const valW=W-40-labelW;
   ctx.textBaseline='middle';
@@ -4190,7 +4194,7 @@ function renderCuadroCanvas(){
     ctx.fillStyle='#E60000';
     ctx.fillRect(20,y,labelW,rowH);
     ctx.fillStyle='#FFFFFF';
-    ctx.font='bold 14px Arial, sans-serif';
+    ctx.font='bold 17px Arial, sans-serif';     // was 14
     ctx.textAlign='left';
     ctx.fillText(r[0],30,y+rowH/2);
     // Value background (white) — CENTERED
@@ -4199,16 +4203,16 @@ function renderCuadroCanvas(){
     ctx.strokeStyle='#000000';
     ctx.lineWidth=1;
     ctx.strokeRect(valX,y,valW,rowH);
-    // Value text — bigger + centered
+    // Value text — much bigger + centered
     const isNota=r[0]==='NOTA:';
     ctx.fillStyle=isNota?'#E60000':'#000000';
-    ctx.font=isNota?'bold italic 15px Arial, sans-serif':'bold 17px Arial, sans-serif';
+    ctx.font=isNota?'bold italic 19px Arial, sans-serif':'bold 22px Arial, sans-serif';   // was 15/17
     ctx.textAlign='center';
     let displayTxt=String(r[1]||'');
     const maxW=valW-20;
     // Auto-shrink for long values rather than truncating with "..."
-    let fontSize=isNota?15:17;
-    while(ctx.measureText(displayTxt).width>maxW&&fontSize>10){
+    let fontSize=isNota?19:22;
+    while(ctx.measureText(displayTxt).width>maxW&&fontSize>12){
       fontSize--;
       ctx.font=isNota?`bold italic ${fontSize}px Arial, sans-serif`:`bold ${fontSize}px Arial, sans-serif`;
     }
