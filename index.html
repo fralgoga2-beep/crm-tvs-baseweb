@@ -743,6 +743,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
         <thead>
           <tr>
             <th style="cursor:pointer" onclick="sortRepCitas('fcita')">📅 Fecha cita ▾</th>
+            <th>🕐 Hora</th>
             <th>Asesor</th>
             <th>Cliente</th>
             <th>Teléfono</th>
@@ -1342,6 +1343,8 @@ function initRealtimeSync(){
         if(fb>fa)return 1;if(fa>fb)return -1;
         return b.id-a.id;
       });
+      // Auto-backfill agencia_codigo for any leads that came in without one
+      if(typeof backfillAgenciaCodigo==='function')backfillAgenciaCodigo();
       lsS('tvs8_leads_bk',leads.slice(0,2000));
       if(CU)renderAll();
       setSyncStatus('ok');
@@ -1628,8 +1631,17 @@ function filteredLeads(){
   return arr;
 }
 function populateSel(){
-  // Agencias
-  const agOpts=agencias.map(a=>`<option value="${a}">${a}</option>`).join('');
+  // Agencias — each option carries data-codigo with the agencia's code (if any).
+  // The label shows "código — nombre" so the asesor sees both at a glance.
+  const agOpts=agencias.map(a=>{
+    // Find the code for this agencia
+    let code='';
+    for(const[c,d]of Object.entries(AGENCIA_DATA)){
+      if(d.nom===a){code=c;break;}
+    }
+    const label=code?code+' — '+a:a;
+    return `<option value="${a.replace(/"/g,'&quot;')}" data-codigo="${code}">${label}</option>`;
+  }).join('');
   ['lf-agencia','ds-agencia','q-agencia'].forEach(id=>{const el=document.getElementById(id);if(el){el.innerHTML=(id==='q-agencia'?'<option value="">Todas agencias</option>':'<option value="">— Sin agencia —</option>')+agOpts;}});
   // Ubicaciones datalist
   const ubiSet=[...new Set(leads.map(l=>l.ubi).filter(Boolean))].sort();
@@ -1977,8 +1989,24 @@ function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas
       <div style="display:flex;gap:6px;flex-wrap:wrap">${l.est==='CITA'?`<button class="btn bp bsm" onclick="openCuadroCita(${l.id})" style="background:#FF7043;border-color:#FF7043">📋 Generar Cuadro</button>`:''}${waBtn(l)}<button class="btn bo bsm" onclick="openLM(${l.id});closeM('m-det')">✏️ Editar</button><button class="btn bn bsm" onclick="saveDet(${l.id})">Guardar cambios</button></div>
     </div>`;
   openM('m-det');
-  // Populate dynamic selects after DOM is set
-  const _dagOpts=agencias.map(a=>`<option value="${a}" ${a===l.agencia?'selected':''}>${a}</option>`).join('');
+  // Populate dynamic selects after DOM is set.
+  // CRITICAL: ensure the lead's current agencia is always present as an option,
+  // even if it's not in `agencias[]` (e.g. an agency not synced yet from cloud).
+  // Without this, the select defaults to "— Sin agencia —" and saveDet would
+  // overwrite the lead's agencia with empty string.
+  const agSet=new Set(agencias);
+  if(l.agencia&&!agSet.has(l.agencia))agSet.add(l.agencia);
+  const _dagOpts=[...agSet].sort().map(a=>{
+    // Find the code for this agencia
+    let code='';
+    for(const[c,d]of Object.entries(AGENCIA_DATA)){
+      if(d.nom===a){code=c;break;}
+    }
+    // If this is the lead's saved agencia AND it has a saved codigo, prefer that
+    if(a===l.agencia&&l.agencia_codigo)code=l.agencia_codigo;
+    const label=code?code+' — '+a:a;
+    return `<option value="${a.replace(/"/g,'&quot;')}" data-codigo="${code}" ${a===l.agencia?'selected':''}>${label}</option>`;
+  }).join('');
   const _dagEl=document.getElementById('ds-agencia');if(_dagEl)_dagEl.innerHTML='<option value="">— Sin agencia —</option>'+_dagOpts;
 }
 function renderNotas(l){if(!l.notas||l.notas.length===0)return `<div style="color:var(--mut);font-size:12px;text-align:center;padding:.75rem">Sin comentarios</div>`;return l.notas.map((n,i)=>`<div class="ni2"><div class="nt">${n.txt}</div><div class="nm"><span>✍️ ${n.by||'Asesor'}</span><span>${n.ts||''}</span></div><button class="nd" onclick="delNota(${l.id},${i})">✕</button></div>`).join('');}
@@ -1990,7 +2018,19 @@ function saveDet(id){
   const prevEst=l.est;
   l.est=document.getElementById('ds-est').value;
   l.tp=document.getElementById('ds-tp').value;
-  l.agencia=document.getElementById('ds-agencia')?.value||'';
+  // Defensive: only update agencia if user actually interacted with the dropdown.
+  // Also extract the codigo from the selected option's data-codigo attr.
+  const dagEl=document.getElementById('ds-agencia');
+  if(dagEl){
+    const newAg=dagEl.value||'';
+    const userPicked=dagEl.selectedIndex>=0;
+    if(userPicked){
+      l.agencia=newAg;
+      // Save the codigo too — this is the key fix so the cuadro doesn't have to
+      // guess the code later from a name that may have multiple matches.
+      l.agencia_codigo=newAg?(dagEl.options[dagEl.selectedIndex].dataset.codigo||''):'';
+    }
+  }
   l.interes=document.getElementById('ds-interes')?.value||'';
   const manualRegest=document.getElementById('ds-regest')?.value||'';
   l.regest=manualRegest||(l.fa&&l.fa<today()?'Regestionado':'');
@@ -2014,9 +2054,29 @@ function saveDet(id){
 // ═══════════════════════════════════════
 // LEAD CRUD
 // ═══════════════════════════════════════
+// Helper: set a select's value safely. If the value isn't an existing option,
+// add it dynamically so the browser doesn't silently fall back to "" (which
+// would later cause saveDet/saveLead to clear the lead's agencia).
+// Optionally accepts a codigo to attach as data-codigo on the new option.
+function setSelectVal(el, val, codigo){
+  if(!el)return;
+  if(val&&!Array.from(el.options).some(o=>o.value===val)){
+    const opt=document.createElement('option');
+    opt.value=val;
+    if(codigo){
+      opt.textContent=codigo+' — '+val;
+      opt.dataset.codigo=codigo;
+    } else {
+      opt.textContent=val;
+    }
+    el.appendChild(opt);
+  }
+  el.value=val||'';
+}
+
 function openLM(id){
   editL=id;
-  if(id){const l=findLead(id);document.getElementById('ml-title').textContent='Editar Lead';document.getElementById('lf-btn').textContent='Guardar cambios';document.getElementById('lf-nom').value=l.nom;document.getElementById('lf-tel').value=l.tel;document.getElementById('lf-ori').value=l.ori;document.getElementById('lf-tp').value=l.tp||'Contado';document.getElementById('lf-lin').value=l.linea;document.getElementById('lf-ubi').value=l.ubi;document.getElementById('lf-est').value=l.est;document.getElementById('lf-fa').value=l.fa||'';document.getElementById('lf-fu').value=l.fu||'';document.getElementById('lf-rd').value=l.reminder?.date||'';document.getElementById('lf-rt').value=l.reminder?.time||'09:00';document.getElementById('lf-rn').value=l.reminder?.note||'';document.getElementById('lf-com').value='';const af=document.getElementById('lf-ase');if(af)af.value=l.uid||'';const _cf=document.getElementById('lf-canal');if(_cf)_cf.value=l.canal||'';const _ag=document.getElementById('lf-agencia');if(_ag)_ag.value=l.agencia||'';const _in=document.getElementById('lf-interes');if(_in)_in.value=l.interes||'';const _re=document.getElementById('lf-responde');if(_re)_re.value=l.responde||'';const _rg=document.getElementById('lf-regest');if(_rg)_rg.value=l.regest||'';toggleCanalField();}
+  if(id){const l=findLead(id);document.getElementById('ml-title').textContent='Editar Lead';document.getElementById('lf-btn').textContent='Guardar cambios';document.getElementById('lf-nom').value=l.nom;document.getElementById('lf-tel').value=l.tel;document.getElementById('lf-ori').value=l.ori;document.getElementById('lf-tp').value=l.tp||'Contado';document.getElementById('lf-lin').value=l.linea;document.getElementById('lf-ubi').value=l.ubi;document.getElementById('lf-est').value=l.est;document.getElementById('lf-fa').value=l.fa||'';document.getElementById('lf-fu').value=l.fu||'';document.getElementById('lf-rd').value=l.reminder?.date||'';document.getElementById('lf-rt').value=l.reminder?.time||'09:00';document.getElementById('lf-rn').value=l.reminder?.note||'';document.getElementById('lf-com').value='';const af=document.getElementById('lf-ase');if(af)af.value=l.uid||'';const _cf=document.getElementById('lf-canal');if(_cf)_cf.value=l.canal||'';setSelectVal(document.getElementById('lf-agencia'),l.agencia||'',l.agencia_codigo||'');const _in=document.getElementById('lf-interes');if(_in)_in.value=l.interes||'';const _re=document.getElementById('lf-responde');if(_re)_re.value=l.responde||'';const _rg=document.getElementById('lf-regest');if(_rg)_rg.value=l.regest||'';toggleCanalField();}
   else{document.getElementById('ml-title').textContent='Nuevo Lead';document.getElementById('lf-btn').textContent='Guardar Lead';['lf-nom','lf-tel','lf-ubi','lf-com','lf-rd','lf-rn'].forEach(i=>document.getElementById(i).value='');document.getElementById('lf-fa').value=today();document.getElementById('lf-fu').value=today();document.getElementById('lf-rt').value='09:00';const af=document.getElementById('lf-ase');if(af)af.value=isPriv()?'':String(CU.id);const _cff=document.getElementById('lf-canal');if(_cff)_cff.value='';const _agn=document.getElementById('lf-agencia');if(_agn)_agn.value='';const _inn=document.getElementById('lf-interes');if(_inn)_inn.value='';const _ren=document.getElementById('lf-responde');if(_ren)_ren.value='';const _rgn=document.getElementById('lf-regest');if(_rgn)_rgn.value='';toggleCanalField();}
   openM('m-lead');
 }
@@ -2025,7 +2085,13 @@ function saveLead(){
   const afEl=document.getElementById('lf-ase'),uidVal=afEl&&isPriv()?afEl.value:String(CU.id),uid=uidVal?parseInt(uidVal):null,u=uid?users.find(x=>x.id===uid):null;
   const comTxt=document.getElementById('lf-com').value.trim();
   const rd=document.getElementById('lf-rd').value,reminder=rd?{date:rd,time:document.getElementById('lf-rt').value,note:document.getElementById('lf-rn').value}:null;
-  const _tp=document.getElementById('lf-tp').value||'No Informa';const _canal=document.getElementById('lf-est').value==='CITA'?(document.getElementById('lf-canal')?.value||''):'';const _agencia=document.getElementById('lf-agencia')?.value||'';const _interes=document.getElementById('lf-interes')?.value||'';const _responde=document.getElementById('lf-responde')?.value||'';const _regest=document.getElementById('lf-regest')?.value||'';const data={nom,tel:document.getElementById('lf-tel').value,ori:document.getElementById('lf-ori').value,tp:_tp,canal:_canal,agencia:_agencia,interes:_interes,responde:_responde,regest:_regest,linea:document.getElementById('lf-lin').value,ubi:document.getElementById('lf-ubi').value,est:document.getElementById('lf-est').value,fa:document.getElementById('lf-fa').value,fu:today(),uid,anom:u?u.nombre:'',reminder};
+  const _tp=document.getElementById('lf-tp').value||'No Informa';const _canal=document.getElementById('lf-est').value==='CITA'?(document.getElementById('lf-canal')?.value||''):'';
+  // Extract agencia + its codigo from the selected option (data-codigo attr).
+  // This way the codigo travels WITH the lead and the cuadro doesn't have to guess later.
+  const _agEl=document.getElementById('lf-agencia');
+  const _agencia=_agEl?.value||'';
+  const _agencia_codigo=_agEl&&_agEl.selectedIndex>=0?(_agEl.options[_agEl.selectedIndex].dataset.codigo||''):'';
+  const _interes=document.getElementById('lf-interes')?.value||'';const _responde=document.getElementById('lf-responde')?.value||'';const _regest=document.getElementById('lf-regest')?.value||'';const data={nom,tel:document.getElementById('lf-tel').value,ori:document.getElementById('lf-ori').value,tp:_tp,canal:_canal,agencia:_agencia,agencia_codigo:_agencia_codigo,interes:_interes,responde:_responde,regest:_regest,linea:document.getElementById('lf-lin').value,ubi:document.getElementById('lf-ubi').value,est:document.getElementById('lf-est').value,fa:document.getElementById('lf-fa').value,fu:today(),uid,anom:u?u.nombre:'',reminder};
   let savedLead;
   if(editL){
     const i=findLeadIndex(editL);
@@ -2162,6 +2228,25 @@ function backfillFcita(){
   return n;
 }
 
+// Backfill agencia_codigo for leads that have an agencia name but no saved codigo.
+// Looks up the code from AGENCIA_DATA by exact name match. Runs idempotently.
+function backfillAgenciaCodigo(){
+  let n=0;
+  // Pre-build a name->code map for performance (avoid scanning AGENCIA_DATA per lead)
+  const nameToCode={};
+  for(const[code,d] of Object.entries(AGENCIA_DATA)){
+    nameToCode[d.nom]=code;
+  }
+  leads.forEach(l=>{
+    if(l.agencia&&!l.agencia_codigo){
+      const code=nameToCode[l.agencia];
+      if(code){l.agencia_codigo=code;n++;}
+    }
+  });
+  if(n>0){persist();console.log('[agencia_codigo] Backfilled',n,'leads');}
+  return n;
+}
+
 // Get the effective fcita date (handles missing data gracefully)
 function getFcitaDate(l){
   if(l.fcita&&/^\d{4}-\d{2}-\d{2}/.test(l.fcita))return l.fcita.substring(0,10);
@@ -2169,6 +2254,18 @@ function getFcitaDate(l){
   if(l.fu&&/^\d{4}-\d{2}-\d{2}/.test(l.fu))return l.fu.substring(0,10);
   if(l.fa&&/^\d{4}-\d{2}-\d{2}/.test(l.fa))return l.fa.substring(0,10);
   return '';
+}
+// Get the time HH:MM from fcita_ts (only available for leads converted after the fix).
+// For old (backfilled) leads we don't have a precise time, so we return empty string.
+function getFcitaTime(l){
+  if(!l.fcita_ts)return '';
+  try{
+    const d=new Date(l.fcita_ts);
+    if(isNaN(d))return '';
+    const hh=String(d.getHours()).padStart(2,'0');
+    const mm=String(d.getMinutes()).padStart(2,'0');
+    return hh+':'+mm;
+  }catch(e){return '';}
 }
 
 // Bucket key for grouping (day, week, month)
@@ -2335,16 +2432,18 @@ function renderRepCitas(){
   document.getElementById('rc-detalle-count').textContent=arr.length+' citas';
   const detBody=document.getElementById('rc-detalle-body');
   if(arr.length===0){
-    detBody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--mut)">Sin citas en este período</td></tr>';
+    detBody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--mut)">Sin citas en este período</td></tr>';
     return;
   }
   detBody.innerHTML=arr.map(l=>{
     const u=l.uid?users.find(x=>x.id===l.uid):null;
     const aseN=u?u.nombre:(l.anom||'Sin asignar');
     const fc=getFcitaDate(l);
+    const ft=getFcitaTime(l);
     const isEst=l._fcitaBackfilled?'<span title="Fecha estimada (anterior al rastreo automático)" style="font-size:9px;color:var(--orange);margin-left:4px">~</span>':'';
     return `<tr>
       <td style="white-space:nowrap;font-weight:600;color:var(--navy)">${fc||'—'}${isEst}</td>
+      <td style="white-space:nowrap;font-weight:600;color:#1B5E20">${ft||'<span style="color:var(--mut);font-weight:400">—</span>'}</td>
       <td><div style="display:flex;align-items:center;gap:6px">${u?avU(u):'<span style="font-size:10px">—</span>'}<span>${aseN}</span></div></td>
       <td style="font-weight:600">${l.nom||'—'}</td>
       <td><a href="https://wa.me/${(l.tel||'').replace(/\D/g,'')}" target="_blank" style="color:#25D366;text-decoration:none;font-weight:600">${l.tel||'—'}</a></td>
@@ -2370,13 +2469,14 @@ function buildRepCitasRows(){
     const da=getFcitaDate(a),db=getFcitaDate(b);
     return db.localeCompare(da);
   });
-  const rows=[['Fecha CITA','Asesor','Cliente','Teléfono','Línea / Moto','Tipo Pago','Agencia','Origen','Estado','F. Actividad','F. Última actualización','Comentario más reciente']];
+  const rows=[['Fecha CITA','Hora','Asesor','Cliente','Teléfono','Línea / Moto','Tipo Pago','Agencia','Origen','Estado','F. Actividad','F. Última actualización','Comentario más reciente']];
   arr.forEach(l=>{
     const u=l.uid?users.find(x=>x.id===l.uid):null;
     const aseN=u?u.nombre:(l.anom||'Sin asignar');
     const lastNote=(l.notas&&l.notas.length)?l.notas[l.notas.length-1].txt:'';
     rows.push([
       getFcitaDate(l)+(l._fcitaBackfilled?' (estimada)':''),
+      getFcitaTime(l),
       aseN,
       l.nom||'',
       l.tel||'',
@@ -2443,7 +2543,7 @@ function exportRepCitasXLSX(){
   const wsRes=XLSX.utils.aoa_to_sheet(resumenRows);
   const wsDet=XLSX.utils.aoa_to_sheet(rows);
   // Set column widths for detail
-  wsDet['!cols']=[{wch:18},{wch:24},{wch:28},{wch:14},{wch:24},{wch:14},{wch:30},{wch:12},{wch:10},{wch:12},{wch:14},{wch:50}];
+  wsDet['!cols']=[{wch:18},{wch:8},{wch:24},{wch:28},{wch:14},{wch:24},{wch:14},{wch:30},{wch:12},{wch:10},{wch:12},{wch:14},{wch:50}];
   wsRes['!cols']=[{wch:24},...aseLabels.map(()=>({wch:14})),{wch:10}];
   XLSX.utils.book_append_sheet(wb,wsRes,'Resumen');
   XLSX.utils.book_append_sheet(wb,wsDet,'Detalle');
@@ -2843,22 +2943,22 @@ function registerAgenciaCode(name,officialCode){
     console.log('[agencia] Registered with official code',oc,'→',name);
     return oc;
   }
-  // No official code provided — generate an internal placeholder marked as `auto`.
-  // Auto codes are NEVER shown in the Cuadro de Cita; the field stays empty so the
-  // user types the real code by hand.
+  // No official code provided — generate a unique code with prefix matching the type.
+  // These codes are TREATED AS OFFICIAL (no `auto` flag) so they appear in the
+  // Cuadro de Cita and the asesor sees a clear code instead of an empty field.
+  // The admin can later replace them with real codes if needed.
   const prefix=detectAgenciaPrefix(name);
   const code=genAgenciaCode(prefix);
-  AGENCIA_DATA[code]={nom:name,coord:'',tel:'',auto:true};
-  console.log('[agencia] Auto-registered (placeholder)',code,'→',name);
+  AGENCIA_DATA[code]={nom:name,coord:'',tel:''};
+  console.log('[agencia] Auto-generated code',code,'→',name);
   return code;
 }
 
-// Returns the OFFICIAL code for an agencia name, or '' if none / auto-generated.
-// This is what appears in the Cuadro de Cita.
+// Returns the code for an agencia name, or '' if not registered.
 function getOfficialAgenciaCode(name){
   if(!name)return '';
   for(const[code,d]of Object.entries(AGENCIA_DATA)){
-    if(d.nom===name&&!d.auto)return code;
+    if(d.nom===name)return code;
   }
   return '';
 }
@@ -2884,9 +2984,7 @@ function addAgencia(){
     cloudSaveAgenciaCodes&&cloudSaveAgenciaCodes();
   }
   const _ne=document.getElementById('new-agencia');if(_ne)_ne.value='';
-  // Toast: show whether the code is official or auto-placeholder
-  const isAuto=AGENCIA_DATA[code]?.auto;
-  toast(isAuto?'Agencia agregada ✓ (sin código oficial)':`Agencia agregada ✓ (código: ${code})`);
+  toast(`Agencia agregada ✓ (código: ${code})`);
 }
 function delAgencia(i){
   if(!confirm('¿Eliminar esta agencia?'))return;
@@ -3788,48 +3886,48 @@ const AGENCIA_DATA={
   '200026930':{nom:'AC MORALES',coord:'',tel:''},
   '200032133':{nom:'AC SAN JUAN LA LAGUNA',coord:'',tel:''},
   // ─── Agencias propias TVS/HT/AP/AC sin código oficial — códigos auto-generados ───
-  'HT001':{nom:'HT BARBERENA',coord:'',tel:'',auto:true},
-  'HT002':{nom:'HT AMATITLÁN',coord:'',tel:'',auto:true},
-  'HT003':{nom:'HT PLAZA TECA',coord:'',tel:'',auto:true},
-  'HT004':{nom:'HT SAN PEDRO SAC',coord:'',tel:'',auto:true},
-  'HT005':{nom:'HT SANTA ELENA PETEN',coord:'',tel:'',auto:true},
-  'HT006':{nom:'HT ESQUIPUL',coord:'',tel:'',auto:true},
-  'HT007':{nom:'HT PRADERA EXPS V.N.',coord:'',tel:'',auto:true},
-  'HT008':{nom:'HT EL CASTAÑO',coord:'',tel:'',auto:true},
-  'HT009':{nom:'HT GUASTATO',coord:'',tel:'',auto:true},
-  'HT010':{nom:'HT NVA. CONCEPCION',coord:'',tel:'',auto:true},
-  'HT011':{nom:'HT SANTA ELENA PETEN 2',coord:'',tel:'',auto:true},
-  'AP001':{nom:'AP ZONA KING COBAN',coord:'',tel:'',auto:true},
-  'AP002':{nom:'AP CENTRAL YURRITA',coord:'',tel:'',auto:true},
-  'AP003':{nom:'AP 6TA AV ZONA 9',coord:'',tel:'',auto:true},
-  'AP004':{nom:'AP AMATITLAN',coord:'',tel:'',auto:true},
-  'AP005':{nom:'AP BARCENAS',coord:'',tel:'',auto:true},
-  'AP006':{nom:'AP CALLE MARTI',coord:'',tel:'',auto:true},
-  'AP007':{nom:'AP CHIMALTENANGO',coord:'',tel:'',auto:true},
-  'AP008':{nom:'AP CHIQUIMULA',coord:'',tel:'',auto:true},
-  'AP009':{nom:'AP COATEPEQUE',coord:'',tel:'',auto:true},
-  'AP010':{nom:'AP EL CASTAÑO',coord:'',tel:'',auto:true},
-  'AP011':{nom:'AP ESCUINTLA',coord:'',tel:'',auto:true},
-  'AP012':{nom:'AP ESKALA',coord:'',tel:'',auto:true},
-  'AP013':{nom:'AP JALAPA',coord:'',tel:'',auto:true},
-  'AP014':{nom:'AP LOS ALAMOS',coord:'',tel:'',auto:true},
-  'AP015':{nom:'AP METRO NORTE',coord:'',tel:'',auto:true},
-  'AP016':{nom:'AP QUETZALTENANGO',coord:'',tel:'',auto:true},
-  'AP017':{nom:'AP RETALHULEU',coord:'',tel:'',auto:true},
-  'AP018':{nom:'AP SANARATE',coord:'',tel:'',auto:true},
-  'AP019':{nom:'AP VILLA CANALES',coord:'',tel:'',auto:true},
-  'AC001':{nom:'AC SAN JOSE PINULA',coord:'',tel:'',auto:true},
-  'AC002':{nom:'AC ALOTENANGO',coord:'',tel:'',auto:true},
-  'AC003':{nom:'AC LA BRIGADA',coord:'',tel:'',auto:true},
-  'AC004':{nom:'AC UTATLAN',coord:'',tel:'',auto:true},
-  'AC005':{nom:'AC SAN LUCAS',coord:'',tel:'',auto:true},
-  'AC006':{nom:'AC CIUDAD VIEJA',coord:'',tel:'',auto:true},
-  'AC007':{nom:'AC PALIN',coord:'',tel:'',auto:true},
-  'AC008':{nom:'AC ANTIGUA',coord:'',tel:'',auto:true},
-  'AC009':{nom:'AC BETHANIA',coord:'',tel:'',auto:true},
-  'AC010':{nom:'AC PETAPA',coord:'',tel:'',auto:true},
-  'AC011':{nom:'AC OBELISCO',coord:'',tel:'',auto:true},
-  'AC012':{nom:'AC BOSQUES',coord:'',tel:'',auto:true}
+  'HT001':{nom:'HT BARBERENA',coord:'',tel:''},
+  'HT002':{nom:'HT AMATITLÁN',coord:'',tel:''},
+  'HT003':{nom:'HT PLAZA TECA',coord:'',tel:''},
+  'HT004':{nom:'HT SAN PEDRO SAC',coord:'',tel:''},
+  'HT005':{nom:'HT SANTA ELENA PETEN',coord:'',tel:''},
+  'HT006':{nom:'HT ESQUIPUL',coord:'',tel:''},
+  'HT007':{nom:'HT PRADERA EXPS V.N.',coord:'',tel:''},
+  'HT008':{nom:'HT EL CASTAÑO',coord:'',tel:''},
+  'HT009':{nom:'HT GUASTATO',coord:'',tel:''},
+  'HT010':{nom:'HT NVA. CONCEPCION',coord:'',tel:''},
+  'HT011':{nom:'HT SANTA ELENA PETEN 2',coord:'',tel:''},
+  'AP001':{nom:'AP ZONA KING COBAN',coord:'',tel:''},
+  'AP002':{nom:'AP CENTRAL YURRITA',coord:'',tel:''},
+  'AP003':{nom:'AP 6TA AV ZONA 9',coord:'',tel:''},
+  'AP004':{nom:'AP AMATITLAN',coord:'',tel:''},
+  'AP005':{nom:'AP BARCENAS',coord:'',tel:''},
+  'AP006':{nom:'AP CALLE MARTI',coord:'',tel:''},
+  'AP007':{nom:'AP CHIMALTENANGO',coord:'',tel:''},
+  'AP008':{nom:'AP CHIQUIMULA',coord:'',tel:''},
+  'AP009':{nom:'AP COATEPEQUE',coord:'',tel:''},
+  'AP010':{nom:'AP EL CASTAÑO',coord:'',tel:''},
+  'AP011':{nom:'AP ESCUINTLA',coord:'',tel:''},
+  'AP012':{nom:'AP ESKALA',coord:'',tel:''},
+  'AP013':{nom:'AP JALAPA',coord:'',tel:''},
+  'AP014':{nom:'AP LOS ALAMOS',coord:'',tel:''},
+  'AP015':{nom:'AP METRO NORTE',coord:'',tel:''},
+  'AP016':{nom:'AP QUETZALTENANGO',coord:'',tel:''},
+  'AP017':{nom:'AP RETALHULEU',coord:'',tel:''},
+  'AP018':{nom:'AP SANARATE',coord:'',tel:''},
+  'AP019':{nom:'AP VILLA CANALES',coord:'',tel:''},
+  'AC001':{nom:'AC SAN JOSE PINULA',coord:'',tel:''},
+  'AC002':{nom:'AC ALOTENANGO',coord:'',tel:''},
+  'AC003':{nom:'AC LA BRIGADA',coord:'',tel:''},
+  'AC004':{nom:'AC UTATLAN',coord:'',tel:''},
+  'AC005':{nom:'AC SAN LUCAS',coord:'',tel:''},
+  'AC006':{nom:'AC CIUDAD VIEJA',coord:'',tel:''},
+  'AC007':{nom:'AC PALIN',coord:'',tel:''},
+  'AC008':{nom:'AC ANTIGUA',coord:'',tel:''},
+  'AC009':{nom:'AC BETHANIA',coord:'',tel:''},
+  'AC010':{nom:'AC PETAPA',coord:'',tel:''},
+  'AC011':{nom:'AC OBELISCO',coord:'',tel:''},
+  'AC012':{nom:'AC BOSQUES',coord:'',tel:''}
 
 };
 
@@ -3838,12 +3936,8 @@ function findAgenciaCode(agName){
   if(!agName)return '';
   const norm=s=>s.toUpperCase().replace(/[ÁÀ]/g,'A').replace(/[ÉÈ]/g,'E').replace(/[ÍÌ]/g,'I').replace(/[ÓÒ]/g,'O').replace(/[ÚÙÜ]/g,'U').replace(/Ñ/g,'N').replace(/[^A-Z0-9 ]/g,'').replace(/\s+/g,' ').trim();
   const target=norm(agName);
-  // Only EXACT match — no fuzzy matching, no fuzzy similarity.
-  // Fuzzy was wrong: it confused "AP KING SAN JOSE PINULA" with "AC SAN JOSE PINULA / ZONA 9".
-  // If the name doesn't have an official code, return empty so the cuadro shows the field empty.
-  // Skip auto-generated entries (their codes are placeholders, not real).
+  // EXACT match only — no fuzzy, to avoid confusing "AP KING SAN JOSE PINULA" with "AC SAN JOSE PINULA / ZONA 9".
   for(const[code,d]of Object.entries(AGENCIA_DATA)){
-    if(d.auto)continue;
     if(norm(d.nom)===target)return code;
   }
   return '';
@@ -3943,7 +4037,9 @@ function openCuadroCita(id){
   });
   // Pre-fill from lead data
   const u=l.uid?users.find(x=>x.id===l.uid):null;
-  const code=findAgenciaCode(l.agencia)||'';
+  // Prefer the codigo saved with the lead (set when user picked agencia in the form).
+  // Fallback to looking it up by name only if no code was saved.
+  const code=l.agencia_codigo||findAgenciaCode(l.agencia)||'';
   const ag=code?AGENCIA_DATA[code]:null;
   // Format date as Spanish (e.g. "14 DE FEBRERO")
   const fechaTxt=fmtFechaCuadro(l.fa||today());
@@ -3955,17 +4051,11 @@ function openCuadroCita(id){
   //                    Names appear clean (no suffix) — the user only sees the agencia name.
   //   - officialOnly : only agencias with official codes — for the CÓDIGO datalist.
   //                    Auto-generated codes are placeholders, not real codes, so we hide them.
-  const allAgencias=Object.entries(AGENCIA_DATA)
-    .sort((a,b)=>{
-      // Sort: official first, then auto-generated
-      if(a[1].auto&&!b[1].auto)return 1;
-      if(!a[1].auto&&b[1].auto)return -1;
-      return a[0].localeCompare(b[0]);
-    });
-  const officialOnly=allAgencias.filter(([c,d])=>!d.auto);
-  // Options arrays — clean labels, no "(sin código)" suffix in the AGENCIA value.
-  const codigoOptions=officialOnly.map(([c,d])=>({code:c,label:c+' — '+d.nom}));
-  const agenciaOptions=allAgencias.map(([c,d])=>({code:d.nom,label:d.auto?d.nom:c+' — '+d.nom}));
+  // All entries are official codes now — sort by code
+  const allAgencias=Object.entries(AGENCIA_DATA).sort((a,b)=>a[0].localeCompare(b[0]));
+  // Options arrays — clean labels showing "código — nombre"
+  const codigoOptions=allAgencias.map(([c,d])=>({code:c,label:c+' — '+d.nom}));
+  const agenciaOptions=allAgencias.map(([c,d])=>({code:d.nom,label:c+' — '+d.nom}));
   // Build form
   const fields=[
     {k:'codigo',label:'CÓDIGO DE AGENCIA',val:code,placeholder:'Ej: 5115 o escribe a mano',type:'datalist',options:codigoOptions},
@@ -3982,7 +4072,7 @@ function openCuadroCita(id){
     {k:'perfil',label:'PERFIL DEL CRÉDITO',val:'NINGUNA',placeholder:'NEGOCIO PROPIO / RELACIÓN DEPENDENCIA / NINGUNA'},
     {k:'hora_llegada',label:'HORA DE LLEGADA A LA AGENCIA',val:'Por la Tarde',placeholder:'Por la Mañana / Por la Tarde'},
     {k:'horario_llamar',label:'HORARIO PARA LLAMAR AL CLIENTE',val:'Por la Tarde',placeholder:'Por la Mañana / Por la Tarde'},
-    {k:'agencia',label:'AGENCIA',val:l.agencia||'',placeholder:'-- Selecciona o escribe --',type:'select',options:[{code:'',label:'-- Selecciona o escribe --'},...agenciaOptions]},
+    {k:'agencia',label:'AGENCIA',val:l.agencia||'',placeholder:'Escribe o selecciona la agencia',type:'datalist',options:agenciaOptions},
     {k:'gestor',label:'GESTOR',val:(u?u.nombre:CU.nombre).toUpperCase(),placeholder:'NOMBRE DEL ASESOR'},
     {k:'nota',label:'NOTA',val:l.notas&&l.notas.length?l.notas[l.notas.length-1].txt:'',placeholder:'Nota / Observación'}
   ];
@@ -4018,32 +4108,28 @@ function openCuadroCita(id){
       <input class="fc cuadro-fld" id="cu-${f.k}" data-k="${f.k}" value="${(f.val||'').replace(/"/g,'&quot;')}" placeholder="${f.placeholder}" style="font-size:12px" oninput="renderCuadroCanvas()">
     </div>`;
   }).join('');
-  // SYNC: changing the codigo input (select or datalist) auto-updates agencia
+  // SYNC: changing the codigo input auto-updates agencia (and vice versa).
+  // Both fields are datalists (editable inputs), so we listen to 'input' and 'change'.
   const codSel=document.getElementById('cu-codigo');
   const agSel=document.getElementById('cu-agencia');
-  // Listen on both 'input' (for typing/datalist pick) and 'change' (for select)
   ['input','change'].forEach(ev=>codSel.addEventListener(ev,()=>{
     const code=codSel.value.trim().toUpperCase();
     const ag=AGENCIA_DATA[code];
-    if(ag&&!ag.auto){
-      // Find option in agencia dropdown matching this name and select it
-      for(const opt of agSel.options){
-        if(opt.value===ag.nom){agSel.value=ag.nom;break;}
-      }
+    if(ag){
+      agSel.value=ag.nom;
       renderCuadroCanvas();
     }
   }));
-  agSel.addEventListener('change',()=>{
-    const nom=agSel.value;
-    // Reverse lookup: find OFFICIAL code (not auto) for this agencia name
-    let foundOfficial='';
+  ['input','change'].forEach(ev=>agSel.addEventListener(ev,()=>{
+    const nom=agSel.value.trim();
+    // Reverse lookup: find code for this agencia name
+    let foundCode='';
     for(const[c,d]of Object.entries(AGENCIA_DATA)){
-      if(d.nom===nom&&!d.auto){foundOfficial=c;break;}
+      if(d.nom===nom){foundCode=c;break;}
     }
-    // If only auto code exists, leave codigo empty so user types real code
-    codSel.value=foundOfficial;
+    if(foundCode)codSel.value=foundCode;
     renderCuadroCanvas();
-  });
+  }));
   // If user changes producto, auto-fill price
   document.getElementById('cu-producto').addEventListener('input',e=>{
     const p=findPrecioMoto(e.target.value);
@@ -4322,6 +4408,11 @@ function shareCuadroWhatsApp(){
     if(!exists){registerAgenciaCode(n);added++;}
   });
   if(added>0)console.log('[agencias] Startup auto-coded',added,'agencies');
+  // After ensuring all agencias have codes, backfill leads that don't have agencia_codigo.
+  // This makes existing leads created BEFORE this fix automatically gain their code.
+  if(typeof leads!=='undefined'&&leads.length>0){
+    backfillAgenciaCodigo();
+  }
 })();
 
 // AUTO-CONNECT
