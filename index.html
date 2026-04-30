@@ -2219,7 +2219,7 @@ function renderReportes(){
   const venta=arr.filter(l=>l.est==='VENTA').length,perdido=arr.filter(l=>l.est==='PERDIDO').length,proceso=arr.filter(l=>l.est==='PROCESO').length;
   const interesados=arr.filter(l=>l.interes==='Interesad@ en Compra').length;
   const responden=arr.filter(l=>l.responde==='Responde').length;
-  const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);const ayer=yesterday.toISOString().split('T')[0];
+  const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);const ayer=yesterday.getFullYear()+'-'+String(yesterday.getMonth()+1).padStart(2,'0')+'-'+String(yesterday.getDate()).padStart(2,'0');
   const regest=arr.filter(l=>l.regest==='Regestionado'&&(l.fu||'').substring(0,10)<=ayer).length;
   document.getElementById('rep-mets').innerHTML=`
     <div class="met"><div class="ml">Total Leads</div><div class="mv">${arr.length}</div></div>
@@ -2397,7 +2397,7 @@ function bucketKey(dateStr,grouping){
     if(isNaN(d))return dateStr;
     const day=d.getDay()||7; // Sun=0 → 7
     if(day!==1)d.setDate(d.getDate()-(day-1));
-    return d.toISOString().substring(0,10); // Monday YYYY-MM-DD
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); // Monday YYYY-MM-DD (local)
   }
   return dateStr;
 }
@@ -2418,7 +2418,7 @@ function bucketLabel(key,grouping){
   if(grouping==='week'){
     const d=new Date(key+'T00:00:00');
     const e=new Date(d);e.setDate(e.getDate()+6);
-    return `Sem. ${key} → ${e.toISOString().substring(0,10)}`;
+    return `Sem. ${key} → ${e.getFullYear()+'-'+String(e.getMonth()+1).padStart(2,'0')+'-'+String(e.getDate()).padStart(2,'0')}`;
   }
   return key;
 }
@@ -2427,13 +2427,14 @@ function setRcQuickRange(opt){
   const fdEl=document.getElementById('rc-fd');
   const fhEl=document.getElementById('rc-fh');
   const t=new Date();
-  const fmt=d=>d.toISOString().substring(0,10);
+  // Use local date — NOT toISOString() which returns UTC and shifts day in GT (UTC-6)
+  const localFmt=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   if(opt===7||opt===30){
     const since=new Date(t);since.setDate(t.getDate()-opt);
-    fdEl.value=fmt(since);fhEl.value=fmt(t);
+    fdEl.value=localFmt(since);fhEl.value=localFmt(t);
   } else if(opt==='thismonth'){
-    fdEl.value=fmt(t).substring(0,7)+'-01';
-    fhEl.value=fmt(t);
+    const ym=localFmt(t).substring(0,7);
+    fdEl.value=ym+'-01';fhEl.value=localFmt(t);
   } else if(opt==='all'){
     fdEl.value='';fhEl.value='';
   }
@@ -2693,7 +2694,7 @@ function descargarDashboard(){
   const interesMap={'No Cumple PANT':0,'No Interesado':0,'Cotizando':0,'Interesad@ en Compra':0};arr.forEach(l=>{if(l.interes&&interesMap[l.interes]!==undefined)interesMap[l.interes]++;});
   const interesRows=Object.entries(interesMap).map(([k,v])=>`<tr><td>${k}</td><td style="font-weight:700">${v}</td><td>${arr.length>0?Math.round(v/arr.length*100):0}%</td></tr>`).join('');
   const respondeRows=[['Responde',arr.filter(l=>l.responde==='Responde').length],['No responde',arr.filter(l=>l.responde==='No responde').length]].map(([k,v])=>`<tr><td>${k}</td><td style="font-weight:700">${v}</td><td>${arr.length>0?Math.round(v/arr.length*100):0}%</td></tr>`).join('');
-  const yesterday2=new Date();yesterday2.setDate(yesterday2.getDate()-1);const ayer2=yesterday2.toISOString().split('T')[0];
+  const yesterday2=new Date();yesterday2.setDate(yesterday2.getDate()-1);const ayer2=yesterday2.getFullYear()+'-'+String(yesterday2.getMonth()+1).padStart(2,'0')+'-'+String(yesterday2.getDate()).padStart(2,'0');
   const regestRows=[['Regestionado',arr.filter(l=>l.regest==='Regestionado'&&(l.fu||'').substring(0,10)<=ayer2).length],['Sin Regestión',arr.filter(l=>l.regest==='Sin Regestión').length]].map(([k,v])=>`<tr><td>${k}</td><td style="font-weight:700">${v}</td><td>${arr.length>0?Math.round(v/arr.length*100):0}%</td></tr>`).join('');
   const interesados=interesMap['Interesad@ en Compra'];
   const responden=arr.filter(l=>l.responde==='Responde').length;
