@@ -1327,6 +1327,51 @@ function initRealtimeSync(){
   setSyncStatus('syncing');
   window._fb.listenLeads(cloudLeads=>{
     if(cloudLeads.length>0||realtimeActive){
+      // ── Fix UTC date shift on leads coming from Firebase ──
+      // today() now uses local time, but leads saved before the fix have fcita one day ahead.
+      // Correct them here (in-memory + push back to Firebase) so all devices stay consistent.
+      const _p=n=>String(n).padStart(2,'0');
+      const _ld=d=>d.getFullYear()+'-'+_p(d.getMonth()+1)+'-'+_p(d.getDate());
+      const _now2=new Date();
+      const todayL=_ld(_now2);
+      const _t2=new Date(_now2);_t2.setDate(_now2.getDate()+1);
+      const tomorrowL=_ld(_t2);
+      const _y2=new Date(_now2);_y2.setDate(_now2.getDate()-1);
+      const yesterdayL=_ld(_y2);
+      const leadsToResave=[];
+      cloudLeads.forEach(cl=>{
+        if(!cl.fcita)return;
+        const fcita=cl.fcita.substring(0,10);
+        if(fcita!==tomorrowL)return; // only touch leads with tomorrow's date
+        let corrected=null;
+        // Strategy 1: use fcita_ts if available
+        if(cl.fcita_ts){
+          try{
+            const ts=new Date(cl.fcita_ts);
+            if(!isNaN(ts)){
+              const localFromTs=_ld(ts);
+              if(localFromTs!==fcita){corrected=localFromTs;}
+            }
+          }catch(e){}
+        }
+        // Strategy 2: fu or fa is today → lead was worked today, fcita got bumped by UTC
+        if(!corrected){
+          const fuD=(cl.fu||'').substring(0,10);
+          const faD=(cl.fa||'').substring(0,10);
+          if(fuD===todayL||faD===todayL)corrected=todayL;
+          else if(fuD===yesterdayL||faD===yesterdayL)corrected=yesterdayL;
+        }
+        if(corrected){
+          cl.fcita=corrected;
+          cl._fcitaShiftFixed=true;
+          leadsToResave.push(cl);
+        }
+      });
+      // Push corrected leads back to Firebase so other devices get the fix too
+      if(leadsToResave.length>0&&window._fb&&window._fb.isReady()){
+        leadsToResave.forEach(cl=>{try{window._fb.saveLeadCloud(cl);}catch(e){}});
+        console.log('[fcita] Corrected',leadsToResave.length,'cloud leads from UTC shift');
+      }
       // Index cloud leads by id for fast lookup
       const cloudById={};
       cloudLeads.forEach(cl=>{ cloudById[String(cl.id)]=cl; });
