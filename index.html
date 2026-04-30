@@ -1208,7 +1208,7 @@ const DEF_LEADS=[
 ];
 
 let users=[...DEF_USERS], leads=[...DEF_LEADS];
-const _AGENCIAS_MASTER=["HT BARBERENA","HT AMATITLÁN","HT TIQUISATE","HT PLAZA TECA","HT SAN PEDRO SAC","HT SANTA ELENA PETEN","HT HUEHUETENANGO","HT JALAPA","HT MAZATENANGO","HT MALACATAN","HT CHIQUIMULA","HT ATLANTIDA","HT ESCUINTLA","HT PUERTO SAN JOSE","HT SANTA LUCIA","HT CHIMALTENANGO","HT GOMERA","HT ESQUIPUL","HT POPTUN","HT LA LIBERTAD","HT PRADERA EXPS V.N.","HT EL CASTAÑO","HT PETAPA","HT TECULUTAN","HT JUTIAPA","HT SALAMA","HT COBAN","HT SAYAXCHE","HT LOS AMATES","HT SAN ANTONIO SUCHI","HT QUETZALTENANGO","HT COATEPEQUE","HT PUERTO BARRIOS","HT GUASTATO","HT MORALES","HT RETALHULEU","HT NVA. CONCEPCION","HT QUICHE","HT NEBAJ","HT SANTA ELENA PETEN 2","AP ZONA KING COBAN","AP CENTRAL YURRITA","AP 6TA AV ZONA 9","AP AMATITLAN","AP BARCENAS","AP CALLE MARTI","AP CHIMALTENANGO","AP CHIQUIMULA","AP COATEPEQUE","AP EL CASTAÑO","AP ESCUINTLA","AP ESKALA","AP JALAPA","AP LOS ALAMOS","AP METRO NORTE","AP QUETZALTENANGO","AP RETALHULEU","AP SANARATE","AP VILLA CANALES","AC JOCOTENANGO","AC SANTA LUCIA MILPAS ALTAS","AC SANTA CLARA LA LAGUNA","AC ESCUINTLA","AC SAN JOSE PINULA","AC ALOTENANGO","AC LA BRIGADA","AC ZONA 10","AC UTATLAN","AC SAN JUAN SACATEPEQUEZ","AC SAN LUCAS","AC CIUDAD VIEJA","AC BOCA DEL MONTE","AC VILLA NUEVA","AC PALIN","AC ANTIGUA","AC AMATITLAN","AC BETHANIA","AC ZONA 9","AC SAN MIGUEL PETAPA","AC LA GOMERA","AC PETAPA","AC ZONA 1","AC OBELISCO","AC BOSQUES","AC SAN RAFAEL","AC SAN JUAN SAC / SAN PEDRO SAC","AC TECPAN","AC CIUDAD SAN CRISTOBAL / ZONA 1 MIXCO","AC ZONA 7/ UTATLAN","AC AGUILAR BATRES","AC PALIN / ESCUINTLA","AC LA DEMOCRACIA","AC AVENIDA PETAPA","AC ALOTENANGO / YEPOCAPA","AC OBELISCO / AGUILAR BATRES","AC BOSQUES DE SAN NICOLAS / FLORIDA","AC SAN FRANCISCO / LO DE BRAN","AC CALLE MARTI","AC XELA / TOTONICAPAN / CANTEL","AC CIUDAD VIEJA / SANTA MARIA DE JESUS","AC CIUDAD QUETZAL","AC SAN RAYMUNDO","AC NARANJO FRONTERA","AC LA BRIGADA / MINERVA","AC CAES / SAN JOSE PINULA","AC CIUDAD SAN CRISTOBAL / LA BETHANIA","AC SAN BENITO / SAYAXCHÉ","AC ROOSEVELT / LA CASTELLANA","AC SAN JOSE PINULA / ZONA 9","AC AVENIDA BOLIVAR","AC COBAN","AC SAN JOSE POAQUIL","AC ANTIGUA GUATEMALA","AC SAN MIGUEL PETAPA / VILLA NUEVA","AC CENTRA NORTE","AC PUERTO DE SAN JOSE","AC BARBERENA","AC CHIMALTENANGO / PARRAMOS","AC ZONA 5","AC CALZADA SAN JUAN","AC CIUDAD SAN CRISTOBAL","AC LA REFORMITA","AC POPTÚN / DOLORES","AC ZONA 1 / SAN MIGUEL PETAPA","AC TELEMAN / SENAU","AC COATEPEQUE / LA BLANCA","AC COATEPEQUE","AC CHAHAL","AC TIQUISATE","AC FRAY BARTOLOME / CHISEC","AC CHIMALTENANGO","AC VILLA CANALES / BOCA DEL MONTE","AC SANTIAGO ATITLAN / SAN LUCAS TOLIMAN","AC SALAMA","AC TACTIC","AC PALENCIA","AC ESQUIPULAS","AC EL FRUTAL / SAN MIGUL PETAPA","AC FREELANCE","AC MAZATENANGO / RETALHULEU","AC IXCAN PLAYA","AC PATZUN","AC CARCHA / TACTIC","AC MAZATENANGO","AC PATZICIA","AC SAN CRISTOBAL","AC CHISEC / COJAJ / CAMPUR","AC PAJAPITA","AC RETALHULEU","AC METATERMINAL","AC JALAPA","AC SAN LUCAS SACATEPQUEZ","AC SAN PEDRO AYAMPUC","AC SAN FELIPE","AC HUEHUETENANGO","AC CHIQUIMULILLA","AC JOCOTAN","AC CAHABON / LANQUIN","AC RIO DULCE","AC COLOTENANGO","AC RABINAL","AC ZACAPA","AC SANTA CRUZ DEL QUICHE","AC CUILCO","AC RETALHULEU / COATEPEQUE","AC JOYABAJ","AC SAN MATEO IXTATAN","AC XELA","AC CASAS VIEJAS","AC PATULUL","AC COLOMBA COSTA CUCA","AC MALACATAN","AC CHAMELCO","AC SAN PEDRO PINULA","AC BARCENAS","AC AGUACATÁN","AC BARILLAS","AC TECUN UMAN","AC SIPACATE","AC CARCHA","AC MORALES","AC SAN JUAN LA LAGUNA"];
+const _AGENCIAS_MASTER=["AP CENTRAL YURRITA","AP METRO NORTE","AP VILLA CANALES","AP 6TA AV ZONA 9","AP ESCUINTLA","AP RETALHULEU","AP AMATITLAN","AP CHIQUIMULA","AP LOS ALAMOS","AP CALLE MARTI","AP BARCENAS","AP QUETZALTENANGO","AP ESKALA","AP JALAPA","AP EL CASTAÑO","AP COATEPEQUE","AP SANARATE","AP CHIMALTENANGO","AP ZONA KING COBAN","HT AMATITLÁN","HT SANTA LUCIA","HT COATEPEQUE","HT NVA. CONCEPCION","HT GUASTATO","HT ESQUIPUL","HT CHIMALTENANGO","HT JALAPA","HT SANTO TOMAS","HT GOMERA","HT QUETZALTENANGO","HT ESCUINTLA","HT QUICHE","HT COBAN","HT HUEHUETENANGO","HT PRADERA EXPS V.N.","HT EL CASTAÑO","HT PUERTO SAN JOSE","HT SAN PEDRO SAC","HT MAZATENANGO","HT CHIQUIMULA","HT RETALHULEU","HT SALAMA","HT MALACATAN","HT AMATITLAN SATELITE","HT LA LIBERTAD","HT SANARATE","HT TECUN UMAN","HT NEBAJ","HT BARBERENA","HT TECULUTAN","HT SAYAXCHE","HT MORALES","HT SANTA ELENA PETEN","HT TIQUISATE","HT JUTIAPA","HT POPTUN","HT PLAZA TECA","HT SAN ANTONIO SUCHI","HT HUEHUETENANGO 2","HT EL ESTOR","HT JUTIAPA 2","HT PUERTO BARRIOS","HT PETAPA","HT LOS AMATES","HT ATLANTIDA","AC SAN JUAN SAC / SAN PEDRO SAC","AC TECPAN GUATEMALA","AC CIUDAD SAN CRISTOBAL / ZONA 1 MIXCO","AC ZONA 7/ UTATLAN","AC SAN JUAN SACATEPEQUEZ","AC AGUILAR BATRES","AC PALIN / ESCUINTLA","AC LA DEMOCRACIA","AC AVENIDA PETAPA","AC ALOTENANGO / YEPOCAPA","AC OBELISCO / AGUILAR BATRES","AC BOSQUES DE SAN NICOLAS / FLORIDA","AC SAN FRANCISCO / LO DE BRAN","AC ZONA 9","AC CALLE MARTI","AC XELA / TOTONICAPAN / CANTEL","AC CIUDAD VIEJA / SANTA MARIA DE JESUS","AC CIUDAD QUETZAL","AC SAN RAYMUNDO","AC NARANJO FRONTERA","AC LA BRIGADA / MINERVA","AC CAES / SAN JOSE PINULA","AC ZONA 1","AC CIUDAD SAN CRISTOBAL / LA BETHANIA","AC SAN BENITO / SAYAXCHÉ","AC ROOSEVELT / LA CASTELLANA","AC SAN JOSE PINULA / ZONA 9","AC AVENIDA BOLIVAR","AC COBAN","AC SAN JOSE POAQUIL","AC ANTIGUA GUATEMALA","AC SAN MIGUEL PETAPA / VILLA NUEVA","AC ZONA 10","AC CENTRA NORTE","AC PUERTO DE SAN JOSE","AC JOCOTENANGO","AC BARBERENA","AC CHIMALTENANGO / PARRAMOS","AC AGUILAR BATRES 2","AC ZONA 5","AC CALZADA SAN JUAN","AC AVENIDA PETAPA 2","AC CIUDAD SAN CRISTOBAL","AC ZONA 1 2","AC LA REFORMITA","AC VILLA NUEVA","AC POPTÚN / DOLORES","AC JOCOTENANGO 2","AC ZONA 1 / SAN MIGUEL PETAPA","AC TELEMAN / SENAU","AC COATEPEQUE / LA BLANCA","AC ESCUINTLA","AC AVENIDA PETAPA 3","AC COATEPEQUE","AC COBAN 2","AC COATEPEQUE 2","AC CHAHAL","AC TIQUISATE","AC FRAY BARTOLOME / CHISEC","AC CHIMALTENANGO","AC VILLA CANALES / BOCA DEL MONTE","AC PUERTO DE SAN JOSE 2","AC SANTA LUCIA MILPAS ALTAS","AC SANTIAGO ATITLAN / SAN LUCAS TOLIMAN","AC SALAMA","AC TACTIC","AC COBAN 3","AC TIQUISATE 2","AC PALENCIA","AC ESQUIPULAS","AC EL FRUTAL / SAN MIGUL PETAPA","AC FREELANCE","AC CHIMALTENANGO 2","AC CALZADA SAN JUAN 2","AC MAZATENANGO / RETALHULEU","AC IXCAN PLAYA","AC PATZUN","AC LA GOMERA","AC CARCHA / TACTIC","AC AMATITLAN","AC MAZATENANGO","AC PATZICIA","AC FREELANCE 2","AC BOCA DEL MONTE","AC SAN CRISTOBAL","AC CHISEC / COJAJ / CAMPUR","AC PAJAPITA","AC SAN MIGUEL PETAPA","AC RETALHULEU","AC METATERMINAL","AC IXCAN PLAYA 2","AC JALAPA","AC SAN RAFAEL","AC SAN LUCAS SACATEPQUEZ","AC SAN PEDRO AYAMPUC","AC SAN FELIPE","AC FREELANCE 3","AC HUEHUETENANGO","AC CHIQUIMULILLA","AC JOCOTAN","AC CAHABON / LANQUIN","AC RIO DULCE","AC COLOTENANGO","AC SANTA CLARA LA LAGUNA","AC JOCOTAN 2","AC RABINAL","AC ZACAPA","AC SANTA CRUZ DEL QUICHE","AC HUEHUETENANGO 2","AC CUILCO","AC RETALHULEU / COATEPEQUE","AC JOYABAJ","AC SAN MATEO IXTATAN","AC XELA","AC BARBERENA 2","AC XELA 2","AC CASAS VIEJAS","AC PATULUL","AC COLOMBA COSTA CUCA","AC MALACATAN","AC CHAMELCO","AC SAN PEDRO PINULA","AC BARCENAS","AC AGUACATÁN","AC FREELANCE 4","AC JALAPA 2","AC BARILLAS","AC RABINAL 2","AC TECUN UMAN","AC SIPACATE","AC XELA 3","AC CARCHA","AC CIUDAD SAN CRISTOBAL / LA BETHANIA 2","AC N/A","AC AVENIDA BOLIVAR 2","AC MORALES","AC SAN JUAN LA LAGUNA","AP KING SAN JOSE PINULA"];
 let agencias=(function(){var saved=lsG('tvs8_agencias',null);if(!saved)return _AGENCIAS_MASTER.slice();var merged=_AGENCIAS_MASTER.slice();saved.forEach(function(a){if(merged.indexOf(a)===-1)merged.push(a);});return merged;})();
 let driveConn={url:'',lastSync:null,autoSync:false};
 let impHist=[], syncLogs=[];
@@ -1404,12 +1404,13 @@ function initRealtimeSync(){
     agencias=merged;
     lsS('tvs8_agencias',agencias);
     // Auto-register any agencia that doesn't yet have a code in AGENCIA_DATA
+    // Use findAgenciaCode (fuzzy) first — only generate new code if truly not found
     let added=0;
     agencias.forEach(n=>{
-      const exists=Object.values(AGENCIA_DATA).some(d=>d.nom===n);
-      if(!exists){registerAgenciaCode(n);added++;}
+      const existingCode=findAgenciaCode(n)||getOfficialAgenciaCode(n);
+      if(!existingCode){registerAgenciaCode(n);added++;}
     });
-    if(added>0)console.log('[agencias] Auto-coded',added,'agencies');
+    if(added>0)console.log('[agencias] Auto-coded',added,'truly-new agencies');
     console.log('[agencias] Updated local list, total:',agencias.length);
     if(CU){populateSel();renderAgencias&&renderAgencias();}
   });
@@ -1631,14 +1632,13 @@ function filteredLeads(){
   return arr;
 }
 function populateSel(){
-  // Agencias — each option carries data-codigo with the agencia's code (if any).
-  // The label shows "código — nombre" so the asesor sees both at a glance.
-  const agOpts=agencias.map(a=>{
-    // Find the code for this agencia
-    let code='';
-    for(const[c,d]of Object.entries(AGENCIA_DATA)){
-      if(d.nom===a){code=c;break;}
-    }
+  // Agencias — deduplicate by normalized name, then look up real code with findAgenciaCode.
+  const normAg=s=>s.toUpperCase().replace(/[ÁÀ]/g,'A').replace(/[ÉÈ]/g,'E').replace(/[ÍÌ]/g,'I').replace(/[ÓÒ]/g,'O').replace(/[ÚÙÜ]/g,'U').replace(/Ñ/g,'N').replace(/[^A-Z0-9 ]/g,'').replace(/\s+/g,' ').trim();
+  const seen=new Set();
+  const dedupedAgencias=agencias.filter(a=>{const k=normAg(a);if(seen.has(k))return false;seen.add(k);return true;});
+  const agOpts=dedupedAgencias.map(a=>{
+    // Use the fuzzy findAgenciaCode so accents/case don't cause misses
+    const code=findAgenciaCode(a)||getOfficialAgenciaCode(a);
     const label=code?code+' — '+a:a;
     return `<option value="${a.replace(/"/g,'&quot;')}" data-codigo="${code}">${label}</option>`;
   }).join('');
@@ -2911,6 +2911,28 @@ function renderAgencias(){
 // Generate the next available auto-code for a given prefix (HT/AP/AC/OT).
 // Returns e.g. "HT012" if HT001..HT011 already exist.
 function genAgenciaCode(prefix){
+  // AP: use 5xxx range (51xx is HT, so AP gets 52xx-5Fxx for new ones)
+  if(prefix==='AP'){
+    for(let n=0x200;n<=0xFFF;n++){
+      const code='5'+n.toString(16).toUpperCase();
+      if(!AGENCIA_DATA[code])return code;
+    }
+  }
+  // HT: use 51xx range beyond 51FF (52xx onward won't clash)
+  if(prefix==='HT'){
+    // Use 51Gx style? No — just use 52xx range for HT extras
+    for(let n=0x200;n<=0xFFF;n++){
+      const code='51'+n.toString(16).toUpperCase();
+      if(!AGENCIA_DATA[code])return code;
+    }
+  }
+  // AC: generate 9-digit code starting at 300000001 (clearly fabricated)
+  if(prefix==='AC'){
+    let n=300000001;
+    while(AGENCIA_DATA[String(n)]){n++;}
+    return String(n);
+  }
+  // OT or other
   let n=1;
   while(AGENCIA_DATA[prefix+String(n).padStart(3,'0')]){n++;if(n>9999)break;}
   return prefix+String(n).padStart(3,'0');
@@ -2921,29 +2943,22 @@ function detectAgenciaPrefix(name){
   if(u.startsWith('AP '))return 'AP';
   if(u.startsWith('HT '))return 'HT';
   if(u.startsWith('AC '))return 'AC';
+  if(u.startsWith('TVS '))return 'AP'; // TVS = AP
   return 'OT';
 }
 // Register a new agencia in AGENCIA_DATA so it appears in the Cuadro de Cita
 // dropdown and matches itself when leads are saved.
 function registerAgenciaCode(name,officialCode){
   if(!name)return null;
-  // Normalize helper for fuzzy matching (ignores accents, case, extra spaces)
-  const norm=s=>s.trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
-  const normName=norm(name);
-  // 1. Exact name match
+  // Don't duplicate by name
   for(const[code,d]of Object.entries(AGENCIA_DATA)){
-    if(d.nom===name)return code;
+    if(d.nom===name)return code; // already registered
   }
-  // 2. Normalized match (handles accent/case differences — AP AMATITLÁN vs AP AMATITLAN)
-  for(const[code,d]of Object.entries(AGENCIA_DATA)){
-    if(norm(d.nom)===normName)return code;
-  }
-  // 3. Admin provided an official code
+  // If admin provided an official code, use it directly (NOT marked as auto)
   if(officialCode&&officialCode.trim()){
     const oc=officialCode.trim().toUpperCase();
+    // Check the code isn't already taken
     if(AGENCIA_DATA[oc]){
-      // Code taken — if it belongs to the same name (normalized), just return it
-      if(norm(AGENCIA_DATA[oc].nom)===normName)return oc;
       toast('El código '+oc+' ya está en uso por: '+AGENCIA_DATA[oc].nom);
       return null;
     }
@@ -2951,13 +2966,11 @@ function registerAgenciaCode(name,officialCode){
     console.log('[agencia] Registered with official code',oc,'→',name);
     return oc;
   }
-  // 4. No official code — only auto-generate if there is NO existing AP/HT/AC code
-  //    that matches this agency. This prevents duplicate codes on reload.
+  // No official code provided — generate a unique code with prefix matching the type.
+  // These codes are TREATED AS OFFICIAL (no `auto` flag) so they appear in the
+  // Cuadro de Cita and the asesor sees a clear code instead of an empty field.
+  // The admin can later replace them with real codes if needed.
   const prefix=detectAgenciaPrefix(name);
-  // Extra safety: check if any existing code with same prefix+number maps to same norm name
-  for(const[code,d]of Object.entries(AGENCIA_DATA)){
-    if(code.startsWith(prefix)&&norm(d.nom)===normName)return code;
-  }
   const code=genAgenciaCode(prefix);
   AGENCIA_DATA[code]={nom:name,coord:'',tel:''};
   console.log('[agencia] Auto-generated code',code,'→',name);
@@ -2967,15 +2980,8 @@ function registerAgenciaCode(name,officialCode){
 // Returns the code for an agencia name, or '' if not registered.
 function getOfficialAgenciaCode(name){
   if(!name)return '';
-  const norm=s=>s.trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
-  const normName=norm(name);
-  // Exact match first
   for(const[code,d]of Object.entries(AGENCIA_DATA)){
     if(d.nom===name)return code;
-  }
-  // Normalized match (handles accents/case)
-  for(const[code,d]of Object.entries(AGENCIA_DATA)){
-    if(norm(d.nom)===normName)return code;
   }
   return '';
 }
@@ -3700,31 +3706,31 @@ setInterval(()=>{if(CU)updRemBadge();},60000);
 // ═══════════════════════════════════════
 // Tabla de agencias del template oficial: código + nombre + coordinador + número
 const AGENCIA_DATA={
-  '5101':{nom:'TVS YURRITA',coord:'JUAN JOSÉ CATALÁN',tel:'49405480'},
-  '5102':{nom:'TVS METRONORTE',coord:'BRANDON SALGUERO',tel:'35967239'},
-  '5103':{nom:'TVS VILLA CANALES',coord:'JEFFERSON GARCIA',tel:'45970827'},
-  '5104':{nom:'TVS 6TA AV',coord:'ROLANDO PORTILLO',tel:'39941954'},
-  '5105':{nom:'TVS ESCUINTLA',coord:'JACQUELINE ESCOBAR',tel:'39486833'},
-  '5106':{nom:'TVS RETALHULEU',coord:'CRISTIAN LOPEZ',tel:'41500849'},
-  '5108':{nom:'TVS AMATITLÁN',coord:'GUSTAVO DÍAZ',tel:'59472038'},
-  '5110':{nom:'TVS CHIQUIMULA',coord:'MARICRUZ DIVAS',tel:'42334237'},
-  '5111':{nom:'TVS ALAMOS',coord:'BYRON SANDOVAL',tel:'50095161'},
-  '5112':{nom:'TVS CALLE MARTI',coord:'JOSÉ GÓMEZ',tel:'59512688'},
-  '5113':{nom:'TVS BARCENAS',coord:'JAVIER HERNÁNDEZ',tel:'36034945'},
-  '5114':{nom:'TVS QUETZALTENANGO',coord:'ROBERTO MERIDA',tel:'45057324'},
-  '5115':{nom:'TVS ESKALA',coord:'RICARDO ORTIZ',tel:'42555667'},
-  '5116':{nom:'TVS JALAPA',coord:'LUIS FIGUEROA',tel:'55785555'},
-  '5118':{nom:'TVS EL CASTAÑO',coord:'ALEJANDRO VALLEJO',tel:'35958802'},
-  '5124':{nom:'TVS COATEPEQUE',coord:'HERMAN OTONIEL',tel:'37874514'},
-  '5125':{nom:'TVS COBAN',coord:'PACAY ACTÉ CESAR ANIBAL',tel:''},
-  '5126':{nom:'TVS SANARATE',coord:'AZUCENA ARGUETA',tel:'54585356'},
-  '5127':{nom:'TVS CHIMALTENANGO',coord:'IGNACIO RIVERA',tel:'33557204'},
-  '5180':{nom:'HT AMATITLAN ASIOLE',coord:'ANA VICTORIA GONZALES BARRERA',tel:''},
+  '5101':{nom:'AP CENTRAL YURRITA',coord:'JUAN JOSÉ CATALÁN',tel:'49405480'},
+  '5102':{nom:'AP METRO NORTE',coord:'BRANDON SALGUERO',tel:'35967239'},
+  '5103':{nom:'AP VILLA CANALES',coord:'JEFFERSON GARCIA',tel:'45970827'},
+  '5104':{nom:'AP 6TA AV ZONA 9',coord:'ROLANDO PORTILLO',tel:'39941954'},
+  '5105':{nom:'AP ESCUINTLA',coord:'JACQUELINE ESCOBAR',tel:'39486833'},
+  '5106':{nom:'AP RETALHULEU',coord:'CRISTIAN LOPEZ',tel:'41500849'},
+  '5108':{nom:'AP AMATITLAN',coord:'GUSTAVO DÍAZ',tel:'59472038'},
+  '5110':{nom:'AP CHIQUIMULA',coord:'MARICRUZ DIVAS',tel:'42334237'},
+  '5111':{nom:'AP LOS ALAMOS',coord:'BYRON SANDOVAL',tel:'50095161'},
+  '5112':{nom:'AP CALLE MARTI',coord:'JOSÉ GÓMEZ',tel:'59512688'},
+  '5113':{nom:'AP BARCENAS',coord:'JAVIER HERNÁNDEZ',tel:'36034945'},
+  '5114':{nom:'AP QUETZALTENANGO',coord:'ROBERTO MERIDA',tel:'45057324'},
+  '5115':{nom:'AP ESKALA',coord:'RICARDO ORTIZ',tel:'42555667'},
+  '5116':{nom:'AP JALAPA',coord:'LUIS FIGUEROA',tel:'55785555'},
+  '5118':{nom:'AP EL CASTAÑO',coord:'ALEJANDRO VALLEJO',tel:'35958802'},
+  '5124':{nom:'AP COATEPEQUE',coord:'HERMAN OTONIEL',tel:'37874514'},
+  '5126':{nom:'AP SANARATE',coord:'AZUCENA ARGUETA',tel:'54585356'},
+  '5127':{nom:'AP CHIMALTENANGO',coord:'IGNACIO RIVERA',tel:'33557204'},
+  '5125':{nom:'AP ZONA KING COBAN',coord:'PACAY ACTÉ CESAR ANIBAL',tel:''},
+  '5180':{nom:'HT AMATITLÁN',coord:'ANA VICTORIA GONZALES BARRERA',tel:''},
   '5181':{nom:'HT SANTA LUCIA',coord:'GOMEZ COS DE LOPEZ VIVIANA',tel:''},
   '5182':{nom:'HT COATEPEQUE',coord:'SILAS LOPEZ',tel:''},
-  '5183':{nom:'HT NUEVA CONCEPCIÓN',coord:'BRAN MARROQUIN ADONIA',tel:''},
-  '5185':{nom:'HT GUASTATOYA',coord:'OLIVA LÓPEZ JOSÉ HILIBERTO',tel:''},
-  '5187':{nom:'HT ESQUIPULAS',coord:'LANDAVERRY RAMÍREZ KAROL',tel:''},
+  '5183':{nom:'HT NVA. CONCEPCION',coord:'BRAN MARROQUIN ADONIA',tel:''},
+  '5185':{nom:'HT GUASTATO',coord:'OLIVA LÓPEZ JOSÉ HILIBERTO',tel:''},
+  '5187':{nom:'HT ESQUIPUL',coord:'LANDAVERRY RAMÍREZ KAROL',tel:''},
   '5188':{nom:'HT CHIMALTENANGO',coord:'AZÚRDIA BLANCO DE JIMÉNEZ',tel:''},
   '5189':{nom:'HT JALAPA',coord:'',tel:''},
   '5191':{nom:'HT SANTO TOMAS',coord:'',tel:''},
@@ -3734,10 +3740,10 @@ const AGENCIA_DATA={
   '5195':{nom:'HT QUICHE',coord:'',tel:''},
   '5196':{nom:'HT COBAN',coord:'PACAY ACTÉ CESAR ANIBAL',tel:''},
   '5197':{nom:'HT HUEHUETENANGO',coord:'FÚNES LÓPEZ HEIDY HELEN',tel:''},
-  '5198':{nom:'HT VILLA NUEVA PRADERA',coord:'CALDERON CRUZ JOHAN',tel:''},
-  '5199':{nom:'HT CASTAÑO',coord:'SANTIAGO SANTIAGO JUAN',tel:''},
+  '5198':{nom:'HT PRADERA EXPS V.N.',coord:'CALDERON CRUZ JOHAN',tel:''},
+  '5199':{nom:'HT EL CASTAÑO',coord:'SANTIAGO SANTIAGO JUAN',tel:''},
   '51A0':{nom:'HT PUERTO SAN JOSE',coord:'HERRARTE GATICA ESVIN',tel:''},
-  '51A1':{nom:'HT SAN PEDRO',coord:'',tel:''},
+  '51A1':{nom:'HT SAN PEDRO SAC',coord:'',tel:''},
   '51A3':{nom:'HT MAZATENANGO',coord:'HENRY ESQUIVEL',tel:''},
   '51A4':{nom:'HT CHIQUIMULA',coord:'ANGEL GUTIERREZ CHEGUEN',tel:''},
   '51B1':{nom:'HT RETALHULEU',coord:'MÉNDEZ CHIHUIL BAGNER',tel:''},
@@ -3748,26 +3754,25 @@ const AGENCIA_DATA={
   '51B7':{nom:'HT SANARATE',coord:'',tel:''},
   '51B8':{nom:'HT TECUN UMAN',coord:'',tel:''},
   '51B9':{nom:'HT NEBAJ',coord:'',tel:''},
-  '51C0':{nom:'HIPERTIENDA BARBERENA',coord:'',tel:''},
+  '51C0':{nom:'HT BARBERENA',coord:'',tel:''},
   '51C1':{nom:'HT TECULUTAN',coord:'',tel:''},
   '51C2':{nom:'HT SAYAXCHE',coord:'',tel:''},
   '51C3':{nom:'HT MORALES',coord:'MARTINEZ DÍAZ YONI',tel:''},
-  '51C4':{nom:'HT SANTA ELENA',coord:'SUÁREZ CANCHÁN CARLOS',tel:''},
+  '51C4':{nom:'HT SANTA ELENA PETEN',coord:'SUÁREZ CANCHÁN CARLOS',tel:''},
   '51C6':{nom:'HT TIQUISATE',coord:'',tel:''},
-  '51C7':{nom:'HT PROGRESO JUTIAPA',coord:'',tel:''},
+  '51C7':{nom:'HT JUTIAPA',coord:'',tel:''},
   '51C8':{nom:'HT POPTUN',coord:'JUAN CARLOS FELIPE',tel:''},
-  '51C9':{nom:'HT PLAZA TECA COATEPEQUE',coord:'',tel:''},
+  '51C9':{nom:'HT PLAZA TECA',coord:'',tel:''},
   '51D1':{nom:'HT SAN ANTONIO SUCHI',coord:'RODRÍGUEZ GARCÍA KATHERINE',tel:''},
-  '51D2':{nom:'HT CAMBOTE/HUEHUE',coord:'',tel:''},
+  '51D2':{nom:'HT HUEHUETENANGO 2',coord:'',tel:''},
   '51D3':{nom:'HT EL ESTOR',coord:'',tel:''},
-  '51D4':{nom:'HT JUTIAPA',coord:'REYES PÁIZ JOSEPH RICARDO',tel:''},
+  '51D4':{nom:'HT JUTIAPA 2',coord:'REYES PÁIZ JOSEPH RICARDO',tel:''},
   '51D5':{nom:'HT PUERTO BARRIOS',coord:'URRUTIA CASTILLO EDUARDO',tel:''},
   '51D8':{nom:'HT PETAPA',coord:'RAMÍREZ PÉREZ GLENDY',tel:''},
   '51F4':{nom:'HT LOS AMATES',coord:'',tel:''},
   '51F6':{nom:'HT ATLANTIDA',coord:'AGUIRRE HERNÁNDEZ HAMILTON',tel:''},
-  // ─── Agentes de Comercio (AC) — códigos largos del Excel oficial ───
   '100391611':{nom:'AC SAN JUAN SAC / SAN PEDRO SAC',coord:'',tel:''},
-  '100430286':{nom:'AC TECPAN',coord:'',tel:''},
+  '100430286':{nom:'AC TECPAN GUATEMALA',coord:'',tel:''},
   '100624532':{nom:'AC CIUDAD SAN CRISTOBAL / ZONA 1 MIXCO',coord:'',tel:''},
   '100830168':{nom:'AC ZONA 7/ UTATLAN',coord:'',tel:''},
   '100948386':{nom:'AC SAN JUAN SACATEPEQUEZ',coord:'',tel:''},
@@ -3804,42 +3809,42 @@ const AGENCIA_DATA={
   '100522433':{nom:'AC JOCOTENANGO',coord:'',tel:''},
   '100725218':{nom:'AC BARBERENA',coord:'',tel:''},
   '100760485':{nom:'AC CHIMALTENANGO / PARRAMOS',coord:'',tel:''},
-  '100765898':{nom:'AC AGUILAR BATRES',coord:'',tel:''},
+  '100765898':{nom:'AC AGUILAR BATRES 2',coord:'',tel:''},
   '100791050':{nom:'AC ZONA 5',coord:'',tel:''},
   '100889740':{nom:'AC CALZADA SAN JUAN',coord:'',tel:''},
-  '101009407':{nom:'AC AVENIDA PETAPA',coord:'',tel:''},
+  '101009407':{nom:'AC AVENIDA PETAPA 2',coord:'',tel:''},
   '101015551':{nom:'AC CIUDAD SAN CRISTOBAL',coord:'',tel:''},
-  '101076261':{nom:'AC ZONA 1',coord:'',tel:''},
+  '101076261':{nom:'AC ZONA 1 2',coord:'',tel:''},
   '101165345':{nom:'AC LA REFORMITA',coord:'',tel:''},
   '101186175':{nom:'AC VILLA NUEVA',coord:'',tel:''},
   '101204403':{nom:'AC POPTÚN / DOLORES',coord:'',tel:''},
-  '101272651':{nom:'AC JOCOTENANGO',coord:'',tel:''},
+  '101272651':{nom:'AC JOCOTENANGO 2',coord:'',tel:''},
   '101333196':{nom:'AC ZONA 1 / SAN MIGUEL PETAPA',coord:'',tel:''},
   '101419745':{nom:'AC TELEMAN / SENAU',coord:'',tel:''},
   '101421329':{nom:'AC COATEPEQUE / LA BLANCA',coord:'',tel:''},
   '101429967':{nom:'AC ESCUINTLA',coord:'',tel:''},
-  '101510104':{nom:'AC AVENIDA PETAPA',coord:'',tel:''},
+  '101510104':{nom:'AC AVENIDA PETAPA 3',coord:'',tel:''},
   '101555125':{nom:'AC COATEPEQUE',coord:'',tel:''},
-  '101579009':{nom:'AC COBAN',coord:'',tel:''},
-  '101592020':{nom:'AC COATEPEQUE',coord:'',tel:''},
+  '101579009':{nom:'AC COBAN 2',coord:'',tel:''},
+  '101592020':{nom:'AC COATEPEQUE 2',coord:'',tel:''},
   '101606755':{nom:'AC CHAHAL',coord:'',tel:''},
   '200023002':{nom:'AC TIQUISATE',coord:'',tel:''},
   '200023579':{nom:'AC FRAY BARTOLOME / CHISEC',coord:'',tel:''},
   '200024591':{nom:'AC CHIMALTENANGO',coord:'',tel:''},
   '200024615':{nom:'AC VILLA CANALES / BOCA DEL MONTE',coord:'',tel:''},
-  '200030933':{nom:'AC PUERTO DE SAN JOSE',coord:'',tel:''},
+  '200030933':{nom:'AC PUERTO DE SAN JOSE 2',coord:'',tel:''},
   '200031601':{nom:'AC SANTA LUCIA MILPAS ALTAS',coord:'',tel:''},
   '100005122':{nom:'AC SANTIAGO ATITLAN / SAN LUCAS TOLIMAN',coord:'',tel:''},
   '100023295':{nom:'AC SALAMA',coord:'',tel:''},
   '100083009':{nom:'AC TACTIC',coord:'',tel:''},
-  '100083093':{nom:'AC COBAN',coord:'',tel:''},
-  '100094284':{nom:'AC TIQUISATE',coord:'',tel:''},
+  '100083093':{nom:'AC COBAN 3',coord:'',tel:''},
+  '100094284':{nom:'AC TIQUISATE 2',coord:'',tel:''},
   '100303384':{nom:'AC PALENCIA',coord:'',tel:''},
   '100322278':{nom:'AC ESQUIPULAS',coord:'',tel:''},
   '100468716':{nom:'AC EL FRUTAL / SAN MIGUL PETAPA',coord:'',tel:''},
   '100524217':{nom:'AC FREELANCE',coord:'',tel:''},
-  '100556236':{nom:'AC CHIMALTENANGO',coord:'',tel:''},
-  '100584719':{nom:'AC CALZADA SAN JUAN',coord:'',tel:''},
+  '100556236':{nom:'AC CHIMALTENANGO 2',coord:'',tel:''},
+  '100584719':{nom:'AC CALZADA SAN JUAN 2',coord:'',tel:''},
   '100684509':{nom:'AC MAZATENANGO / RETALHULEU',coord:'',tel:''},
   '100768420':{nom:'AC IXCAN PLAYA',coord:'',tel:''},
   '100776149':{nom:'AC PATZUN',coord:'',tel:''},
@@ -3848,7 +3853,7 @@ const AGENCIA_DATA={
   '100871957':{nom:'AC AMATITLAN',coord:'',tel:''},
   '100912545':{nom:'AC MAZATENANGO',coord:'',tel:''},
   '100946534':{nom:'AC PATZICIA',coord:'',tel:''},
-  '100970031':{nom:'AC FREELANCE',coord:'',tel:''},
+  '100970031':{nom:'AC FREELANCE 2',coord:'',tel:''},
   '100986448':{nom:'AC BOCA DEL MONTE',coord:'',tel:''},
   '101270283':{nom:'AC SAN CRISTOBAL',coord:'',tel:''},
   '101324261':{nom:'AC CHISEC / COJAJ / CAMPUR',coord:'',tel:''},
@@ -3856,13 +3861,13 @@ const AGENCIA_DATA={
   '101451285':{nom:'AC SAN MIGUEL PETAPA',coord:'',tel:''},
   '101541248':{nom:'AC RETALHULEU',coord:'',tel:''},
   '101552748':{nom:'AC METATERMINAL',coord:'',tel:''},
-  '200002625':{nom:'AC IXCAN PLAYA',coord:'',tel:''},
+  '200002625':{nom:'AC IXCAN PLAYA 2',coord:'',tel:''},
   '200008268':{nom:'AC JALAPA',coord:'',tel:''},
   '200022201':{nom:'AC SAN RAFAEL',coord:'',tel:''},
   '200023622':{nom:'AC SAN LUCAS SACATEPQUEZ',coord:'',tel:''},
   '200024500':{nom:'AC SAN PEDRO AYAMPUC',coord:'',tel:''},
   '200024631':{nom:'AC SAN FELIPE',coord:'',tel:''},
-  '100008198':{nom:'AC FREELANCE',coord:'',tel:''},
+  '100008198':{nom:'AC FREELANCE 3',coord:'',tel:''},
   '100026150':{nom:'AC HUEHUETENANGO',coord:'',tel:''},
   '100036843':{nom:'AC CHIQUIMULILLA',coord:'',tel:''},
   '100083717':{nom:'AC JOCOTAN',coord:'',tel:''},
@@ -3870,18 +3875,18 @@ const AGENCIA_DATA={
   '100131859':{nom:'AC RIO DULCE',coord:'',tel:''},
   '100216815':{nom:'AC COLOTENANGO',coord:'',tel:''},
   '100224354':{nom:'AC SANTA CLARA LA LAGUNA',coord:'',tel:''},
-  '100366993':{nom:'AC JOCOTAN',coord:'',tel:''},
+  '100366993':{nom:'AC JOCOTAN 2',coord:'',tel:''},
   '100389340':{nom:'AC RABINAL',coord:'',tel:''},
   '100431123':{nom:'AC ZACAPA',coord:'',tel:''},
   '100441102':{nom:'AC SANTA CRUZ DEL QUICHE',coord:'',tel:''},
-  '100533649':{nom:'AC HUEHUETENANGO',coord:'',tel:''},
+  '100533649':{nom:'AC HUEHUETENANGO 2',coord:'',tel:''},
   '100572834':{nom:'AC CUILCO',coord:'',tel:''},
   '100586857':{nom:'AC RETALHULEU / COATEPEQUE',coord:'',tel:''},
   '100594430':{nom:'AC JOYABAJ',coord:'',tel:''},
   '100653601':{nom:'AC SAN MATEO IXTATAN',coord:'',tel:''},
   '100683723':{nom:'AC XELA',coord:'',tel:''},
-  '100769599':{nom:'AC BARBERENA',coord:'',tel:''},
-  '100774133':{nom:'AC XELA',coord:'',tel:''},
+  '100769599':{nom:'AC BARBERENA 2',coord:'',tel:''},
+  '100774133':{nom:'AC XELA 2',coord:'',tel:''},
   '100792771':{nom:'AC CASAS VIEJAS',coord:'',tel:''},
   '100926510':{nom:'AC PATULUL',coord:'',tel:''},
   '101037218':{nom:'AC COLOMBA COSTA CUCA',coord:'',tel:''},
@@ -3890,62 +3895,20 @@ const AGENCIA_DATA={
   '101213038':{nom:'AC SAN PEDRO PINULA',coord:'',tel:''},
   '101227571':{nom:'AC BARCENAS',coord:'',tel:''},
   '101266020':{nom:'AC AGUACATÁN',coord:'',tel:''},
-  '101267134':{nom:'AC FREELANCE',coord:'',tel:''},
-  '101417163':{nom:'AC JALAPA',coord:'',tel:''},
+  '101267134':{nom:'AC FREELANCE 4',coord:'',tel:''},
+  '101417163':{nom:'AC JALAPA 2',coord:'',tel:''},
   '101427417':{nom:'AC BARILLAS',coord:'',tel:''},
-  '101614858':{nom:'AC RABINAL',coord:'',tel:''},
+  '101614858':{nom:'AC RABINAL 2',coord:'',tel:''},
   '101766913':{nom:'AC TECUN UMAN',coord:'',tel:''},
   '200000878':{nom:'AC SIPACATE',coord:'',tel:''},
-  '200012930':{nom:'AC XELA',coord:'',tel:''},
+  '200012930':{nom:'AC XELA 3',coord:'',tel:''},
   '200024301':{nom:'AC CARCHA',coord:'',tel:''},
-  '200024450':{nom:'AC CIUDAD SAN CRISTOBAL / LA BETHANIA',coord:'',tel:''},
-  '200024890':{nom:'AC AVENIDA BOLIVAR',coord:'',tel:''},
+  '200024450':{nom:'AC CIUDAD SAN CRISTOBAL / LA BETHANIA 2',coord:'',tel:''},
+  '200024825':{nom:'AC N/A',coord:'',tel:''},
+  '200024890':{nom:'AC AVENIDA BOLIVAR 2',coord:'',tel:''},
   '200026930':{nom:'AC MORALES',coord:'',tel:''},
   '200032133':{nom:'AC SAN JUAN LA LAGUNA',coord:'',tel:''},
-  // ─── Agencias propias TVS/HT/AP/AC sin código oficial — códigos auto-generados ───
-  'HT001':{nom:'HT BARBERENA',coord:'',tel:''},
-  'HT002':{nom:'HT AMATITLÁN',coord:'',tel:''},
-  'HT003':{nom:'HT PLAZA TECA',coord:'',tel:''},
-  'HT004':{nom:'HT SAN PEDRO SAC',coord:'',tel:''},
-  'HT005':{nom:'HT SANTA ELENA PETEN',coord:'',tel:''},
-  'HT006':{nom:'HT ESQUIPUL',coord:'',tel:''},
-  'HT007':{nom:'HT PRADERA EXPS V.N.',coord:'',tel:''},
-  'HT008':{nom:'HT EL CASTAÑO',coord:'',tel:''},
-  'HT009':{nom:'HT GUASTATO',coord:'',tel:''},
-  'HT010':{nom:'HT NVA. CONCEPCION',coord:'',tel:''},
-  'HT011':{nom:'HT SANTA ELENA PETEN 2',coord:'',tel:''},
-  'AP001':{nom:'AP ZONA KING COBAN',coord:'',tel:''},
-  'AP002':{nom:'AP CENTRAL YURRITA',coord:'',tel:''},
-  'AP003':{nom:'AP 6TA AV ZONA 9',coord:'',tel:''},
-  'AP004':{nom:'AP AMATITLAN',coord:'',tel:''},
-  'AP005':{nom:'AP BARCENAS',coord:'',tel:''},
-  'AP006':{nom:'AP CALLE MARTI',coord:'',tel:''},
-  'AP007':{nom:'AP CHIMALTENANGO',coord:'',tel:''},
-  'AP008':{nom:'AP CHIQUIMULA',coord:'',tel:''},
-  'AP009':{nom:'AP COATEPEQUE',coord:'',tel:''},
-  'AP010':{nom:'AP EL CASTAÑO',coord:'',tel:''},
-  'AP011':{nom:'AP ESCUINTLA',coord:'',tel:''},
-  'AP012':{nom:'AP ESKALA',coord:'',tel:''},
-  'AP013':{nom:'AP JALAPA',coord:'',tel:''},
-  'AP014':{nom:'AP LOS ALAMOS',coord:'',tel:''},
-  'AP015':{nom:'AP METRO NORTE',coord:'',tel:''},
-  'AP016':{nom:'AP QUETZALTENANGO',coord:'',tel:''},
-  'AP017':{nom:'AP RETALHULEU',coord:'',tel:''},
-  'AP018':{nom:'AP SANARATE',coord:'',tel:''},
-  'AP019':{nom:'AP VILLA CANALES',coord:'',tel:''},
-  'AC001':{nom:'AC SAN JOSE PINULA',coord:'',tel:''},
-  'AC002':{nom:'AC ALOTENANGO',coord:'',tel:''},
-  'AC003':{nom:'AC LA BRIGADA',coord:'',tel:''},
-  'AC004':{nom:'AC UTATLAN',coord:'',tel:''},
-  'AC005':{nom:'AC SAN LUCAS',coord:'',tel:''},
-  'AC006':{nom:'AC CIUDAD VIEJA',coord:'',tel:''},
-  'AC007':{nom:'AC PALIN',coord:'',tel:''},
-  'AC008':{nom:'AC ANTIGUA',coord:'',tel:''},
-  'AC009':{nom:'AC BETHANIA',coord:'',tel:''},
-  'AC010':{nom:'AC PETAPA',coord:'',tel:''},
-  'AC011':{nom:'AC OBELISCO',coord:'',tel:''},
-  'AC012':{nom:'AC BOSQUES',coord:'',tel:''}
-
+  '5200':{nom:'AP KING SAN JOSE PINULA',coord:'',tel:''},
 };
 
 // Map a CRM agencia name -> code in AGENCIA_DATA (best-effort fuzzy match by normalized name)
@@ -4049,8 +4012,8 @@ function openCuadroCita(id){
   // Without this, agencies created on another device that synced through Firebase
   // may not be in AGENCIA_DATA yet, so they'd be missing from the dropdown.
   agencias.forEach(name=>{
-    const exists=Object.values(AGENCIA_DATA).some(d=>d.nom===name);
-    if(!exists)registerAgenciaCode(name); // adds as auto:true placeholder
+    const existsCode=findAgenciaCode(name)||getOfficialAgenciaCode(name);
+    if(!existsCode)registerAgenciaCode(name); // only register if truly new
   });
   // Pre-fill from lead data
   const u=l.uid?users.find(x=>x.id===l.uid):null;
@@ -4229,12 +4192,12 @@ function renderCuadroCanvas(){
   const ctx=canvas.getContext('2d');
   const v=getCuadroValues();
   // Sizing — high-DPI for crisp WhatsApp rendering
-  const W=1080;                     // wider for bigger text
+  const W=1000;                     // wider for bigger text
   const logoY=20, logoH=95;         // logo area
   const logoW=290;                  // logo bounding width
   const titleY=logoY+logoH+10, titleH=50;
   const introY=titleY+titleH+15, introH=130;
-  const rowH=64;                    // taller rows for bigger text
+  const rowH=52;                    // taller rows for bigger text
   const numRows=17;                 // 17 rows (no coordinador)
   const rowY0=introY+introH+5;
   const H=rowY0+numRows*rowH+25;    // dynamic height
@@ -4297,7 +4260,7 @@ function renderCuadroCanvas(){
     ctx.fillStyle='#E60000';
     ctx.fillRect(20,y,labelW,rowH);
     ctx.fillStyle='#FFFFFF';
-    ctx.font='bold 20px Arial, sans-serif';     // label font
+    ctx.font='bold 17px Arial, sans-serif';     // was 14
     ctx.textAlign='left';
     ctx.fillText(r[0],30,y+rowH/2);
     // Value background (white) — CENTERED
@@ -4309,12 +4272,12 @@ function renderCuadroCanvas(){
     // Value text — much bigger + centered
     const isNota=r[0]==='NOTA:';
     ctx.fillStyle=isNota?'#E60000':'#000000';
-    ctx.font=isNota?'bold italic 23px Arial, sans-serif':'bold 28px Arial, sans-serif';
+    ctx.font=isNota?'bold italic 19px Arial, sans-serif':'bold 22px Arial, sans-serif';   // was 15/17
     ctx.textAlign='center';
     let displayTxt=String(r[1]||'');
     const maxW=valW-20;
     // Auto-shrink for long values rather than truncating with "..."
-    let fontSize=isNota?23:28;
+    let fontSize=isNota?19:22;
     while(ctx.measureText(displayTxt).width>maxW&&fontSize>12){
       fontSize--;
       ctx.font=isNota?`bold italic ${fontSize}px Arial, sans-serif`:`bold ${fontSize}px Arial, sans-serif`;
@@ -4421,8 +4384,8 @@ function shareCuadroWhatsApp(){
 (function startupAutoCodeAgencias(){
   let added=0;
   agencias.forEach(function(n){
-    const exists=Object.values(AGENCIA_DATA).some(d=>d.nom===n);
-    if(!exists){registerAgenciaCode(n);added++;}
+    const existsCode=findAgenciaCode(n)||getOfficialAgenciaCode(n);
+    if(!existsCode){registerAgenciaCode(n);added++;}
   });
   if(added>0)console.log('[agencias] Startup auto-coded',added,'agencies');
   // After ensuring all agencias have codes, backfill leads that don't have agencia_codigo.
