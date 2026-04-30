@@ -3986,8 +3986,7 @@ function exportRepVentasCSV(){
     const u=l.uid?users.find(x=>x.id===l.uid):null;
     return[getFventaDate(l),u?u.nombre:(l.anom||''),l.nom||'',l.tel||'',l.linea||'',l.tp||'',l.agencia||'',l.ori||'',l.chasis||'',l.factura||'',l.ffactura||'',l.importe||''];
   })];
-  const csv=rows.map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('
-');
+  const csv=rows.map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv);a.download='reporte-ventas.csv';a.click();toast('CSV exportado');
 }
 
@@ -4919,15 +4918,29 @@ function shareCuadroWhatsApp(){
 
 // AUTO-CONNECT
 function doAutoConnect(){
-  const saved=lsG('tvs8_fbcfg',null);
-  if(saved&&saved.apiKey&&saved.projectId&&window._fb){
-    ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{const el=document.getElementById('cfg-'+k.replace('Storage','').toLowerCase().replace('messaging','ms').replace('app','app').replace('auth','auth'));if(el&&saved[k])el.value=saved[k];});
-    const ok=window._fb.init(saved);
-    if(ok){useCloud=true;showLoginScreen(true);initRealtimeSync();}
-    else{showLoginScreen(false);}
-  }else{showLoginScreen(false);}
+  try{
+    const saved=lsG('tvs8_fbcfg',null);
+    if(saved&&saved.apiKey&&saved.projectId&&window._fb){
+      ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{const el=document.getElementById('cfg-'+k.replace('Storage','').toLowerCase().replace('messaging','ms').replace('app','app').replace('auth','auth'));if(el&&saved[k])el.value=saved[k];});
+      const ok=window._fb.init(saved);
+      if(ok){useCloud=true;showLoginScreen(true);initRealtimeSync();}
+      else{showLoginScreen(false);}
+    }else{showLoginScreen(false);}
+  }catch(e){
+    console.error('doAutoConnect error:',e);
+    showLoginScreen(false);
+  }
 }
-if(window._fb){doAutoConnect();}else{setTimeout(doAutoConnect,500);}
+// Retry until _fb module is ready (can take >500ms on slow connections)
+(function waitForFb(attempts){
+  if(window._fb){doAutoConnect();}
+  else if(attempts>0){setTimeout(()=>waitForFb(attempts-1),400);}
+  else{
+    // Firebase module never loaded — show login in local mode
+    console.warn('Firebase module not ready after retries — falling back to local mode');
+    showLoginScreen(false);
+  }
+})(10);
 if(impHist.length>0)renderImpHist();
 </script>
 </body>
