@@ -2236,29 +2236,67 @@ function backfillFcita(){
 }
 
 // Fix leads whose fcita was saved one day ahead due to UTC offset bug.
-// Compares fcita with the local date derived from fcita_ts. If they differ by exactly
-// +1 day (UTC pushed midnight past 00:00 UTC), rolls fcita back by one day.
+// Strategy 1 (precise): if fcita_ts exists, derive local date from it and compare.
+// Strategy 2 (fallback): if no fcita_ts but fu (last update) is the day BEFORE fcita,
+//   the lead was clearly updated on fu-day and fcita was set to fu+1 due to UTC shift.
+// Strategy 3 (emergency): if fcita === tomorrow's local date AND the lead was created/
+//   updated today (fu or fa equals today), force fcita back to today. This catches leads
+//   created on 29/04 that got fcita=30/04 because today() was using UTC midnight.
 function fixFcitaUtcShift(){
+  // Compute local "today" and "tomorrow" without relying on toISOString (avoid UTC bug)
+  const _now=new Date();
+  const _pad=n=>String(n).padStart(2,'0');
+  const _localDate=d=>d.getFullYear()+'-'+_pad(d.getMonth()+1)+'-'+_pad(d.getDate());
+  const todayLocal=_localDate(_now);
+  const _tom=new Date(_now);_tom.setDate(_now.getDate()+1);
+  const tomorrowLocal=_localDate(_tom);
+
   let n=0;
   leads.forEach(l=>{
-    if(!l.fcita||!l.fcita_ts)return;
-    if(l._fcitaShiftFixed)return; // already corrected
-    try{
-      const ts=new Date(l.fcita_ts);
-      if(isNaN(ts))return;
-      // Local date from the timestamp
-      const localDate=ts.getFullYear()+'-'+String(ts.getMonth()+1).padStart(2,'0')+'-'+String(ts.getDate()).padStart(2,'0');
-      // UTC date that was incorrectly stored
-      const utcDate=ts.toISOString().substring(0,10);
-      // Only fix if fcita matches the UTC date AND local date is one day earlier
-      if(l.fcita.substring(0,10)===utcDate && localDate!==utcDate){
-        l.fcita=localDate;
-        l._fcitaShiftFixed=true;
-        n++;
-      }
-    }catch(e){}
+    if(!l.fcita)return;
+    if(l._fcitaShiftFixed)return;
+    const fcita=l.fcita.substring(0,10);
+
+    // Strategy 1: use fcita_ts if available
+    if(l.fcita_ts){
+      try{
+        const ts=new Date(l.fcita_ts);
+        if(!isNaN(ts)){
+          const localFromTs=_localDate(ts);
+          const utcFromTs=ts.toISOString().substring(0,10);
+          if(fcita===utcFromTs && localFromTs!==utcFromTs){
+            l.fcita=localFromTs;l._fcitaShiftFixed=true;n++;return;
+          }
+        }
+      }catch(e){}
+    }
+
+    // Strategy 2: fcita is tomorrow AND fu (or fa) is today → clear UTC-day shift
+    const fuDate=(l.fu||'').substring(0,10);
+    const faDate=(l.fa||'').substring(0,10);
+    if(fcita===tomorrowLocal && (fuDate===todayLocal||faDate===todayLocal)){
+      l.fcita=todayLocal;l._fcitaShiftFixed=true;n++;return;
+    }
+
+    // Strategy 3: fcita is tomorrow AND fu is yesterday (lead set to CITA after 6pm GT = UTC midnight)
+    const _yes=new Date(_now);_yes.setDate(_now.getDate()-1);
+    const yesterdayLocal=_localDate(_yes);
+    if(fcita===tomorrowLocal && (fuDate===yesterdayLocal||faDate===yesterdayLocal)){
+      // fu is yesterday → the CITA was set yesterday after 6pm GT (UTC rolled to tomorrow)
+      l.fcita=yesterdayLocal;l._fcitaShiftFixed=true;n++;
+    }
   });
-  if(n>0){persist();if(typeof window._fb!=='undefined'&&window._fb&&window._fb.isReady&&window._fb.isReady()){leads.filter(l=>l._fcitaShiftFixed).forEach(l=>window._fb.saveLeadCloud(l));}console.log('[fcita] UTC-shift fixed on',n,'leads');}
+
+  if(n>0){
+    persist();
+    console.log('[fcita] UTC-shift fixed on',n,'leads');
+    // Push corrected leads to Firebase so all devices see the fix
+    if(typeof window._fb!=='undefined'&&window._fb&&window._fb.isReady&&window._fb.isReady()){
+      leads.filter(l=>l._fcitaShiftFixed).forEach(l=>{
+        try{window._fb.saveLeadCloud(l);}catch(e){}
+      });
+    }
+  }
   return n;
 }
 
@@ -2377,7 +2415,9 @@ function initRepCitasTab(){
 
 // Filter leads with CITA + apply date range and asesor filter
 function getRepCitasArr(){
-  // Run backfill in case any lead lacks fcita, then fix any UTC-shifted dates
+  // Reset shift-fix flag so the improved fixFcitaUtcShift() re-evaluates every lead.
+  // This is safe because the function is idempotent and only moves dates back, never forward.
+  leads.forEach(l=>{if(l._fcitaShiftFixed)delete l._fcitaShiftFixed;});
   backfillFcita();
   fixFcitaUtcShift();
   const fd=document.getElementById('rc-fd')?.value||'';
@@ -4067,8 +4107,12 @@ function cuadroDropdownOpen(ddId,inp){
   // Close any other open dropdown first
   if(_cuadroActiveDd&&_cuadroActiveDd!==ddId)cuadroDropdownClose(_cuadroActiveDd);
   _cuadroActiveDd=ddId;
+  // Select all text so user sees ALL options immediately (not filtered by existing value).
+  // They can then type to filter or just pick from the full list.
+  inp.select();
   const opts=_cuadroGetOptions(ddId);
-  _cuadroBuildItems(ddId,opts,inp.value);
+  // Show ALL options on focus (empty query = no filter)
+  _cuadroBuildItems(ddId,opts,'');
   const dd=document.getElementById(ddId);
   if(dd)dd.style.display='block';
 }
