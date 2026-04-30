@@ -2927,15 +2927,23 @@ function detectAgenciaPrefix(name){
 // dropdown and matches itself when leads are saved.
 function registerAgenciaCode(name,officialCode){
   if(!name)return null;
-  // Don't duplicate by name
+  // Normalize helper for fuzzy matching (ignores accents, case, extra spaces)
+  const norm=s=>s.trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const normName=norm(name);
+  // 1. Exact name match
   for(const[code,d]of Object.entries(AGENCIA_DATA)){
-    if(d.nom===name)return code; // already registered
+    if(d.nom===name)return code;
   }
-  // If admin provided an official code, use it directly (NOT marked as auto)
+  // 2. Normalized match (handles accent/case differences — AP AMATITLÁN vs AP AMATITLAN)
+  for(const[code,d]of Object.entries(AGENCIA_DATA)){
+    if(norm(d.nom)===normName)return code;
+  }
+  // 3. Admin provided an official code
   if(officialCode&&officialCode.trim()){
     const oc=officialCode.trim().toUpperCase();
-    // Check the code isn't already taken
     if(AGENCIA_DATA[oc]){
+      // Code taken — if it belongs to the same name (normalized), just return it
+      if(norm(AGENCIA_DATA[oc].nom)===normName)return oc;
       toast('El código '+oc+' ya está en uso por: '+AGENCIA_DATA[oc].nom);
       return null;
     }
@@ -2943,11 +2951,13 @@ function registerAgenciaCode(name,officialCode){
     console.log('[agencia] Registered with official code',oc,'→',name);
     return oc;
   }
-  // No official code provided — generate a unique code with prefix matching the type.
-  // These codes are TREATED AS OFFICIAL (no `auto` flag) so they appear in the
-  // Cuadro de Cita and the asesor sees a clear code instead of an empty field.
-  // The admin can later replace them with real codes if needed.
+  // 4. No official code — only auto-generate if there is NO existing AP/HT/AC code
+  //    that matches this agency. This prevents duplicate codes on reload.
   const prefix=detectAgenciaPrefix(name);
+  // Extra safety: check if any existing code with same prefix+number maps to same norm name
+  for(const[code,d]of Object.entries(AGENCIA_DATA)){
+    if(code.startsWith(prefix)&&norm(d.nom)===normName)return code;
+  }
   const code=genAgenciaCode(prefix);
   AGENCIA_DATA[code]={nom:name,coord:'',tel:''};
   console.log('[agencia] Auto-generated code',code,'→',name);
@@ -2957,8 +2967,15 @@ function registerAgenciaCode(name,officialCode){
 // Returns the code for an agencia name, or '' if not registered.
 function getOfficialAgenciaCode(name){
   if(!name)return '';
+  const norm=s=>s.trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const normName=norm(name);
+  // Exact match first
   for(const[code,d]of Object.entries(AGENCIA_DATA)){
     if(d.nom===name)return code;
+  }
+  // Normalized match (handles accents/case)
+  for(const[code,d]of Object.entries(AGENCIA_DATA)){
+    if(norm(d.nom)===normName)return code;
   }
   return '';
 }
@@ -4212,12 +4229,12 @@ function renderCuadroCanvas(){
   const ctx=canvas.getContext('2d');
   const v=getCuadroValues();
   // Sizing — high-DPI for crisp WhatsApp rendering
-  const W=1000;                     // wider for bigger text
+  const W=1080;                     // wider for bigger text
   const logoY=20, logoH=95;         // logo area
   const logoW=290;                  // logo bounding width
   const titleY=logoY+logoH+10, titleH=50;
   const introY=titleY+titleH+15, introH=130;
-  const rowH=52;                    // taller rows for bigger text
+  const rowH=64;                    // taller rows for bigger text
   const numRows=17;                 // 17 rows (no coordinador)
   const rowY0=introY+introH+5;
   const H=rowY0+numRows*rowH+25;    // dynamic height
@@ -4280,7 +4297,7 @@ function renderCuadroCanvas(){
     ctx.fillStyle='#E60000';
     ctx.fillRect(20,y,labelW,rowH);
     ctx.fillStyle='#FFFFFF';
-    ctx.font='bold 17px Arial, sans-serif';     // was 14
+    ctx.font='bold 20px Arial, sans-serif';     // label font
     ctx.textAlign='left';
     ctx.fillText(r[0],30,y+rowH/2);
     // Value background (white) — CENTERED
@@ -4292,12 +4309,12 @@ function renderCuadroCanvas(){
     // Value text — much bigger + centered
     const isNota=r[0]==='NOTA:';
     ctx.fillStyle=isNota?'#E60000':'#000000';
-    ctx.font=isNota?'bold italic 19px Arial, sans-serif':'bold 22px Arial, sans-serif';   // was 15/17
+    ctx.font=isNota?'bold italic 23px Arial, sans-serif':'bold 28px Arial, sans-serif';
     ctx.textAlign='center';
     let displayTxt=String(r[1]||'');
     const maxW=valW-20;
     // Auto-shrink for long values rather than truncating with "..."
-    let fontSize=isNota?19:22;
+    let fontSize=isNota?23:28;
     while(ctx.measureText(displayTxt).width>maxW&&fontSize>12){
       fontSize--;
       ctx.font=isNota?`bold italic ${fontSize}px Arial, sans-serif`:`bold ${fontSize}px Arial, sans-serif`;
