@@ -731,6 +731,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <button class="btn bo bsm" onclick="setRcQuickRange('all')">Todo</button>
       <button class="btn bn bsm" onclick="exportRepCitasCSV()">⬇ CSV</button>
       <button class="btn bp bsm" onclick="exportRepCitasXLSX()">📊 Excel</button>
+      <button class="btn bsm" id="btn-fix-fcita" style="background:#7C3AED;color:white;border:none" onclick="emergencyFixFcita()" title="Corregir fechas de citas con error UTC">🔧 Corregir fechas</button>
     </div>
   </div>
   <!-- KPI summary -->
@@ -2457,6 +2458,41 @@ function initRepCitasTab(){
   } else {
     renderRepCitas();
   }
+}
+
+// EMERGENCY FIX: force-corrects all leads with fcita="2026-04-30" to "2026-04-29"
+// regardless of fu/fa values. Pushes directly to Firebase. One-time use.
+async function emergencyFixFcita(){
+  const TARGET='2026-04-30';
+  const CORRECT='2026-04-29';
+  const btn=document.getElementById('btn-fix-fcita');
+  if(btn){btn.textContent='⏳ Corrigiendo...';btn.disabled=true;}
+  let n=0;
+  const toFix=leads.filter(l=>l.fcita&&l.fcita.substring(0,10)===TARGET);
+  toFix.forEach(l=>{
+    l.fcita=CORRECT;
+    l._fcitaShiftFixed=true;
+    n++;
+  });
+  if(n===0){
+    toast('No hay citas con fecha 30/04 para corregir');
+    if(btn){btn.textContent='✅ Sin cambios';btn.disabled=false;}
+    return;
+  }
+  persist();
+  // Push all fixed leads to Firebase
+  if(useCloud&&window._fb&&window._fb.isReady()){
+    try{
+      await Promise.all(toFix.map(l=>window._fb.saveLeadCloud(l)));
+      toast(`✅ ${n} citas corregidas a 29/04 y sincronizadas`);
+    }catch(e){
+      toast(`✅ ${n} citas corregidas localmente (error Firebase: ${e.message})`);
+    }
+  } else {
+    toast(`✅ ${n} citas corregidas a 29/04 (sin nube)`);
+  }
+  renderRepCitas();
+  if(btn){btn.textContent='✅ Listo';setTimeout(()=>{btn.textContent='🔧 Corregir fechas';btn.disabled=false;},3000);}
 }
 
 // Filter leads with CITA + apply date range and asesor filter
