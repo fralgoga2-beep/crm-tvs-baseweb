@@ -1444,7 +1444,7 @@ function initRealtimeSync(){
       //    BUT keep locked leads and local-only leads (still being saved)
       leads=leads.filter(l=>{
         if(isLocked(l.id))return true;        // currently being saved — protect
-        if(l._localOnly)return true;          // never made it to cloud yet — protect
+        if(l._localOnly&&!cloudById[String(l.id)])return true; // only protect if NOT in cloud
         return cloudById[String(l.id)]!==undefined; // keep only if exists in cloud
       });
       leads.sort((a,b)=>{
