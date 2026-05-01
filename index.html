@@ -11,7 +11,8 @@
 <link rel="manifest" id="pwa-manifest">
 <link rel="apple-touch-icon" id="apple-icon">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">window.addEventListener("load",function(){setTimeout(checkAutoLoginTVS,600);});
+</script>
 
 <!-- --- Firebase SDK --- -->
 <script type="module">
@@ -527,6 +528,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   <div class="ns" style="margin-top:.4rem">
     <div class="nl">Cuenta</div>
     <button class="ni" onclick="goTab('perfil',this)"><span class="nco">👤</span><span>Mi perfil</span></button>
+    <button class="ni" onclick="abrirCRMVentas()" style="background:rgba(212,175,55,.12);border:1px solid rgba(212,175,55,.3)"><span class="nco">🔗</span><span>DATOS DIARIOS</span></button>
     <button class="ni" onclick="doLogout()"><span class="nco">🚪</span><span>Cerrar sesión</span></button>
   </div>
   <div class="sf">
@@ -1612,8 +1614,46 @@ function doLogin(){
   document.getElementById('app').style.display='block';
   setupUI();
 }
+function checkAutoLoginTVS(){
+  try{
+    const pr=new URLSearchParams(window.location.search);
+    const u=pr.get('user'),p=pr.get('pass');
+    if(!u||!p)return;
+    let f=users.find(x=>x.user===u&&x.pass===p);
+    if(!f)f=DEF_USERS.find(x=>x.user===u&&x.pass===p);
+    if(!f)return;
+    if(!users.find(x=>x.id===f.id))users.push(f);
+    CU=f;
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='block';
+    setupUI();
+  }catch(e){}
+}
 document.getElementById('lp').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('lu').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('lp').focus();});
+// Mapeo de usuario TVS → usuario DATOS DIARIOS
+const CRM_VENTAS_URL = 'https://crm-citas.vercel.app';
+const CRM_VENTAS_MAP = {
+  'nancy.garcia':   {user:'nancy',  pin:'3333'},
+  'sofia.zarceno':  {user:'sofia',  pin:'1111'},
+  'carlos.pinillos':{user:'jc',     pin:'2222'},
+  'javier.macal':   {user:'javier', pin:'5555'},
+  'fernando.escobar':{user:'fernando',pin:'4444'},
+  'rocio.nij':      {user:'rocio',  pin:'6666'},
+  'admin':          {user:'admin',  pin:'1234'},
+  'supervisor':     {user:'admin',  pin:'1234'},
+  'gerencia':       {user:'admin',  pin:'1234'},
+};
+function abrirCRMVentas(){
+  if(!CU){toast('Debes iniciar sesión primero');return;}
+  const map=CRM_VENTAS_MAP[CU.user];
+  if(map){
+    window.open(CRM_VENTAS_URL+'/?user='+map.user+'&pin='+map.pin,'_blank');
+  } else {
+    window.open(CRM_VENTAS_URL,'_blank');
+  }
+}
+
 function doLogout(){persist();CU=null;document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('lu').value='';document.getElementById('lp').value='';closeSB();}
 function isPriv(){return CU&&(CU.rol==='admin'||CU.rol==='supervisor'||CU.rol==='gerencia'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia');}
 function isAdmin(){return CU&&CU.rol==='admin';}
