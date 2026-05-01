@@ -11,7 +11,12 @@
 <link rel="manifest" id="pwa-manifest">
 <link rel="apple-touch-icon" id="apple-icon">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">window.addEventListener("load",function(){setTimeout(checkAutoLoginTVS,600);});
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// Auto-login bootstrap. Same fix as the other CRM — the listener was nested inside
+// the <script src=...> Chart.js tag and was being completely ignored by the browser.
+// 600ms delay gives Firebase a chance to initialize before checkAutoLoginTVS runs.
+window.addEventListener("load",function(){setTimeout(checkAutoLoginTVS,600);});
 </script>
 
 <!-- --- Firebase SDK --- -->
