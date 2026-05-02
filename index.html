@@ -1459,10 +1459,6 @@ function initRealtimeSync(){
         if(fb>fa)return 1;if(fa>fb)return -1;
         return b.id-a.id;
       });
-      // KING migration: rename old AP King names → KING channel.
-      // The function has its own localStorage flag to ensure it runs at most once,
-      // so this call is safe and idempotent.
-      if(typeof migrateKingAgencias==='function')migrateKingAgencias();
       // Auto-backfill agencia_codigo for any leads that came in without one
       if(typeof backfillAgenciaCodigo==='function')backfillAgenciaCodigo();
       lsS('tvs8_leads_bk',leads.slice(0,2000));
@@ -1522,8 +1518,6 @@ function initRealtimeSync(){
     const merged=_AGENCIAS_MASTER.slice();
     cloudAgencias.forEach(a=>{ if(typeof a==='string'&&merged.indexOf(a)===-1) merged.push(a); });
     agencias=merged;
-    // KING migration: rename old AP King names → KING channel (idempotent via flag)
-    if(typeof migrateKingAgencias==='function')migrateKingAgencias();
     lsS('tvs8_agencias',agencias);
     // Auto-register any agencia that doesn't yet have a code in AGENCIA_DATA
     // Use findAgenciaCode (fuzzy) first — only generate new code if truly not found
@@ -2545,93 +2539,86 @@ function backfillAgenciaCodigo(){
 }
 
 // Migration: rename old AP-prefix King dealerships to the new KING channel.
-// This runs on every call but is FAST when nothing needs migration (just a few comparisons).
-// We removed the flag-based skip because the flag could get set before cloud data arrived,
-// causing the migration to be permanently skipped on devices that needed it most.
+// SAFETY: Uses a localStorage flag (v3) to ensure it runs at most ONCE per device.
+// The flag is set AFTER the migration completes (success or no-op). This prevents
+// infinite loops when there are many leads + Firebase real-time sync feedback.
+let _kingMigrationRunning=false;
 function migrateKingAgencias(){
-  // Normalize a name for fuzzy matching: trim, collapse spaces, uppercase, strip diacritics
-  const norm=s=>(s||'').trim().toUpperCase().replace(/\s+/g,' ');
-  // Map of NORMALIZED old name -> new info
-  const KING_RENAMES_NORM={
-    'AP ZONA KING COBAN':       {nom:'KING ZONA COBAN',       code:'KING001'},
-    'AP KING SAN JOSE PINULA':  {nom:'KING SAN JOSE PINULA',  code:'KING002'},
-    'AP REU KING':              {nom:'KING REU',              code:'KING003'},
-    // Variants seen in the wild
-    'AP  ZONA KING COBAN':      {nom:'KING ZONA COBAN',       code:'KING001'},
-    'AP KING SAN JOSÉ PINULA':  {nom:'KING SAN JOSE PINULA',  code:'KING002'}
-  };
-  function lookupRename(name){
-    const n=norm(name);
-    return KING_RENAMES_NORM[n]||null;
-  }
-  let leadsFixed=0,agenciasFixed=0,codesRemoved=0;
-  // 1) Migrate leads
-  if(typeof leads!=='undefined'&&Array.isArray(leads)){
-    leads.forEach(l=>{
-      if(l&&l.agencia){
-        const t=lookupRename(l.agencia);
-        if(t){
-          l.agencia=t.nom;
-          l.agencia_codigo=t.code;
-          leadsFixed++;
+  if(localStorage.getItem('tvs_king_migrated_v3')==='1')return{leads:0,agencias:0,skipped:true};
+  if(_kingMigrationRunning)return{leads:0,agencias:0,skipped:'already-running'};
+  _kingMigrationRunning=true;
+  try{
+    // Normalize a name for fuzzy matching: trim, collapse spaces, uppercase
+    const norm=s=>(s||'').trim().toUpperCase().replace(/\s+/g,' ');
+    const KING_RENAMES_NORM={
+      'AP ZONA KING COBAN':       {nom:'KING ZONA COBAN',       code:'KING001'},
+      'AP KING SAN JOSE PINULA':  {nom:'KING SAN JOSE PINULA',  code:'KING002'},
+      'AP REU KING':              {nom:'KING REU',              code:'KING003'},
+      'AP  ZONA KING COBAN':      {nom:'KING ZONA COBAN',       code:'KING001'},
+      'AP KING SAN JOSÉ PINULA':  {nom:'KING SAN JOSE PINULA',  code:'KING002'}
+    };
+    function lookupRename(name){return KING_RENAMES_NORM[norm(name)]||null;}
+    let leadsFixed=0,agenciasFixed=0,codesRemoved=0;
+    // 1) Migrate leads
+    if(typeof leads!=='undefined'&&Array.isArray(leads)){
+      leads.forEach(l=>{
+        if(l&&l.agencia){
+          const t=lookupRename(l.agencia);
+          if(t){l.agencia=t.nom;l.agencia_codigo=t.code;leadsFixed++;}
         }
-      }
-    });
-  }
-  // 2) Migrate the local agencias[] list (rename in place, then dedupe)
-  if(typeof agencias!=='undefined'&&Array.isArray(agencias)){
-    for(let i=0;i<agencias.length;i++){
-      const t=lookupRename(agencias[i]);
-      if(t){
-        agencias[i]=t.nom;
-        agenciasFixed++;
-      }
+      });
     }
-    // Deduplicate
-    const seen=new Set();
-    agencias=agencias.filter(a=>{ if(seen.has(a))return false; seen.add(a); return true; });
-    agencias.sort();
-  }
-  // 3) Clean up AGENCIA_DATA: remove ANY entry (regardless of code) whose name matches the old AP King names.
-  // This handles auto-generated codes 5200, 5201, 5202, 5125, etc.
-  if(typeof AGENCIA_DATA!=='undefined'){
-    const toRemove=[];
-    for(const[code,d] of Object.entries(AGENCIA_DATA)){
-      if(d&&d.nom&&lookupRename(d.nom)){
-        // Remove anything that has an old name, EXCEPT the canonical KING codes themselves
-        if(code!=='KING001'&&code!=='KING002'&&code!=='KING003'){
-          toRemove.push(code);
+    // 2) Migrate the local agencias[] list (rename in place, then dedupe)
+    if(typeof agencias!=='undefined'&&Array.isArray(agencias)){
+      for(let i=0;i<agencias.length;i++){
+        const t=lookupRename(agencias[i]);
+        if(t){agencias[i]=t.nom;agenciasFixed++;}
+      }
+      const seen=new Set();
+      agencias=agencias.filter(a=>{if(seen.has(a))return false;seen.add(a);return true;});
+      agencias.sort();
+    }
+    // 3) Clean up AGENCIA_DATA: remove ANY entry whose name matches the old AP King names
+    if(typeof AGENCIA_DATA!=='undefined'){
+      const toRemove=[];
+      for(const[code,d] of Object.entries(AGENCIA_DATA)){
+        if(d&&d.nom&&lookupRename(d.nom)){
+          if(code!=='KING001'&&code!=='KING002'&&code!=='KING003')toRemove.push(code);
         }
       }
+      toRemove.forEach(code=>{
+        console.log('[KING migration] Removing stale AGENCIA_DATA entry:',code,'→',AGENCIA_DATA[code].nom);
+        delete AGENCIA_DATA[code];
+        codesRemoved++;
+      });
+      // Ensure canonical KING entries exist
+      if(!AGENCIA_DATA['KING001'])AGENCIA_DATA['KING001']={nom:'KING ZONA COBAN',coord:'PACAY ACTÉ CESAR ANIBAL',tel:''};
+      if(!AGENCIA_DATA['KING002'])AGENCIA_DATA['KING002']={nom:'KING SAN JOSE PINULA',coord:'',tel:''};
+      if(!AGENCIA_DATA['KING003'])AGENCIA_DATA['KING003']={nom:'KING REU',coord:'',tel:''};
     }
-    toRemove.forEach(code=>{
-      console.log('[KING migration] Removing stale AGENCIA_DATA entry:',code,'→',AGENCIA_DATA[code].nom);
-      delete AGENCIA_DATA[code];
-      codesRemoved++;
-    });
+    // CRITICAL: Mark as done IMMEDIATELY before any persist/sync to ensure idempotency
+    localStorage.setItem('tvs_king_migrated_v3','1');
+    if(leadsFixed>0||agenciasFixed>0||codesRemoved>0){
+      try{persist();}catch(e){console.warn('[KING migration] persist error:',e);}
+      console.log('[KING migration] Fixed',leadsFixed,'leads,',agenciasFixed,'agencias,',codesRemoved,'stale codes');
+      // Sync to Firebase (debounced) — uploads ONCE with all changes
+      setTimeout(()=>{
+        try{
+          if(window._fb&&typeof window._fb.saveAllLeads==='function'&&leadsFixed>0){
+            window._fb.saveAllLeads(leads);
+          }
+          if(window._fb&&typeof window._fb.saveAgenciasCloud==='function'&&agenciasFixed>0){
+            window._fb.saveAgenciasCloud(agencias);
+          }
+        }catch(e){console.warn('[KING migration] Firebase sync error:',e);}
+      },3000);
+    } else {
+      console.log('[KING migration] No old KING data found — already migrated or never present');
+    }
+    return{leads:leadsFixed,agencias:agenciasFixed,codesRemoved:codesRemoved};
+  } finally {
+    _kingMigrationRunning=false;
   }
-  // Ensure the canonical KING entries exist (in case they got wiped somehow)
-  if(typeof AGENCIA_DATA!=='undefined'){
-    if(!AGENCIA_DATA['KING001'])AGENCIA_DATA['KING001']={nom:'KING ZONA COBAN',coord:'PACAY ACTÉ CESAR ANIBAL',tel:''};
-    if(!AGENCIA_DATA['KING002'])AGENCIA_DATA['KING002']={nom:'KING SAN JOSE PINULA',coord:'',tel:''};
-    if(!AGENCIA_DATA['KING003'])AGENCIA_DATA['KING003']={nom:'KING REU',coord:'',tel:''};
-  }
-  if(leadsFixed>0||agenciasFixed>0||codesRemoved>0){
-    try{ persist(); }catch(e){ console.warn('[KING migration] persist error:',e); }
-    console.log('[KING migration] Fixed',leadsFixed,'leads,',agenciasFixed,'agencias,',codesRemoved,'stale codes');
-    // Sync to Firebase (debounced) so other devices pick up the changes
-    setTimeout(()=>{
-      try{
-        if(window._fb&&typeof window._fb.saveAllLeads==='function'&&leadsFixed>0){
-          window._fb.saveAllLeads(leads);
-        }
-        if(window._fb&&typeof window._fb.saveAgenciasCloud==='function'&&agenciasFixed>0){
-          window._fb.saveAgenciasCloud(agencias);
-        }
-      }catch(e){console.warn('[KING migration] Firebase sync error:',e);}
-    }, 2000);
-  }
-  return{leads:leadsFixed,agencias:agenciasFixed,codesRemoved:codesRemoved};
 }
 
 // Get the effective fcita date (handles missing data gracefully)
@@ -5113,9 +5100,9 @@ function shareCuadroWhatsApp(){
 // in AGENCIA_DATA. Runs once at startup AFTER AGENCIA_DATA and registerAgenciaCode
 // are defined, ensuring previously-added agencias get codes too.
 (function startupAutoCodeAgencias(){
-  // STEP 1 — KING channel migration (rename old AP King names to new KING channel)
-  // Must run BEFORE auto-coding so we don't accidentally generate codes for the old names.
-  // Runs idempotently — if there's nothing to rename it returns silently.
+  // STEP 1 — KING channel migration. Runs first against local storage data.
+  // If localStorage is empty (fresh device), this is a no-op and the deferred
+  // run below will handle it after cloud sync brings data.
   if(typeof migrateKingAgencias==='function'){
     try{ migrateKingAgencias(); }catch(e){ console.warn('[KING migration] error:',e); }
   }
@@ -5130,6 +5117,15 @@ function shareCuadroWhatsApp(){
   if(typeof leads!=='undefined'&&leads.length>0){
     backfillAgenciaCodigo();
   }
+  // STEP 4 — deferred KING migration: 8 seconds after page load, run migration ONCE more
+  // to catch data that came from Firebase. The flag inside migrateKingAgencias prevents
+  // re-running if it already completed. This is the safe way to handle both fresh devices
+  // (where Firebase is the only source of truth) and devices with localStorage data.
+  setTimeout(()=>{
+    if(typeof migrateKingAgencias==='function'){
+      try{ migrateKingAgencias(); }catch(e){ console.warn('[KING migration deferred] error:',e); }
+    }
+  }, 8000);
 })();
 
 // AUTO-CONNECT
