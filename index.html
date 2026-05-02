@@ -1459,8 +1459,6 @@ function initRealtimeSync(){
         if(fb>fa)return 1;if(fa>fb)return -1;
         return b.id-a.id;
       });
-      // KING migration: rename old AP King names to new KING channel (idempotent)
-      if(typeof migrateKingAgencias==='function')migrateKingAgencias();
       // Auto-backfill agencia_codigo for any leads that came in without one
       if(typeof backfillAgenciaCodigo==='function')backfillAgenciaCodigo();
       lsS('tvs8_leads_bk',leads.slice(0,2000));
@@ -2519,10 +2517,16 @@ function backfillAgenciaCodigo(){
 // Maps: AP ZONA KING COBAN -> KING ZONA COBAN (KING001)
 //       AP KING SAN JOSE PINULA -> KING SAN JOSE PINULA (KING002)
 //       AP REU KING -> KING REU (KING003)
-// Updates: lead.agencia, lead.agencia_codigo, the local agencias[] array.
-// Marks completion in localStorage so it doesn't run twice. Runs again per-device only
-// if a fresh device connects (the migration is idempotent — re-running is safe).
+// SAFETY: This function uses a localStorage flag to ensure it runs at most ONCE per device
+// to avoid infinite loops with Firebase sync. The actual rename happens on the local data
+// and IF anything changed, the persist+saveAllLeads call propagates to Firebase. Other
+// devices will pick up the change naturally on their next session — they don't need to
+// re-run the migration because the data they receive is already migrated.
 function migrateKingAgencias(){
+  // Bail out if already done on this device
+  if(localStorage.getItem('tvs_king_migrated_v1')==='1'){
+    return {leads:0,agencias:0,skipped:true};
+  }
   const KING_RENAMES={
     'AP ZONA KING COBAN':       {nom:'KING ZONA COBAN',       code:'KING001'},
     'AP KING SAN JOSE PINULA':  {nom:'KING SAN JOSE PINULA',  code:'KING002'},
@@ -2530,15 +2534,17 @@ function migrateKingAgencias(){
   };
   let leadsFixed=0,agenciasFixed=0;
   // 1) Migrate leads
-  leads.forEach(l=>{
-    if(l.agencia&&KING_RENAMES[l.agencia]){
-      const t=KING_RENAMES[l.agencia];
-      l.agencia=t.nom;
-      l.agencia_codigo=t.code;
-      leadsFixed++;
-    }
-  });
-  // 2) Migrate the local agencias[] list (rename in place, keep order)
+  if(typeof leads!=='undefined'&&Array.isArray(leads)){
+    leads.forEach(l=>{
+      if(l&&l.agencia&&KING_RENAMES[l.agencia]){
+        const t=KING_RENAMES[l.agencia];
+        l.agencia=t.nom;
+        l.agencia_codigo=t.code;
+        leadsFixed++;
+      }
+    });
+  }
+  // 2) Migrate the local agencias[] list (rename in place, then dedupe)
   if(typeof agencias!=='undefined'&&Array.isArray(agencias)){
     for(let i=0;i<agencias.length;i++){
       const a=agencias[i];
@@ -2548,22 +2554,26 @@ function migrateKingAgencias(){
       }
     }
     // Deduplicate (in case a KING-named agencia already existed too)
-    agencias=[...new Set(agencias)].sort();
+    const seen=new Set();
+    agencias=agencias.filter(a=>{ if(seen.has(a))return false; seen.add(a); return true; });
+    agencias.sort();
   }
+  // Mark as done immediately, BEFORE any persist/sync, so even if those throw we don't loop
+  localStorage.setItem('tvs_king_migrated_v1','1');
   if(leadsFixed>0||agenciasFixed>0){
-    persist();
+    try{ persist(); }catch(e){ console.warn('[KING migration] persist error:',e); }
     console.log('[KING migration] Renamed',leadsFixed,'leads and',agenciasFixed,'agencias');
-    // Sync to Firebase if available so other devices pick up the changes.
-    if(typeof window._fb!=='undefined'&&window._fb){
+    // Sync to Firebase so other devices pick up the changes — but ONLY do this once,
+    // and don't fail the migration if Firebase isn't ready.
+    setTimeout(()=>{
       try{
-        if(leadsFixed>0&&typeof window._fb.saveAllLeads==='function'){
+        if(window._fb&&typeof window._fb.saveAllLeads==='function'&&leadsFixed>0){
           window._fb.saveAllLeads(leads);
         }
-        if(agenciasFixed>0&&typeof window._fb.saveAgencias==='function'){
-          window._fb.saveAgencias(agencias);
-        }
       }catch(e){console.warn('[KING migration] Firebase sync error:',e);}
-    }
+    }, 2000);
+  } else {
+    console.log('[KING migration] No old KING agencias found — already migrated or never present');
   }
   return{leads:leadsFixed,agencias:agenciasFixed};
 }
