@@ -2201,7 +2201,14 @@ function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas
     const label=code?code+' — '+a:a;
     return `<option value="${a.replace(/"/g,'&quot;')}" data-codigo="${code}" ${a===l.agencia?'selected':''}>${label}</option>`;
   }).join('');
-  const _dagEl=document.getElementById('ds-agencia');if(_dagEl)_dagEl.innerHTML='<option value="">— Sin agencia —</option>'+_dagOpts;
+  const _dagEl=document.getElementById('ds-agencia');
+  if(_dagEl){
+    _dagEl.innerHTML='<option value="">— Sin agencia —</option>'+_dagOpts;
+    // Track when user actually interacts with this dropdown — used by saveDet to know
+    // whether an empty value means "user cleared it" or "value never was set properly".
+    _dagEl.dataset.userTouched='0';
+    _dagEl.addEventListener('change',()=>{ _dagEl.dataset.userTouched='1'; },{once:false});
+  }
 }
 function renderNotas(l){if(!l.notas||l.notas.length===0)return `<div style="color:var(--mut);font-size:12px;text-align:center;padding:.75rem">Sin comentarios</div>`;return l.notas.map((n,i)=>`<div class="ni2"><div class="nt">${n.txt}</div><div class="nm"><span>✍️ ${n.by||'Asesor'}</span><span>${n.ts||''}</span></div><button class="nd" onclick="delNota(${l.id},${i})">✕</button></div>`).join('');}
 function addNota(lid){const txt=document.getElementById('new-nota')?.value?.trim();if(!txt){toast('Escribe algo');return;}const l=findLead(lid);if(!l.notas)l.notas=[];l.notas.push({txt,by:CU.nombre,ts:new Date().toLocaleString()});l.fu=today();if(l.fa&&l.fa<today())l.regest='Regestionado';document.getElementById('new-nota').value='';document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);renderAll();toast('Comentario agregado ✓');const gestUid=l.uid||CU.id;addGest(gestUid,1);}
@@ -2212,18 +2219,28 @@ function saveDet(id){
   const prevEst=l.est;
   l.est=document.getElementById('ds-est').value;
   l.tp=document.getElementById('ds-tp').value;
-  // Defensive: only update agencia if user actually interacted with the dropdown.
-  // Also extract the codigo from the selected option's data-codigo attr.
+  // CRITICAL DEFENSIVE LOGIC for agencia: this used to silently wipe out the lead's agencia
+  // when the dropdown wasn't properly populated/selected. The new rule is:
+  //
+  //   - If the dropdown has a non-empty selection: use it (user picked an agencia).
+  //   - If the dropdown has empty value AND user explicitly chose "— Sin agencia —"
+  //     (selectedIndex === 0): clear the agencia.
+  //   - In ANY other case (no selection, dropdown not populated): KEEP the existing agencia.
+  //     This prevents data loss when the dropdown couldn't display the lead's current agencia.
   const dagEl=document.getElementById('ds-agencia');
   if(dagEl){
     const newAg=dagEl.value||'';
-    // Only overwrite if the dropdown has a valid selection OR user explicitly cleared it.
-    // If the dropdown has no options (empty list), keep the existing agencia to prevent data loss.
-    const hasOptions=dagEl.options.length>1; // >1 because first option is always "— Sin agencia —"
-    if(hasOptions){
+    const userExplicitlyChoseSinAgencia=(dagEl.selectedIndex===0&&dagEl.options[0]&&dagEl.options[0].value==='');
+    if(newAg){
+      // User picked an actual agencia
       l.agencia=newAg;
-      l.agencia_codigo=newAg?(dagEl.options[dagEl.selectedIndex].dataset.codigo||''):'';
+      l.agencia_codigo=dagEl.options[dagEl.selectedIndex]?.dataset.codigo||'';
+    } else if(userExplicitlyChoseSinAgencia&&dagEl.dataset.userTouched==='1'){
+      // User explicitly cleared it
+      l.agencia='';
+      l.agencia_codigo='';
     }
+    // else: keep existing l.agencia (defensive — don't wipe data)
   }
   l.interes=document.getElementById('ds-interes')?.value||'';
   const manualRegest=document.getElementById('ds-regest')?.value||'';
@@ -2292,6 +2309,13 @@ function saveLead(){
     const ex=leads[i];
     const prevEst=ex.est;
     if(comTxt)ex.notas=[...(ex.notas||[]),{txt:comTxt,by:CU.nombre,ts:new Date().toLocaleString()}];
+    // DEFENSIVE: if the agencia dropdown came back empty AND the existing lead had an agencia,
+    // preserve the existing value. This prevents "phantom wipes" when the dropdown couldn't
+    // find/select the lead's current agencia (e.g. due to whitespace/case mismatch).
+    if(!_agencia&&ex.agencia){
+      data.agencia=ex.agencia;
+      data.agencia_codigo=ex.agencia_codigo||'';
+    }
     leads[i]={...ex,...data,notas:ex.notas};
     savedLead=leads[i];
     // Track transition to CITA: if state changed from non-CITA to CITA, record fcita
@@ -2520,19 +2544,11 @@ function backfillAgenciaCodigo(){
   return n;
 }
 
-// One-time migration: rename old AP-prefix King dealerships to the new KING channel.
-// Maps: AP ZONA KING COBAN -> KING ZONA COBAN (KING001)
-//       AP KING SAN JOSE PINULA -> KING SAN JOSE PINULA (KING002)
-//       AP REU KING -> KING REU (KING003)
-// SAFETY: This function uses a localStorage flag to ensure it runs at most ONCE per device
-// (per version) to avoid infinite loops with Firebase sync. The actual rename happens on
-// the local data and IF anything changed, the persist+saveAllLeads call propagates to
-// Firebase. Other devices will pick up the change naturally on their next session.
+// Migration: rename old AP-prefix King dealerships to the new KING channel.
+// This runs on every call but is FAST when nothing needs migration (just a few comparisons).
+// We removed the flag-based skip because the flag could get set before cloud data arrived,
+// causing the migration to be permanently skipped on devices that needed it most.
 function migrateKingAgencias(){
-  // v2 of the migration (v1 had bugs — re-run on all devices)
-  if(localStorage.getItem('tvs_king_migrated_v2')==='1'){
-    return {leads:0,agencias:0,skipped:true};
-  }
   // Normalize a name for fuzzy matching: trim, collapse spaces, uppercase, strip diacritics
   const norm=s=>(s||'').trim().toUpperCase().replace(/\s+/g,' ');
   // Map of NORMALIZED old name -> new info
@@ -2540,7 +2556,7 @@ function migrateKingAgencias(){
     'AP ZONA KING COBAN':       {nom:'KING ZONA COBAN',       code:'KING001'},
     'AP KING SAN JOSE PINULA':  {nom:'KING SAN JOSE PINULA',  code:'KING002'},
     'AP REU KING':              {nom:'KING REU',              code:'KING003'},
-    // Variants seen in the wild (with extra spaces, alternate spellings)
+    // Variants seen in the wild
     'AP  ZONA KING COBAN':      {nom:'KING ZONA COBAN',       code:'KING001'},
     'AP KING SAN JOSÉ PINULA':  {nom:'KING SAN JOSE PINULA',  code:'KING002'}
   };
@@ -2548,7 +2564,7 @@ function migrateKingAgencias(){
     const n=norm(name);
     return KING_RENAMES_NORM[n]||null;
   }
-  let leadsFixed=0,agenciasFixed=0;
+  let leadsFixed=0,agenciasFixed=0,codesRemoved=0;
   // 1) Migrate leads
   if(typeof leads!=='undefined'&&Array.isArray(leads)){
     leads.forEach(l=>{
@@ -2576,28 +2592,33 @@ function migrateKingAgencias(){
     agencias=agencias.filter(a=>{ if(seen.has(a))return false; seen.add(a); return true; });
     agencias.sort();
   }
-  // 3) Clean up AGENCIA_DATA: remove any orphan entries with old AP King names.
-  // These are stale codes left over from previous code generation runs.
+  // 3) Clean up AGENCIA_DATA: remove ANY entry (regardless of code) whose name matches the old AP King names.
+  // This handles auto-generated codes 5200, 5201, 5202, 5125, etc.
   if(typeof AGENCIA_DATA!=='undefined'){
     const toRemove=[];
     for(const[code,d] of Object.entries(AGENCIA_DATA)){
       if(d&&d.nom&&lookupRename(d.nom)){
-        toRemove.push(code);
+        // Remove anything that has an old name, EXCEPT the canonical KING codes themselves
+        if(code!=='KING001'&&code!=='KING002'&&code!=='KING003'){
+          toRemove.push(code);
+        }
       }
     }
     toRemove.forEach(code=>{
-      // Only remove if it's NOT one of the canonical KING001/002/003 codes
-      if(code!=='KING001'&&code!=='KING002'&&code!=='KING003'){
-        console.log('[KING migration] Removing stale AGENCIA_DATA entry:',code,'→',AGENCIA_DATA[code].nom);
-        delete AGENCIA_DATA[code];
-      }
+      console.log('[KING migration] Removing stale AGENCIA_DATA entry:',code,'→',AGENCIA_DATA[code].nom);
+      delete AGENCIA_DATA[code];
+      codesRemoved++;
     });
   }
-  // Mark as done immediately, BEFORE any persist/sync, so even if those throw we don't loop
-  localStorage.setItem('tvs_king_migrated_v2','1');
-  if(leadsFixed>0||agenciasFixed>0){
+  // Ensure the canonical KING entries exist (in case they got wiped somehow)
+  if(typeof AGENCIA_DATA!=='undefined'){
+    if(!AGENCIA_DATA['KING001'])AGENCIA_DATA['KING001']={nom:'KING ZONA COBAN',coord:'PACAY ACTÉ CESAR ANIBAL',tel:''};
+    if(!AGENCIA_DATA['KING002'])AGENCIA_DATA['KING002']={nom:'KING SAN JOSE PINULA',coord:'',tel:''};
+    if(!AGENCIA_DATA['KING003'])AGENCIA_DATA['KING003']={nom:'KING REU',coord:'',tel:''};
+  }
+  if(leadsFixed>0||agenciasFixed>0||codesRemoved>0){
     try{ persist(); }catch(e){ console.warn('[KING migration] persist error:',e); }
-    console.log('[KING migration] Renamed',leadsFixed,'leads and',agenciasFixed,'agencias');
+    console.log('[KING migration] Fixed',leadsFixed,'leads,',agenciasFixed,'agencias,',codesRemoved,'stale codes');
     // Sync to Firebase (debounced) so other devices pick up the changes
     setTimeout(()=>{
       try{
@@ -2609,10 +2630,8 @@ function migrateKingAgencias(){
         }
       }catch(e){console.warn('[KING migration] Firebase sync error:',e);}
     }, 2000);
-  } else {
-    console.log('[KING migration] No old KING agencias found — already migrated or never present');
   }
-  return{leads:leadsFixed,agencias:agenciasFixed};
+  return{leads:leadsFixed,agencias:agenciasFixed,codesRemoved:codesRemoved};
 }
 
 // Get the effective fcita date (handles missing data gracefully)
