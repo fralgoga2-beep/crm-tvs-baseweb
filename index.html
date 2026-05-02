@@ -1064,7 +1064,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <div class="fr"><div class="fg"><label class="fl">Agencia</label><select class="fc" id="lf-agencia"><option value="">— Sin agencia —</option></select></div><div class="fg"><label class="fl">Ubicación</label><input class="fc" id="lf-ubi" list="ubi-list" placeholder="Ciudad o zona..."><datalist id="ubi-list"></datalist></div></div>
       <div class="fr"><div class="fg"><label class="fl">Fecha Actividad</label><input class="fc" type="date" id="lf-fa"></div><div class="fg"><label class="fl">Fecha Actualización</label><input class="fc" type="date" id="lf-fu"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Estado</label><select class="fc" id="lf-est" onchange="toggleCanalField()"><option>NUEVO</option><option>PROCESO</option><option>CITA</option><option>PRECALIFICADO</option><option>SEGUIMIENTO</option><option>VENTA</option><option>PERDIDO</option><option>PENDIENTE</option></select></div><div class="fg admin-sup"><label class="fl">Asesor</label><select class="fc" id="lf-ase"><option value="">— Sin asignar</option></select></div></div>
-      <div class="fr" id="canal-field" style="display:none"><div class="fg"><label class="fl">Canal de Cita</label><select class="fc" id="lf-canal"><option value="">— Seleccionar —</option><option value="AP">AP</option><option value="HT">HT</option><option value="AC">AC</option></select></div></div>
+      <div class="fr" id="canal-field" style="display:none"><div class="fg"><label class="fl">Canal de Cita</label><select class="fc" id="lf-canal"><option value="">— Seleccionar —</option><option value="AP">AP</option><option value="HT">HT</option><option value="AC">AC</option><option value="KING">KING</option></select></div></div>
       <div id="venta-field" style="display:none;background:var(--gbg);border:1px solid #4CAF50;border-radius:var(--r);padding:.9rem;margin-bottom:12px">
         <div style="font-size:12px;font-weight:700;color:#1B5E20;margin-bottom:8px">🏍 Datos de Venta</div>
         <div class="fr"><div class="fg" style="margin-bottom:8px"><label class="fl" style="color:#1B5E20">No. Chasis</label><input class="fc" id="lf-chasis" placeholder="Ej: MD2A11EY8RCJ12345" style="border-color:#4CAF50"></div><div class="fg" style="margin-bottom:8px"><label class="fl" style="color:#1B5E20">No. Factura</label><input class="fc" id="lf-factura" placeholder="Ej: 001-001-000012345" style="border-color:#4CAF50"></div></div>
@@ -1134,7 +1134,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <div class="fr"><div class="fg"><label class="fl">Nombre completo *</label><input class="fc" id="uf-nom" autocapitalize="words"></div><div class="fg"><label class="fl">Usuario (login) *</label><input class="fc" id="uf-usr" autocorrect="off" autocapitalize="off"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Contraseña *</label><input class="fc" type="password" id="uf-pw" placeholder="Mínimo 6 caracteres"></div><div class="fg"><label class="fl">Confirmar</label><input class="fc" type="password" id="uf-pw2"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Email</label><input class="fc" type="email" id="uf-em" autocapitalize="off"></div><div class="fg"><label class="fl">WhatsApp</label><input class="fc" type="tel" id="uf-tel"></div></div>
-      <div class="fr"><div class="fg"><label class="fl">Rol</label><select class="fc" id="uf-rol"><option value="asesor">Asesor</option><option value="supervisor">Supervisor</option><option value="gerencia">Gerencia</option><option value="ap_gerencia">Canal AP</option><option value="ht_gerencia">Canal HT</option><option value="ac_gerencia">Canal AC</option><option value="admin">Administrador</option></select></div><div class="fg"><label class="fl">Zona</label><input class="fc" id="uf-zona"></div></div>
+      <div class="fr"><div class="fg"><label class="fl">Rol</label><select class="fc" id="uf-rol"><option value="asesor">Asesor</option><option value="supervisor">Supervisor</option><option value="gerencia">Gerencia</option><option value="ap_gerencia">Canal AP</option><option value="ht_gerencia">Canal HT</option><option value="ac_gerencia">Canal AC</option><option value="king_gerencia">Canal KING</option><option value="admin">Administrador</option></select></div><div class="fg"><label class="fl">Zona</label><input class="fc" id="uf-zona"></div></div>
       <div class="fg"><label class="fl">Nombre exacto en los leads</label><input class="fc" id="uf-ln" placeholder="Igual que columna Asesor"></div>
       <div class="fg"><label class="fl">Mensaje WhatsApp</label><textarea class="fc" id="uf-wa" placeholder="Hola {nombre}, soy {asesor} de TVS Motos..."></textarea></div>
       <div id="uf-err" class="wbox" style="display:none"></div>
@@ -1459,6 +1459,10 @@ function initRealtimeSync(){
         if(fb>fa)return 1;if(fa>fb)return -1;
         return b.id-a.id;
       });
+      // KING migration: rename old AP King names → KING channel.
+      // The function has its own localStorage flag to ensure it runs at most once,
+      // so this call is safe and idempotent.
+      if(typeof migrateKingAgencias==='function')migrateKingAgencias();
       // Auto-backfill agencia_codigo for any leads that came in without one
       if(typeof backfillAgenciaCodigo==='function')backfillAgenciaCodigo();
       lsS('tvs8_leads_bk',leads.slice(0,2000));
@@ -1518,6 +1522,8 @@ function initRealtimeSync(){
     const merged=_AGENCIAS_MASTER.slice();
     cloudAgencias.forEach(a=>{ if(typeof a==='string'&&merged.indexOf(a)===-1) merged.push(a); });
     agencias=merged;
+    // KING migration: rename old AP King names → KING channel (idempotent via flag)
+    if(typeof migrateKingAgencias==='function')migrateKingAgencias();
     lsS('tvs8_agencias',agencias);
     // Auto-register any agencia that doesn't yet have a code in AGENCIA_DATA
     // Use findAgenciaCode (fuzzy) first — only generate new code if truly not found
@@ -1660,14 +1666,15 @@ function abrirCRMVentas(){
 }
 
 function doLogout(){persist();CU=null;document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('lu').value='';document.getElementById('lp').value='';closeSB();}
-function isPriv(){return CU&&(CU.rol==='admin'||CU.rol==='supervisor'||CU.rol==='gerencia'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia');}
+function isPriv(){return CU&&(CU.rol==='admin'||CU.rol==='supervisor'||CU.rol==='gerencia'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia'||CU.rol==='king_gerencia');}
 function isAdmin(){return CU&&CU.rol==='admin';}
-function isGerencia(){return CU&&(CU.rol==='gerencia'||CU.rol==='admin'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia');}
+function isGerencia(){return CU&&(CU.rol==='gerencia'||CU.rol==='admin'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia'||CU.rol==='king_gerencia');}
 function getAgenciaPrefix(){if(!CU)return null;if(CU.rol==='ap_gerencia')return 'AP';if(CU.rol==='ht_gerencia')return 'HT';if(CU.rol==='ac_gerencia')return 'AC';if(CU.rol==='king_gerencia')return 'KING';return null;}
 function isCanal(){return !!getAgenciaPrefix();}
 function isAP(){return CU&&CU.rol==='ap_gerencia';}
 function isHT(){return CU&&CU.rol==='ht_gerencia';}
 function isAC(){return CU&&CU.rol==='ac_gerencia';}
+function isKING(){return CU&&CU.rol==='king_gerencia';}
 function setupUI(){
   document.querySelectorAll('.admin-sup').forEach(el=>el.style.display=(isPriv()&&!isCanal())?'':'none');
   document.querySelectorAll('.admin-only').forEach(el=>{el.style.display=isAdmin()?'':'none';});
@@ -1682,7 +1689,7 @@ function setupUI(){
   }
   const av=document.getElementById('tb-av');av.textContent=ini(CU.nombre);av.style.background=CU.color+'20';av.style.color=CU.color;
   document.getElementById('tb-nm').textContent=CU.nombre.split(' ')[0];
-  const rolLabel={admin:'Administrador',gerencia:'Gerencia',supervisor:'Supervisor',asesor:'Asesor',ap_gerencia:'Canal AP',ht_gerencia:'Canal HT',ac_gerencia:'Canal AC'};
+  const rolLabel={admin:'Administrador',gerencia:'Gerencia',supervisor:'Supervisor',asesor:'Asesor',ap_gerencia:'Canal AP',ht_gerencia:'Canal HT',ac_gerencia:'Canal AC',king_gerencia:'Canal KING'};
   document.getElementById('tb-rl').textContent=rolLabel[CU.rol]||CU.rol;
   document.getElementById('nav-leads-lbl').textContent=isPriv()?'Todos los Leads':'Mis Leads';
   // PWA
@@ -2518,57 +2525,87 @@ function backfillAgenciaCodigo(){
 //       AP KING SAN JOSE PINULA -> KING SAN JOSE PINULA (KING002)
 //       AP REU KING -> KING REU (KING003)
 // SAFETY: This function uses a localStorage flag to ensure it runs at most ONCE per device
-// to avoid infinite loops with Firebase sync. The actual rename happens on the local data
-// and IF anything changed, the persist+saveAllLeads call propagates to Firebase. Other
-// devices will pick up the change naturally on their next session — they don't need to
-// re-run the migration because the data they receive is already migrated.
+// (per version) to avoid infinite loops with Firebase sync. The actual rename happens on
+// the local data and IF anything changed, the persist+saveAllLeads call propagates to
+// Firebase. Other devices will pick up the change naturally on their next session.
 function migrateKingAgencias(){
-  // Bail out if already done on this device
-  if(localStorage.getItem('tvs_king_migrated_v1')==='1'){
+  // v2 of the migration (v1 had bugs — re-run on all devices)
+  if(localStorage.getItem('tvs_king_migrated_v2')==='1'){
     return {leads:0,agencias:0,skipped:true};
   }
-  const KING_RENAMES={
+  // Normalize a name for fuzzy matching: trim, collapse spaces, uppercase, strip diacritics
+  const norm=s=>(s||'').trim().toUpperCase().replace(/\s+/g,' ');
+  // Map of NORMALIZED old name -> new info
+  const KING_RENAMES_NORM={
     'AP ZONA KING COBAN':       {nom:'KING ZONA COBAN',       code:'KING001'},
     'AP KING SAN JOSE PINULA':  {nom:'KING SAN JOSE PINULA',  code:'KING002'},
-    'AP REU KING':              {nom:'KING REU',              code:'KING003'}
+    'AP REU KING':              {nom:'KING REU',              code:'KING003'},
+    // Variants seen in the wild (with extra spaces, alternate spellings)
+    'AP  ZONA KING COBAN':      {nom:'KING ZONA COBAN',       code:'KING001'},
+    'AP KING SAN JOSÉ PINULA':  {nom:'KING SAN JOSE PINULA',  code:'KING002'}
   };
+  function lookupRename(name){
+    const n=norm(name);
+    return KING_RENAMES_NORM[n]||null;
+  }
   let leadsFixed=0,agenciasFixed=0;
   // 1) Migrate leads
   if(typeof leads!=='undefined'&&Array.isArray(leads)){
     leads.forEach(l=>{
-      if(l&&l.agencia&&KING_RENAMES[l.agencia]){
-        const t=KING_RENAMES[l.agencia];
-        l.agencia=t.nom;
-        l.agencia_codigo=t.code;
-        leadsFixed++;
+      if(l&&l.agencia){
+        const t=lookupRename(l.agencia);
+        if(t){
+          l.agencia=t.nom;
+          l.agencia_codigo=t.code;
+          leadsFixed++;
+        }
       }
     });
   }
   // 2) Migrate the local agencias[] list (rename in place, then dedupe)
   if(typeof agencias!=='undefined'&&Array.isArray(agencias)){
     for(let i=0;i<agencias.length;i++){
-      const a=agencias[i];
-      if(KING_RENAMES[a]){
-        agencias[i]=KING_RENAMES[a].nom;
+      const t=lookupRename(agencias[i]);
+      if(t){
+        agencias[i]=t.nom;
         agenciasFixed++;
       }
     }
-    // Deduplicate (in case a KING-named agencia already existed too)
+    // Deduplicate
     const seen=new Set();
     agencias=agencias.filter(a=>{ if(seen.has(a))return false; seen.add(a); return true; });
     agencias.sort();
   }
+  // 3) Clean up AGENCIA_DATA: remove any orphan entries with old AP King names.
+  // These are stale codes left over from previous code generation runs.
+  if(typeof AGENCIA_DATA!=='undefined'){
+    const toRemove=[];
+    for(const[code,d] of Object.entries(AGENCIA_DATA)){
+      if(d&&d.nom&&lookupRename(d.nom)){
+        toRemove.push(code);
+      }
+    }
+    toRemove.forEach(code=>{
+      // Only remove if it's NOT one of the canonical KING001/002/003 codes
+      if(code!=='KING001'&&code!=='KING002'&&code!=='KING003'){
+        console.log('[KING migration] Removing stale AGENCIA_DATA entry:',code,'→',AGENCIA_DATA[code].nom);
+        delete AGENCIA_DATA[code];
+      }
+    });
+  }
   // Mark as done immediately, BEFORE any persist/sync, so even if those throw we don't loop
-  localStorage.setItem('tvs_king_migrated_v1','1');
+  localStorage.setItem('tvs_king_migrated_v2','1');
   if(leadsFixed>0||agenciasFixed>0){
     try{ persist(); }catch(e){ console.warn('[KING migration] persist error:',e); }
     console.log('[KING migration] Renamed',leadsFixed,'leads and',agenciasFixed,'agencias');
-    // Sync to Firebase so other devices pick up the changes — but ONLY do this once,
-    // and don't fail the migration if Firebase isn't ready.
+    // Sync to Firebase (debounced) so other devices pick up the changes
     setTimeout(()=>{
       try{
         if(window._fb&&typeof window._fb.saveAllLeads==='function'&&leadsFixed>0){
           window._fb.saveAllLeads(leads);
+        }
+        if(window._fb&&typeof window._fb.saveAgenciasCloud==='function'&&agenciasFixed>0){
+          window._fb.saveAgenciasCloud(agencias);
         }
       }catch(e){console.warn('[KING migration] Firebase sync error:',e);}
     }, 2000);
