@@ -12,14 +12,8 @@
 <link rel="apple-touch-icon" id="apple-icon">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script>
-// Auto-login bootstrap. Same fix as the other CRM — the listener was nested inside
-// the <script src=...> Chart.js tag and was being completely ignored by the browser.
-// 600ms delay gives Firebase a chance to initialize before checkAutoLoginTVS runs.
-window.addEventListener("load",function(){setTimeout(checkAutoLoginTVS,600);});
-</script>
 
-<!-- --- Firebase SDK --- -->
+<!-- ═══ Firebase SDK ═══ -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import {
@@ -27,9 +21,9 @@ import {
   query, orderBy, where, Timestamp, serverTimestamp, writeBatch, getDoc, enableIndexedDbPersistence
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-// --------------------------------------------------
+// ══════════════════════════════════════════════════
 // FIREBASE CONFIG — se llena desde la pantalla de configuración
-// --------------------------------------------------
+// ══════════════════════════════════════════════════
 let fbApp = null, fbDb = null;
 let leadsUnsub = null, usersUnsub = null;
 
@@ -50,7 +44,7 @@ function initFirebase(config) {
 window._fb = {
   init: initFirebase,
   isReady: () => !!fbDb,
-  // --- LEADS ---
+  // ─── LEADS ───
   async saveLeadCloud(lead) {
     if(!fbDb) return;
     try {
@@ -71,7 +65,7 @@ window._fb = {
     leads.forEach(l => batch.set(doc(fbDb, 'leads', String(l.id)), { ...l, _ts: serverTimestamp() }));
     try { await batch.commit(); } catch(e) { console.warn('saveAllLeads:', e); }
   },
-  // --- USERS ---
+  // ─── USERS ───
   async saveUserCloud(user) {
     if(!fbDb) return;
     try {
@@ -83,7 +77,7 @@ window._fb = {
     if(!fbDb) return;
     try { await deleteDoc(doc(fbDb, 'crm_users', String(id))); } catch(e) {}
   },
-  // --- META (counters, config) ---
+  // ─── META (counters, config) ───
   async saveMeta(data) {
     if(!fbDb) return;
     try { await setDoc(doc(fbDb, 'meta', 'config'), { ...data, _ts: serverTimestamp() }, { merge: true }); } catch(e) {}
@@ -92,7 +86,7 @@ window._fb = {
     if(!fbDb) return null;
     try { const snap = await getDoc(doc(fbDb, 'meta', 'config')); return snap.exists() ? snap.data() : null; } catch(e) { return null; }
   },
-  // --- AGENCIAS (shared list, all users see new ones) ---
+  // ─── AGENCIAS (shared list, all users see new ones) ───
   async saveAgenciasCloud(agencias) {
     if(!fbDb) return;
     try { await setDoc(doc(fbDb, 'meta', 'agencias'), { list: agencias, _ts: serverTimestamp() }); } catch(e) { console.warn('saveAgenciasCloud:', e); }
@@ -116,7 +110,7 @@ window._fb = {
       }, err => console.warn('agencias listener:', err));
     } catch(e) { console.warn('listenAgencias:', e); }
   },
-  // --- REAL-TIME LISTENERS ---
+  // ─── REAL-TIME LISTENERS ───
   // Solo escucha leads con _ts en los últimos 90 días → reduce lecturas ~80%
   listenLeads(callback) {
     if(!fbDb) return;
@@ -148,7 +142,7 @@ window._fb = {
     if(leadsUnsub) { leadsUnsub(); leadsUnsub = null; }
     if(usersUnsub) { usersUnsub(); usersUnsub = null; }
   },
-  // --- FULL SYNC (pull all from cloud) ---
+  // ─── FULL SYNC (pull all from cloud) ───
   async pullAll() {
     if(!fbDb) return null;
     try {
@@ -182,25 +176,18 @@ window._fb = {
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:14px;line-height:1.5;-webkit-tap-highlight-color:transparent}
 a{color:inherit;text-decoration:none}
 
-/* -- SETUP SCREEN -- */
-/* -- CUADRO SEARCHABLE DROPDOWN -- */
-.cuadro-dd{position:absolute;top:100%;left:0;right:0;background:white;border:1.5px solid var(--navy);border-radius:var(--r);box-shadow:0 8px 24px rgba(27,47,110,.18);z-index:9999;max-height:220px;overflow-y:auto;margin-top:2px}
-.cuadro-dd-item{padding:9px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bd);color:var(--txt);transition:background .1s}
-.cuadro-dd-item:last-child{border-bottom:none}
-.cuadro-dd-item:hover,.cuadro-dd-item.active{background:var(--abg);color:var(--navy);font-weight:600}
-.cuadro-dd-item em{font-style:normal;color:var(--red);font-weight:700}
-.cuadro-dd-empty{padding:10px 12px;font-size:12px;color:var(--mut);font-style:italic}
+/* ── SETUP SCREEN ── */
 #setup-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#0d1f4e,#1B2F6E 55%,#152560);padding:1rem}
 .admin-only{display:none}
 .setup-card{background:white;border-radius:20px;padding:2rem;width:100%;max-width:520px;box-shadow:0 24px 60px rgba(0,0,0,.28)}
 .setup-stripe{height:4px;background:linear-gradient(90deg,var(--navy),var(--red),var(--orange),var(--green));border-radius:4px;margin-bottom:1.3rem}
 
-/* -- LOGIN -- */
+/* ── LOGIN ── */
 #login-screen{display:none;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;background:linear-gradient(135deg,#0d1f4e,#1B2F6E 55%,#152560);padding:1rem}
 .lc{background:white;border-radius:20px;padding:2.2rem;width:100%;max-width:380px;box-shadow:0 24px 60px rgba(0,0,0,.28)}
 .lstr{height:4px;background:linear-gradient(90deg,var(--navy),var(--red),var(--orange),var(--green));border-radius:4px;margin-bottom:1.3rem}
 
-/* -- APP -- */
+/* ── APP ── */
 #app{display:none}
 .aw{display:flex;min-height:100vh;min-height:100dvh}
 .sb{width:var(--sb);background:var(--navy);flex-shrink:0;position:fixed;top:0;left:0;height:100vh;display:flex;flex-direction:column;z-index:50;overflow-y:auto;transition:transform .25s}
@@ -427,9 +414,9 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
 </head>
 <body>
 
-<!-- ----------------------------------------------
+<!-- ══════════════════════════════════════════════
      PASO 1: CONFIGURAR FIREBASE
------------------------------------------------ -->
+═══════════════════════════════════════════════ -->
 <div id="setup-screen" style="display:none">
   <div class="setup-card">
     <div style="text-align:center;margin-bottom:1.2rem">
@@ -482,7 +469,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   </div>
 </div>
 
-<!-- -------------- LOGIN -------------- -->
+<!-- ══════════════ LOGIN ══════════════ -->
 <div id="login-screen" style="display:none;flex-direction:column">
   <div class="lc" style="display:flex;flex-direction:column;align-items:center;width:100%;max-width:380px;margin:auto">
     <div style="text-align:center;margin-bottom:1.4rem;width:100%"><img src="data:image/jpeg;base64,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" style="height:48px;display:block;margin:0 auto"></div>
@@ -501,7 +488,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   </div>
 </div>
 
-<!-- -------------- APP -------------- -->
+<!-- ══════════════ APP ══════════════ -->
 <div id="app">
 <div class="sb-ov" id="sb-ov" onclick="closeSB()"></div>
 <div class="aw">
@@ -521,7 +508,6 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <div class="nl">Administración</div>
     <button class="ni" onclick="goTab('reportes',this)"><span class="nco">📈</span><span>Reportes</span></button>
     <button class="ni" onclick="goTab('rep-citas',this)"><span class="nco">📋</span><span>Reporte de Citas</span></button>
-    <button class="ni" onclick="goTab('rep-ventas',this)"><span class="nco">💰</span><span>Reporte de Ventas</span></button>
     <button class="ni admin-only" onclick="goTab('usuarios',this)"><span class="nco">🧑‍💼</span><span>Usuarios</span><span class="nc" id="nc-users">0</span></button>
     <button class="ni admin-only" onclick="goTab('importar',this)"><span class="nco">📥</span><span>Importar / Vincular</span></button>
     <button class="ni admin-only" onclick="goTab('storage',this)"><span class="nco">🗂</span><span>Gestión de datos</span></button>
@@ -533,7 +519,6 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   <div class="ns" style="margin-top:.4rem">
     <div class="nl">Cuenta</div>
     <button class="ni" onclick="goTab('perfil',this)"><span class="nco">👤</span><span>Mi perfil</span></button>
-    <button class="ni" onclick="abrirCRMVentas()" style="background:rgba(212,175,55,.12);border:1px solid rgba(212,175,55,.3)"><span class="nco">🔗</span><span>DATOS DIARIOS</span></button>
     <button class="ni" onclick="doLogout()"><span class="nco">🚪</span><span>Cerrar sesión</span></button>
   </div>
   <div class="sf">
@@ -551,7 +536,6 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   </div>
   <div style="display:flex;align-items:center;gap:8px">
     <span class="sync-pill sync-off" id="sync-indicator"><span class="sync-dot dot-off" id="sync-dot"></span><span id="sync-label">—</span></span>
-    <button id="btn-crm-quejas" onclick="abrirCRMQuejas()" style="display:none;background:#E53935;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">🔗 CRM Quejas</button>
     <button class="up" onclick="goTab('perfil',null)">
       <div id="tb-av" class="av av-sm"></div>
       <div><div class="pn" id="tb-nm">—</div><div class="pr" id="tb-rl">—</div></div>
@@ -740,7 +724,6 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <button class="btn bo bsm" onclick="setRcQuickRange('all')">Todo</button>
       <button class="btn bn bsm" onclick="exportRepCitasCSV()">⬇ CSV</button>
       <button class="btn bp bsm" onclick="exportRepCitasXLSX()">📊 Excel</button>
-      <button class="btn bsm" id="btn-fix-fcita" style="background:#7C3AED;color:white;border:none" onclick="emergencyFixFcita()" title="Corregir fechas de citas con error UTC">🔧 Corregir fechas</button>
     </div>
   </div>
   <!-- KPI summary -->
@@ -777,54 +760,6 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   </div>
 </div>
 
-
-<!-- REPORTE DE VENTAS -->
-<div id="tab-rep-ventas" class="tab admin-sup">
-  <div class="ph">
-    <div><div class="pt">Reporte de Ventas</div><div class="psb">Conversión a venta por asesor con detalle completo</div></div>
-    <div class="ha" style="flex-wrap:wrap;gap:6px;align-items:center">
-      <input type="date" class="fc" id="rv-fd" style="max-width:150px" onchange="renderRepVentas()">
-      <span style="font-size:11px;color:var(--mut)">a</span>
-      <input type="date" class="fc" id="rv-fh" style="max-width:150px" onchange="renderRepVentas()">
-      <select class="fc" id="rv-grp" onchange="renderRepVentas()" style="max-width:130px">
-        <option value="day">Por día</option>
-        <option value="week">Por semana</option>
-        <option value="month">Por mes</option>
-      </select>
-      <select class="fc" id="rv-ase" onchange="renderRepVentas()" style="max-width:170px">
-        <option value="">Todos los asesores</option>
-      </select>
-      <button class="btn bo bsm" onclick="setRvQuickRange(7)">7 días</button>
-      <button class="btn bo bsm" onclick="setRvQuickRange(30)">30 días</button>
-      <button class="btn bo bsm" onclick="setRvQuickRange('thismonth')">Este mes</button>
-      <button class="btn bo bsm" onclick="setRvQuickRange('all')">Todo</button>
-      <button class="btn bn bsm" onclick="exportRepVentasCSV()">&#11015; CSV</button>
-      <button class="btn bp bsm" onclick="exportRepVentasXLSX()">&#128202; Excel</button>
-    </div>
-  </div>
-  <div class="mets" id="rv-mets" style="margin-bottom:.8rem"></div>
-  <div class="card" style="margin-bottom:.75rem">
-    <div class="ch"><span class="ct">Resumen &mdash; ventas por asesor por <span id="rv-grp-label">dia</span></span></div>
-    <div class="tw" style="max-height:400px;overflow:auto">
-      <table id="rv-resumen-tbl"><thead id="rv-resumen-head"></thead><tbody id="rv-resumen-body"></tbody></table>
-    </div>
-  </div>
-  <div class="card">
-    <div class="ch"><span class="ct">Detalle de ventas</span><span id="rv-detalle-count" style="margin-left:auto;font-size:11px;color:var(--mut);font-weight:600"></span></div>
-    <div class="tw" style="max-height:600px;overflow:auto">
-      <table>
-        <thead><tr>
-          <th style="cursor:pointer" onclick="sortRepVentas('fventa')">Fecha Venta</th>
-          <th>Asesor</th><th>Cliente</th><th>Telefono</th>
-          <th>Linea</th><th>Tipo Pago</th><th>Agencia</th>
-          <th>Chasis</th><th>No. Factura</th><th>F. Factura</th>
-          <th>Importe (Q)</th><th>Acciones</th>
-        </tr></thead>
-        <tbody id="rv-detalle-body"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
 
 <!-- REPORTES CANAL AP -->
 <div id="tab-canal-reportes" class="tab">
@@ -1042,7 +977,6 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   <div class="mmi" onclick="goTab('pipeline',null);setMN('');toggleMM()">⚡ Pipeline</div>
   <div class="mmi admin-sup" onclick="goTab('reportes',null);setMN('');toggleMM()">📈 Reportes</div>
   <div class="mmi admin-sup" onclick="goTab('rep-citas',null);setMN('');toggleMM()">📋 Reporte de Citas</div>
-  <div class="mmi admin-sup" onclick="goTab('rep-ventas',null);setMN('');toggleMM()">💰 Reporte de Ventas</div>
   <div class="mmi admin-only" onclick="goTab('usuarios',null);setMN('');toggleMM()">🧑‍💼 Usuarios</div>
   <div class="mmi admin-only" onclick="goTab('importar',null);setMN('');toggleMM()">📥 Importar</div>
   <div class="mmi admin-only" onclick="goTab('storage',null);setMN('');toggleMM()">🗂 Datos</div>
@@ -1050,7 +984,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   <div class="mmi" onclick="doLogout();toggleMM()">🚪 Cerrar sesión</div>
 </div>
 
-<!-- -- MODALES -- -->
+<!-- ══ MODALES ══ -->
 <!-- LEAD -->
 <div class="ov" id="m-lead">
   <div class="mo">
@@ -1064,12 +998,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <div class="fr"><div class="fg"><label class="fl">Agencia</label><select class="fc" id="lf-agencia"><option value="">— Sin agencia —</option></select></div><div class="fg"><label class="fl">Ubicación</label><input class="fc" id="lf-ubi" list="ubi-list" placeholder="Ciudad o zona..."><datalist id="ubi-list"></datalist></div></div>
       <div class="fr"><div class="fg"><label class="fl">Fecha Actividad</label><input class="fc" type="date" id="lf-fa"></div><div class="fg"><label class="fl">Fecha Actualización</label><input class="fc" type="date" id="lf-fu"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Estado</label><select class="fc" id="lf-est" onchange="toggleCanalField()"><option>NUEVO</option><option>PROCESO</option><option>CITA</option><option>PRECALIFICADO</option><option>SEGUIMIENTO</option><option>VENTA</option><option>PERDIDO</option><option>PENDIENTE</option></select></div><div class="fg admin-sup"><label class="fl">Asesor</label><select class="fc" id="lf-ase"><option value="">— Sin asignar</option></select></div></div>
-      <div class="fr" id="canal-field" style="display:none"><div class="fg"><label class="fl">Canal de Cita</label><select class="fc" id="lf-canal"><option value="">— Seleccionar —</option><option value="AP">AP</option><option value="HT">HT</option><option value="AC">AC</option><option value="KING">KING</option></select></div></div>
-      <div id="venta-field" style="display:none;background:var(--gbg);border:1px solid #4CAF50;border-radius:var(--r);padding:.9rem;margin-bottom:12px">
-        <div style="font-size:12px;font-weight:700;color:#1B5E20;margin-bottom:8px">🏍 Datos de Venta</div>
-        <div class="fr"><div class="fg" style="margin-bottom:8px"><label class="fl" style="color:#1B5E20">No. Chasis</label><input class="fc" id="lf-chasis" placeholder="Ej: MD2A11EY8RCJ12345" style="border-color:#4CAF50"></div><div class="fg" style="margin-bottom:8px"><label class="fl" style="color:#1B5E20">No. Factura</label><input class="fc" id="lf-factura" placeholder="Ej: 001-001-000012345" style="border-color:#4CAF50"></div></div>
-        <div class="fr"><div class="fg" style="margin-bottom:8px"><label class="fl" style="color:#1B5E20">Fecha Facturación</label><input class="fc" type="date" id="lf-ffactura" style="border-color:#4CAF50"></div><div class="fg" style="margin-bottom:8px"><label class="fl" style="color:#1B5E20">Importe (Q)</label><input class="fc" id="lf-importe" type="number" step="0.01" placeholder="Ej: 15199.00" style="border-color:#4CAF50"></div></div>
-      </div>
+      <div class="fr" id="canal-field" style="display:none"><div class="fg"><label class="fl">Canal de Cita</label><select class="fc" id="lf-canal"><option value="">— Seleccionar —</option><option value="AP">AP</option><option value="HT">HT</option><option value="AC">AC</option></select></div></div>
       <div class="fr" style="gap:.75rem;margin-bottom:12px">
         <div class="fg" style="margin-bottom:0">
           <label class="fl">📊 Interés</label>
@@ -1134,7 +1063,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <div class="fr"><div class="fg"><label class="fl">Nombre completo *</label><input class="fc" id="uf-nom" autocapitalize="words"></div><div class="fg"><label class="fl">Usuario (login) *</label><input class="fc" id="uf-usr" autocorrect="off" autocapitalize="off"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Contraseña *</label><input class="fc" type="password" id="uf-pw" placeholder="Mínimo 6 caracteres"></div><div class="fg"><label class="fl">Confirmar</label><input class="fc" type="password" id="uf-pw2"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Email</label><input class="fc" type="email" id="uf-em" autocapitalize="off"></div><div class="fg"><label class="fl">WhatsApp</label><input class="fc" type="tel" id="uf-tel"></div></div>
-      <div class="fr"><div class="fg"><label class="fl">Rol</label><select class="fc" id="uf-rol"><option value="asesor">Asesor</option><option value="supervisor">Supervisor</option><option value="gerencia">Gerencia</option><option value="ap_gerencia">Canal AP</option><option value="ht_gerencia">Canal HT</option><option value="ac_gerencia">Canal AC</option><option value="king_gerencia">Canal KING</option><option value="admin">Administrador</option></select></div><div class="fg"><label class="fl">Zona</label><input class="fc" id="uf-zona"></div></div>
+      <div class="fr"><div class="fg"><label class="fl">Rol</label><select class="fc" id="uf-rol"><option value="asesor">Asesor</option><option value="supervisor">Supervisor</option><option value="gerencia">Gerencia</option><option value="ap_gerencia">Canal AP</option><option value="ht_gerencia">Canal HT</option><option value="ac_gerencia">Canal AC</option><option value="admin">Administrador</option></select></div><div class="fg"><label class="fl">Zona</label><input class="fc" id="uf-zona"></div></div>
       <div class="fg"><label class="fl">Nombre exacto en los leads</label><input class="fc" id="uf-ln" placeholder="Igual que columna Asesor"></div>
       <div class="fg"><label class="fl">Mensaje WhatsApp</label><textarea class="fc" id="uf-wa" placeholder="Hola {nombre}, soy {asesor} de TVS Motos..."></textarea></div>
       <div id="uf-err" class="wbox" style="display:none"></div>
@@ -1235,9 +1164,9 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
-// ---------------------------------------
+// ═══════════════════════════════════════
 // CONSTANTS
-// ---------------------------------------
+// ═══════════════════════════════════════
 const ESTADOS=['PROCESO','VENTA','PERDIDO','SEGUIMIENTO','PENDIENTE','CITA','NUEVO','PRECALIFICADO'];
 const TIPOS_PAGO=['Contado','Visa Cuotas','Crédito','Otro','No Informa'];
 const LINEAS=['APACHE RTR 160 2V REF','APACHE RTR 160 4V','APACHE RTR 160 4V RM','APACHE RTR 180','APACHE RTR 200 4V','APACHE RTR 200 FI','APACHE RR310','APACHE RTR 310','APACHE RTR 310 E5','RAIDER 125','RAIDER 125 FI','RONIN 225','NEO 110 NX','DAZZ CW','NTORQ 125','NTORQ 125 RACE','JUPITER 125 FI (NUEVO MODELO)','STRYKER 125','HLX 150','HLX 125','ZT 125','SPORT 100 ELS','KING DELUXE (BLUETOOTH)','KING DELUXE PLUS','KING DURAMAX','KING KARGO'];
@@ -1249,15 +1178,15 @@ const BAR_C=['#1B2F6E','#C8102E','#F47920','#065F46','#0891B2','#7C3AED','#B4530
 const COL_NAMES=['Origen','Estado','Fecha_Actividad','Tipo_de_Pago','Asesor','Linea_Interes','Agencia','Nombre_Lead','Telefono','Comentarios'];
 const AVC=['#1B2F6E','#C8102E','#F47920','#065F46','#0891B2','#7C3AED','#B45309','#1D4ED8','#9D174D','#0F766E'];
 
-// ---------------------------------------
+// ═══════════════════════════════════════
 // LOCAL STORAGE HELPERS
-// ---------------------------------------
+// ═══════════════════════════════════════
 function lsG(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
 function lsS(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 
-// ---------------------------------------
+// ═══════════════════════════════════════
 // DEFAULT + STATE
-// ---------------------------------------
+// ═══════════════════════════════════════
 const DEF_USERS=[
   {id:1,nombre:'Administrador',user:'admin',pass:'admin2025',email:'admin@tvsmotos.com',tel:'',rol:'admin',zona:'',leadsname:'',wa:'',color:'#1B2F6E'},
   {id:2,nombre:'Supervisor',user:'supervisor',pass:'sup2025',email:'',tel:'',rol:'supervisor',zona:'',leadsname:'',wa:'',color:'#F47920'},
@@ -1279,16 +1208,16 @@ const DEF_LEADS=[
 ];
 
 let users=[...DEF_USERS], leads=[...DEF_LEADS];
-const _AGENCIAS_MASTER=["AP CENTRAL YURRITA","AP METRO NORTE","AP VILLA CANALES","AP 6TA AV ZONA 9","AP ESCUINTLA","AP RETALHULEU","AP AMATITLAN","AP CHIQUIMULA","AP LOS ALAMOS","AP CALLE MARTI","AP BARCENAS","AP QUETZALTENANGO","AP ESKALA","AP JALAPA","AP EL CASTAÑO","AP COATEPEQUE","AP SANARATE","AP CHIMALTENANGO","KING ZONA COBAN","HT AMATITLÁN","HT SANTA LUCIA","HT COATEPEQUE","HT NVA. CONCEPCION","HT GUASTATO","HT ESQUIPUL","HT CHIMALTENANGO","HT JALAPA","HT SANTO TOMAS","HT GOMERA","HT QUETZALTENANGO","HT ESCUINTLA","HT QUICHE","HT COBAN","HT HUEHUETENANGO","HT PRADERA EXPS V.N.","HT EL CASTAÑO","HT PUERTO SAN JOSE","HT SAN PEDRO SAC","HT MAZATENANGO","HT CHIQUIMULA","HT RETALHULEU","HT SALAMA","HT MALACATAN","HT AMATITLAN SATELITE","HT LA LIBERTAD","HT SANARATE","HT TECUN UMAN","HT NEBAJ","HT BARBERENA","HT TECULUTAN","HT SAYAXCHE","HT MORALES","HT SANTA ELENA PETEN","HT TIQUISATE","HT JUTIAPA","HT POPTUN","HT PLAZA TECA","HT SAN ANTONIO SUCHI","HT HUEHUETENANGO 2","HT EL ESTOR","HT JUTIAPA 2","HT PUERTO BARRIOS","HT PETAPA","HT LOS AMATES","HT ATLANTIDA","AC SAN JUAN SAC / SAN PEDRO SAC","AC TECPAN GUATEMALA","AC CIUDAD SAN CRISTOBAL / ZONA 1 MIXCO","AC ZONA 7/ UTATLAN","AC SAN JUAN SACATEPEQUEZ","AC AGUILAR BATRES","AC PALIN / ESCUINTLA","AC LA DEMOCRACIA","AC AVENIDA PETAPA","AC ALOTENANGO / YEPOCAPA","AC OBELISCO / AGUILAR BATRES","AC BOSQUES DE SAN NICOLAS / FLORIDA","AC SAN FRANCISCO / LO DE BRAN","AC ZONA 9","AC CALLE MARTI","AC XELA / TOTONICAPAN / CANTEL","AC CIUDAD VIEJA / SANTA MARIA DE JESUS","AC CIUDAD QUETZAL","AC SAN RAYMUNDO","AC NARANJO FRONTERA","AC LA BRIGADA / MINERVA","AC CAES / SAN JOSE PINULA","AC ZONA 1","AC CIUDAD SAN CRISTOBAL / LA BETHANIA","AC SAN BENITO / SAYAXCHÉ","AC ROOSEVELT / LA CASTELLANA","AC SAN JOSE PINULA / ZONA 9","AC AVENIDA BOLIVAR","AC COBAN","AC SAN JOSE POAQUIL","AC ANTIGUA GUATEMALA","AC SAN MIGUEL PETAPA / VILLA NUEVA","AC ZONA 10","AC CENTRA NORTE","AC PUERTO DE SAN JOSE","AC JOCOTENANGO","AC BARBERENA","AC CHIMALTENANGO / PARRAMOS","AC AGUILAR BATRES 2","AC ZONA 5","AC CALZADA SAN JUAN","AC AVENIDA PETAPA 2","AC CIUDAD SAN CRISTOBAL","AC ZONA 1 2","AC LA REFORMITA","AC VILLA NUEVA","AC POPTÚN / DOLORES","AC JOCOTENANGO 2","AC ZONA 1 / SAN MIGUEL PETAPA","AC TELEMAN / SENAU","AC COATEPEQUE / LA BLANCA","AC ESCUINTLA","AC AVENIDA PETAPA 3","AC COATEPEQUE","AC COBAN 2","AC COATEPEQUE 2","AC CHAHAL","AC TIQUISATE","AC FRAY BARTOLOME / CHISEC","AC CHIMALTENANGO","AC VILLA CANALES / BOCA DEL MONTE","AC PUERTO DE SAN JOSE 2","AC SANTA LUCIA MILPAS ALTAS","AC SANTIAGO ATITLAN / SAN LUCAS TOLIMAN","AC SALAMA","AC TACTIC","AC COBAN 3","AC TIQUISATE 2","AC PALENCIA","AC ESQUIPULAS","AC EL FRUTAL / SAN MIGUL PETAPA","AC FREELANCE","AC CHIMALTENANGO 2","AC CALZADA SAN JUAN 2","AC MAZATENANGO / RETALHULEU","AC IXCAN PLAYA","AC PATZUN","AC LA GOMERA","AC CARCHA / TACTIC","AC AMATITLAN","AC MAZATENANGO","AC PATZICIA","AC FREELANCE 2","AC BOCA DEL MONTE","AC SAN CRISTOBAL","AC CHISEC / COJAJ / CAMPUR","AC PAJAPITA","AC SAN MIGUEL PETAPA","AC RETALHULEU","AC METATERMINAL","AC IXCAN PLAYA 2","AC JALAPA","AC SAN RAFAEL","AC SAN LUCAS SACATEPQUEZ","AC SAN PEDRO AYAMPUC","AC SAN FELIPE","AC FREELANCE 3","AC HUEHUETENANGO","AC CHIQUIMULILLA","AC JOCOTAN","AC CAHABON / LANQUIN","AC RIO DULCE","AC COLOTENANGO","AC SANTA CLARA LA LAGUNA","AC JOCOTAN 2","AC RABINAL","AC ZACAPA","AC SANTA CRUZ DEL QUICHE","AC HUEHUETENANGO 2","AC CUILCO","AC RETALHULEU / COATEPEQUE","AC JOYABAJ","AC SAN MATEO IXTATAN","AC XELA","AC BARBERENA 2","AC XELA 2","AC CASAS VIEJAS","AC PATULUL","AC COLOMBA COSTA CUCA","AC MALACATAN","AC CHAMELCO","AC SAN PEDRO PINULA","AC BARCENAS","AC AGUACATÁN","AC FREELANCE 4","AC JALAPA 2","AC BARILLAS","AC RABINAL 2","AC TECUN UMAN","AC SIPACATE","AC XELA 3","AC CARCHA","AC CIUDAD SAN CRISTOBAL / LA BETHANIA 2","AC N/A","AC AVENIDA BOLIVAR 2","AC MORALES","AC SAN JUAN LA LAGUNA","KING SAN JOSE PINULA"];
+const _AGENCIAS_MASTER=["HT BARBERENA","HT AMATITLÁN","HT TIQUISATE","HT PLAZA TECA","HT SAN PEDRO SAC","HT SANTA ELENA PETEN","HT HUEHUETENANGO","HT JALAPA","HT MAZATENANGO","HT MALACATAN","HT CHIQUIMULA","HT ATLANTIDA","HT ESCUINTLA","HT PUERTO SAN JOSE","HT SANTA LUCIA","HT CHIMALTENANGO","HT GOMERA","HT ESQUIPUL","HT POPTUN","HT LA LIBERTAD","HT PRADERA EXPS V.N.","HT EL CASTAÑO","HT PETAPA","HT TECULUTAN","HT JUTIAPA","HT SALAMA","HT COBAN","HT SAYAXCHE","HT LOS AMATES","HT SAN ANTONIO SUCHI","HT QUETZALTENANGO","HT COATEPEQUE","HT PUERTO BARRIOS","HT GUASTATO","HT MORALES","HT RETALHULEU","HT NVA. CONCEPCION","HT QUICHE","HT NEBAJ","HT SANTA ELENA PETEN 2","AP ZONA KING COBAN","AP CENTRAL YURRITA","AP 6TA AV ZONA 9","AP AMATITLAN","AP BARCENAS","AP CALLE MARTI","AP CHIMALTENANGO","AP CHIQUIMULA","AP COATEPEQUE","AP EL CASTAÑO","AP ESCUINTLA","AP ESKALA","AP JALAPA","AP LOS ALAMOS","AP METRO NORTE","AP QUETZALTENANGO","AP RETALHULEU","AP SANARATE","AP VILLA CANALES","AC JOCOTENANGO","AC SANTA LUCIA MILPAS ALTAS","AC SANTA CLARA LA LAGUNA","AC ESCUINTLA","AC SAN JOSE PINULA","AC ALOTENANGO","AC LA BRIGADA","AC ZONA 10","AC UTATLAN","AC SAN JUAN SACATEPEQUEZ","AC SAN LUCAS","AC CIUDAD VIEJA","AC BOCA DEL MONTE","AC VILLA NUEVA","AC PALIN","AC ANTIGUA","AC AMATITLAN","AC BETHANIA","AC ZONA 9","AC SAN MIGUEL PETAPA","AC LA GOMERA","AC PETAPA","AC ZONA 1","AC OBELISCO","AC BOSQUES","AC SAN RAFAEL","AC SAN JUAN SAC / SAN PEDRO SAC","AC TECPAN","AC CIUDAD SAN CRISTOBAL / ZONA 1 MIXCO","AC ZONA 7/ UTATLAN","AC AGUILAR BATRES","AC PALIN / ESCUINTLA","AC LA DEMOCRACIA","AC AVENIDA PETAPA","AC ALOTENANGO / YEPOCAPA","AC OBELISCO / AGUILAR BATRES","AC BOSQUES DE SAN NICOLAS / FLORIDA","AC SAN FRANCISCO / LO DE BRAN","AC CALLE MARTI","AC XELA / TOTONICAPAN / CANTEL","AC CIUDAD VIEJA / SANTA MARIA DE JESUS","AC CIUDAD QUETZAL","AC SAN RAYMUNDO","AC NARANJO FRONTERA","AC LA BRIGADA / MINERVA","AC CAES / SAN JOSE PINULA","AC CIUDAD SAN CRISTOBAL / LA BETHANIA","AC SAN BENITO / SAYAXCHÉ","AC ROOSEVELT / LA CASTELLANA","AC SAN JOSE PINULA / ZONA 9","AC AVENIDA BOLIVAR","AC COBAN","AC SAN JOSE POAQUIL","AC ANTIGUA GUATEMALA","AC SAN MIGUEL PETAPA / VILLA NUEVA","AC CENTRA NORTE","AC PUERTO DE SAN JOSE","AC BARBERENA","AC CHIMALTENANGO / PARRAMOS","AC ZONA 5","AC CALZADA SAN JUAN","AC CIUDAD SAN CRISTOBAL","AC LA REFORMITA","AC POPTÚN / DOLORES","AC ZONA 1 / SAN MIGUEL PETAPA","AC TELEMAN / SENAU","AC COATEPEQUE / LA BLANCA","AC COATEPEQUE","AC CHAHAL","AC TIQUISATE","AC FRAY BARTOLOME / CHISEC","AC CHIMALTENANGO","AC VILLA CANALES / BOCA DEL MONTE","AC SANTIAGO ATITLAN / SAN LUCAS TOLIMAN","AC SALAMA","AC TACTIC","AC PALENCIA","AC ESQUIPULAS","AC EL FRUTAL / SAN MIGUL PETAPA","AC FREELANCE","AC MAZATENANGO / RETALHULEU","AC IXCAN PLAYA","AC PATZUN","AC CARCHA / TACTIC","AC MAZATENANGO","AC PATZICIA","AC SAN CRISTOBAL","AC CHISEC / COJAJ / CAMPUR","AC PAJAPITA","AC RETALHULEU","AC METATERMINAL","AC JALAPA","AC SAN LUCAS SACATEPQUEZ","AC SAN PEDRO AYAMPUC","AC SAN FELIPE","AC HUEHUETENANGO","AC CHIQUIMULILLA","AC JOCOTAN","AC CAHABON / LANQUIN","AC RIO DULCE","AC COLOTENANGO","AC RABINAL","AC ZACAPA","AC SANTA CRUZ DEL QUICHE","AC CUILCO","AC RETALHULEU / COATEPEQUE","AC JOYABAJ","AC SAN MATEO IXTATAN","AC XELA","AC CASAS VIEJAS","AC PATULUL","AC COLOMBA COSTA CUCA","AC MALACATAN","AC CHAMELCO","AC SAN PEDRO PINULA","AC BARCENAS","AC AGUACATÁN","AC BARILLAS","AC TECUN UMAN","AC SIPACATE","AC CARCHA","AC MORALES","AC SAN JUAN LA LAGUNA"];
 let agencias=(function(){var saved=lsG('tvs8_agencias',null);if(!saved)return _AGENCIAS_MASTER.slice();var merged=_AGENCIAS_MASTER.slice();saved.forEach(function(a){if(merged.indexOf(a)===-1)merged.push(a);});return merged;})();
 let driveConn={url:'',lastSync:null,autoSync:false};
 let impHist=[], syncLogs=[];
-// -- PERFORMANCE DIARIO --
+// ── PERFORMANCE DIARIO ──
 let perfMeta={leads:30,gestiones:20};
 const _pm=lsG('tvs8_perfmeta',null);if(_pm)perfMeta=_pm;
 let perfGest=lsG('tvs8_perfgest',{});
 function todayGest(uid){const t=today();if(!perfGest[uid])perfGest[uid]={};return perfGest[uid][t]||0;}
-function addGest(uid,n){const t=today();if(!perfGest[uid])perfGest[uid]={};perfGest[uid][t]=(perfGest[uid][t]||0)+n;lsS('tvs8_perfgest',perfGest);if(useCloud&&window._fb&&window._fb.isReady()){window._fb.saveMeta({nuid,nlid,driveConn,perfGest}).catch(()=>{});}}
+function addGest(uid,n){const t=today();if(!perfGest[uid])perfGest[uid]={};perfGest[uid][t]=(perfGest[uid][t]||0)+n;lsS('tvs8_perfgest',perfGest);if(useCloud&&window._fb&&window._fb.isReady()){window._fb.saveMeta({nuid,nlid,driveConn,perfGest,impHist}).catch(()=>{});}}
 function todayLeads(uid){const t=today();return leads.filter(l=>l.uid===uid&&l.fa===t).length;}
 function calcPerf(uid){const tl=todayLeads(uid),tg=todayGest(uid),pL=Math.min(Math.round(tl/perfMeta.leads*100),100),pG=Math.min(Math.round(tg/perfMeta.gestiones*100),100),tot=Math.round((pL+pG)/2);return{pLeads:pL,pGest:pG,total:tot,tl,tg};}
 function perfColor(p){return p>=81?'#16a34a':p>=60?'#ea580c':'#dc2626';}
@@ -1312,9 +1241,9 @@ if(localImp)impHist=localImp;
 const localDrive=lsG('tvs8_drive',null);
 if(localDrive)driveConn=localDrive;
 
-// ---------------------------------------
+// ═══════════════════════════════════════
 // FIREBASE SETUP SCREEN
-// ---------------------------------------
+// ═══════════════════════════════════════
 function tryConnect(){
   const cfg={
     apiKey:document.getElementById('cfg-apikey').value.trim(),
@@ -1352,9 +1281,9 @@ function showLoginScreen(cloud){
   document.getElementById('sync-mode-badge').textContent=cloud?'☁️ Datos sincronizados entre dispositivos':'📱 Solo este dispositivo';
 }
 
-// ---------------------------------------
+// ═══════════════════════════════════════
 // REAL-TIME FIREBASE LISTENERS
-// ---------------------------------------
+// ═══════════════════════════════════════
 // recentlySaved: map of leadId -> timestamp of last local save
 // Leads saved in the last 15s are protected from cloud overwrite
 // saveLock: set of lead IDs currently being saved — listener will not touch these
@@ -1391,51 +1320,6 @@ function initRealtimeSync(){
   setSyncStatus('syncing');
   window._fb.listenLeads(cloudLeads=>{
     if(cloudLeads.length>0||realtimeActive){
-      // Fix UTC date shift on leads coming from Firebase
-      // today() now uses local time, but leads saved before the fix have fcita one day ahead.
-      // Correct them here (in-memory + push back to Firebase) so all devices stay consistent.
-      const _p=n=>String(n).padStart(2,'0');
-      const _ld=d=>d.getFullYear()+'-'+_p(d.getMonth()+1)+'-'+_p(d.getDate());
-      const _now2=new Date();
-      const todayL=_ld(_now2);
-      const _t2=new Date(_now2);_t2.setDate(_now2.getDate()+1);
-      const tomorrowL=_ld(_t2);
-      const _y2=new Date(_now2);_y2.setDate(_now2.getDate()-1);
-      const yesterdayL=_ld(_y2);
-      const leadsToResave=[];
-      cloudLeads.forEach(cl=>{
-        if(!cl.fcita)return;
-        const fcita=cl.fcita.substring(0,10);
-        if(fcita!==tomorrowL)return; // only touch leads with tomorrow's date
-        let corrected=null;
-        // Strategy 1: use fcita_ts if available
-        if(cl.fcita_ts){
-          try{
-            const ts=new Date(cl.fcita_ts);
-            if(!isNaN(ts)){
-              const localFromTs=_ld(ts);
-              if(localFromTs!==fcita){corrected=localFromTs;}
-            }
-          }catch(e){}
-        }
-        // Strategy 2: fu or fa is today → lead was worked today, fcita got bumped by UTC
-        if(!corrected){
-          const fuD=(cl.fu||'').substring(0,10);
-          const faD=(cl.fa||'').substring(0,10);
-          if(fuD===todayL||faD===todayL)corrected=todayL;
-          else if(fuD===yesterdayL||faD===yesterdayL)corrected=yesterdayL;
-        }
-        if(corrected){
-          cl.fcita=corrected;
-          cl._fcitaShiftFixed=true;
-          leadsToResave.push(cl);
-        }
-      });
-      // Push corrected leads back to Firebase so other devices get the fix too
-      if(leadsToResave.length>0&&window._fb&&window._fb.isReady()){
-        leadsToResave.forEach(cl=>{try{window._fb.saveLeadCloud(cl);}catch(e){}});
-        console.log('[fcita] Corrected',leadsToResave.length,'cloud leads from UTC shift');
-      }
       // Index cloud leads by id for fast lookup
       const cloudById={};
       cloudLeads.forEach(cl=>{ cloudById[String(cl.id)]=cl; });
@@ -1451,7 +1335,7 @@ function initRealtimeSync(){
       //    BUT keep locked leads and local-only leads (still being saved)
       leads=leads.filter(l=>{
         if(isLocked(l.id))return true;        // currently being saved — protect
-        if(l._localOnly&&!cloudById[String(l.id)])return true; // only protect if NOT in cloud
+        if(l._localOnly)return true;          // never made it to cloud yet — protect
         return cloudById[String(l.id)]!==undefined; // keep only if exists in cloud
       });
       leads.sort((a,b)=>{
@@ -1501,6 +1385,20 @@ function initRealtimeSync(){
       lsS('tvs8_perfgest',perfGest);
       if(CU)renderAll();
     }
+    // Sync impHist from cloud — merge with local, cloud wins for new entries
+    if(meta&&meta.impHist&&Array.isArray(meta.impHist)&&meta.impHist.length>0){
+      const localDates=new Set(impHist.map(h=>h.fecha));
+      const cloudOnly=meta.impHist.filter(h=>!localDates.has(h.fecha));
+      if(cloudOnly.length>0){
+        impHist=[...impHist,...cloudOnly].sort((a,b)=>{
+          const da=new Date(a.fecha.replace(/(\d+)\/(\d+)\/(\d+)/,'$3-$2-$1'));
+          const db=new Date(b.fecha.replace(/(\d+)\/(\d+)\/(\d+)/,'$3-$2-$1'));
+          return db-da;
+        });
+        lsS('tvs8_imphist',impHist);
+        renderImpHist();
+      }
+    }
   }).catch(()=>{});
   // Listen for agencias changes — all users see new agencias in real-time.
   // Callback receives an array (cloud has data) or null (cloud doc missing).
@@ -1520,13 +1418,12 @@ function initRealtimeSync(){
     agencias=merged;
     lsS('tvs8_agencias',agencias);
     // Auto-register any agencia that doesn't yet have a code in AGENCIA_DATA
-    // Use findAgenciaCode (fuzzy) first — only generate new code if truly not found
     let added=0;
     agencias.forEach(n=>{
-      const existingCode=findAgenciaCode(n)||getOfficialAgenciaCode(n);
-      if(!existingCode){registerAgenciaCode(n);added++;}
+      const exists=Object.values(AGENCIA_DATA).some(d=>d.nom===n);
+      if(!exists){registerAgenciaCode(n);added++;}
     });
-    if(added>0)console.log('[agencias] Auto-coded',added,'truly-new agencies');
+    if(added>0)console.log('[agencias] Auto-coded',added,'agencies');
     console.log('[agencias] Updated local list, total:',agencias.length);
     if(CU){populateSel();renderAgencias&&renderAgencias();}
   });
@@ -1558,9 +1455,9 @@ function setSyncStatus(status){
   if(fbSt)fbSt.textContent=useCloud?`✅ Firebase conectado · ${leads.length} leads en la nube`:'📱 Modo local — sin sincronización';
 }
 
-// ---------------------------------------
+// ═══════════════════════════════════════
 // PERSIST (local + cloud)
-// ---------------------------------------
+// ═══════════════════════════════════════
 function persist(){
   lsS('tvs8_agencias',agencias);
   lsS('tvs8_leads_bk',leads.slice(0,2000));
@@ -1594,7 +1491,7 @@ async function cloudSaveLead(lead,silent=false){
 async function cloudDelLead(id){if(useCloud&&window._fb.isReady()){await window._fb.deleteLeadCloud(id);}}
 async function cloudSaveUser(user){if(useCloud&&window._fb.isReady()){await window._fb.saveUserCloud(user);}}
 async function cloudDelUser(id){if(useCloud&&window._fb.isReady()){await window._fb.deleteUserCloud(id);}}
-async function cloudSaveMeta(){if(useCloud&&window._fb.isReady()){await window._fb.saveMeta({nuid,nlid,driveConn,perfGest});}}
+async function cloudSaveMeta(){if(useCloud&&window._fb.isReady()){await window._fb.saveMeta({nuid,nlid,driveConn,perfGest,impHist});}}
 
 function updateStorageInfo(){
   const sz=document.getElementById('st-sz');
@@ -1605,9 +1502,9 @@ function updateStorageInfo(){
   if(prog){const pct=Math.min(Math.round(leads.length/5000*100),100);prog.style.width=pct+'%';prog.style.background=pct>80?'#C8102E':pct>60?'#F47920':'#4CAF50';}
 }
 
-// ---------------------------------------
+// ═══════════════════════════════════════
 // AUTH
-// ---------------------------------------
+// ═══════════════════════════════════════
 function doLogin(){
   const u=document.getElementById('lu').value.trim(),p=document.getElementById('lp').value;
   let f=users.find(x=>x.user===u&&x.pass===p);
@@ -1619,58 +1516,19 @@ function doLogin(){
   document.getElementById('app').style.display='block';
   setupUI();
 }
-function checkAutoLoginTVS(){
-  try{
-    const pr=new URLSearchParams(window.location.search);
-    const u=pr.get('user'),p=pr.get('pass');
-    if(!u||!p)return;
-    let f=users.find(x=>x.user===u&&x.pass===p);
-    if(!f)f=DEF_USERS.find(x=>x.user===u&&x.pass===p);
-    if(!f)return;
-    if(!users.find(x=>x.id===f.id))users.push(f);
-    CU=f;
-    document.getElementById('login-screen').style.display='none';
-    document.getElementById('app').style.display='block';
-    setupUI();
-  }catch(e){}
-}
 document.getElementById('lp').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('lu').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('lp').focus();});
-// Mapeo de usuario TVS → usuario DATOS DIARIOS
-const CRM_VENTAS_URL = 'https://crm-citas.vercel.app';
-const CRM_VENTAS_MAP = {
-  'nancy.garcia':   {user:'nancy',  pin:'3333'},
-  'sofia.zarceno':  {user:'sofia',  pin:'1111'},
-  'carlos.pinillos':{user:'jc',     pin:'2222'},
-  'javier.macal':   {user:'javier', pin:'5555'},
-  'fernando.escobar':{user:'fernando',pin:'4444'},
-  'rocio.nij':      {user:'rocio',  pin:'6666'},
-  'admin':          {user:'admin',  pin:'1234'},
-  'supervisor':     {user:'admin',  pin:'1234'},
-  'gerencia':       {user:'admin',  pin:'1234'},
-};
-function abrirCRMVentas(){
-  if(!CU){toast('Debes iniciar sesión primero');return;}
-  const map=CRM_VENTAS_MAP[CU.user];
-  if(map){
-    window.open(CRM_VENTAS_URL+'/?user='+map.user+'&pin='+map.pin,'_blank');
-  } else {
-    window.open(CRM_VENTAS_URL,'_blank');
-  }
-}
-
 function doLogout(){persist();CU=null;document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('lu').value='';document.getElementById('lp').value='';closeSB();}
-function isPriv(){return CU&&(CU.rol==='admin'||CU.rol==='supervisor'||CU.rol==='gerencia'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia'||CU.rol==='king_gerencia');}
+function isPriv(){return CU&&(CU.rol==='admin'||CU.rol==='supervisor'||CU.rol==='gerencia'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia');}
 function isAdmin(){return CU&&CU.rol==='admin';}
-function isGerencia(){return CU&&(CU.rol==='gerencia'||CU.rol==='admin'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia'||CU.rol==='king_gerencia');}
-function getAgenciaPrefix(){if(!CU)return null;if(CU.rol==='ap_gerencia')return 'AP';if(CU.rol==='ht_gerencia')return 'HT';if(CU.rol==='ac_gerencia')return 'AC';if(CU.rol==='king_gerencia')return 'KING';return null;}
+function isGerencia(){return CU&&(CU.rol==='gerencia'||CU.rol==='admin'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia');}
+function getAgenciaPrefix(){if(!CU)return null;if(CU.rol==='ap_gerencia')return 'AP';if(CU.rol==='ht_gerencia')return 'HT';if(CU.rol==='ac_gerencia')return 'AC';return null;}
 function isCanal(){return !!getAgenciaPrefix();}
 function isAP(){return CU&&CU.rol==='ap_gerencia';}
 function isHT(){return CU&&CU.rol==='ht_gerencia';}
 function isAC(){return CU&&CU.rol==='ac_gerencia';}
-function isKING(){return CU&&CU.rol==='king_gerencia';}
 function setupUI(){
-  document.querySelectorAll('.admin-sup').forEach(el=>el.style.display=(isPriv()&&!isCanal())?'':'none');
+  document.querySelectorAll('.admin-sup').forEach(el=>el.style.display=isPriv()?'':'none');
   document.querySelectorAll('.admin-only').forEach(el=>{el.style.display=isAdmin()?'':'none';});
   // Agency gerencia: hide edit/create buttons
   const _ag=getAgenciaPrefix();
@@ -1683,7 +1541,7 @@ function setupUI(){
   }
   const av=document.getElementById('tb-av');av.textContent=ini(CU.nombre);av.style.background=CU.color+'20';av.style.color=CU.color;
   document.getElementById('tb-nm').textContent=CU.nombre.split(' ')[0];
-  const rolLabel={admin:'Administrador',gerencia:'Gerencia',supervisor:'Supervisor',asesor:'Asesor',ap_gerencia:'Canal AP',ht_gerencia:'Canal HT',ac_gerencia:'Canal AC',king_gerencia:'Canal KING'};
+  const rolLabel={admin:'Administrador',gerencia:'Gerencia',supervisor:'Supervisor',asesor:'Asesor',ap_gerencia:'Canal AP',ht_gerencia:'Canal HT',ac_gerencia:'Canal AC'};
   document.getElementById('tb-rl').textContent=rolLabel[CU.rol]||CU.rol;
   document.getElementById('nav-leads-lbl').textContent=isPriv()?'Todos los Leads':'Mis Leads';
   // PWA
@@ -1692,7 +1550,6 @@ function setupUI(){
   document.getElementById('pwa-manifest').href=URL.createObjectURL(mb);
   document.getElementById('apple-icon').href='data:image/webp;base64,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';
   populateSel();checkMobile();setSyncStatus(useCloud?'ok':'off');
-  setupCRMQuejasBtn();
   // Canal roles: show canal nav, hide restricted nav items
   const pfx=getAgenciaPrefix();
   if(pfx){
@@ -1716,41 +1573,9 @@ function setupUI(){
   }
 }
 
-// ── SSO hacia CRM Quejas (project-hmids.vercel.app) ─────────────────────────
-const CRM2_URL = 'https://project-hmids.vercel.app';
-const SSO_SECRET = 'tvs-crm-sso-secret-2024'; // debe coincidir con api/sso.js del CRM 2
-
-async function generarSSOPayload(email) {
-  const ts = String(Date.now());
-  const msg = email + '|' + ts;
-  // Firma HMAC-SHA256 usando SubtleCrypto (disponible en todos los navegadores modernos)
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw', enc.encode(SSO_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-  );
-  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(msg));
-  const firma = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
-  const raw = email + '|' + ts + '|' + firma;
-  return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-async function abrirCRMQuejas() {
-  if (!CU || !CU.email) { toast('No se encontró tu email en el perfil'); return; }
-  try {
-    const payload = await generarSSOPayload(CU.email);
-    window.open(CRM2_URL + '/?sso=' + payload, '_blank');
-  } catch(e) {
-    // Fallback: abrir sin SSO
-    window.open(CRM2_URL, '_blank');
-    toast('Ingresa manualmente con tu correo en CRM Quejas');
-  }
-}
-
-// ── Mostrar botón CRM Quejas para todos los roles ────────────────────────────
-function setupCRMQuejasBtn() {
-  const btn = document.getElementById('btn-crm-quejas');
-  if (btn) btn.style.display = 'inline-flex';
-}
+// ═══════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════
 function ini(n){return n.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();}
 function avH(n,c,cls=''){return `<div class="av ${cls}" style="background:${c}20;color:${c}">${ini(n)}</div>`;}
 function avU(u,cls=''){return avH(u.nombre,u.color,cls);}
@@ -1820,13 +1645,14 @@ function filteredLeads(){
   return arr;
 }
 function populateSel(){
-  // Agencias — deduplicate by normalized name, then look up real code with findAgenciaCode.
-  const normAg=s=>s.toUpperCase().replace(/[ÁÀ]/g,'A').replace(/[ÉÈ]/g,'E').replace(/[ÍÌ]/g,'I').replace(/[ÓÒ]/g,'O').replace(/[ÚÙÜ]/g,'U').replace(/Ñ/g,'N').replace(/[^A-Z0-9 ]/g,'').replace(/\s+/g,' ').trim();
-  const seen=new Set();
-  const dedupedAgencias=agencias.filter(a=>{const k=normAg(a);if(seen.has(k))return false;seen.add(k);return true;});
-  const agOpts=dedupedAgencias.map(a=>{
-    // Use the fuzzy findAgenciaCode so accents/case don't cause misses
-    const code=findAgenciaCode(a)||getOfficialAgenciaCode(a);
+  // Agencias — each option carries data-codigo with the agencia's code (if any).
+  // The label shows "código — nombre" so the asesor sees both at a glance.
+  const agOpts=agencias.map(a=>{
+    // Find the code for this agencia
+    let code='';
+    for(const[c,d]of Object.entries(AGENCIA_DATA)){
+      if(d.nom===a){code=c;break;}
+    }
     const label=code?code+' — '+a:a;
     return `<option value="${a.replace(/"/g,'&quot;')}" data-codigo="${code}">${label}</option>`;
   }).join('');
@@ -1840,14 +1666,14 @@ function populateSel(){
   document.getElementById('nc-users').textContent=users.length;
   const cl=document.getElementById('col-list');if(cl)cl.innerHTML=COL_NAMES.map((c,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--bd);font-size:11px"><span style="width:20px;text-align:center;font-weight:700;color:var(--navy)">${i+1}</span><span>${c}</span></div>`).join('');
 }
-function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function today(){return new Date().toISOString().split('T')[0];}
 function remSt(r){if(!r||!r.date)return null;const t=today();if(r.date<t)return 'overdue';if(r.date===t)return 'today';return 'upcoming';}
 function updRemBadge(){const mine=myLeads(),t=today(),due=mine.filter(l=>l.reminder&&l.reminder.date&&l.reminder.date<=t);const dot=document.getElementById('rdot'),cnt=document.getElementById('nc-rem');if(due.length>0){if(dot)dot.style.display='block';if(cnt){cnt.style.display='block';cnt.textContent=due.length;}}else{if(dot)dot.style.display='none';if(cnt)cnt.style.display='none';}document.getElementById('nc-leads').textContent=myLeads().length;}
 
 
-// ---------------------------------------
+// ═══════════════════════════════════════
 // DAILY STATS (Interés / Responde / Regestión)
-// ---------------------------------------
+// ═══════════════════════════════════════
 function renderDailyStats(){
   const dateEl=document.getElementById('dash-daily-date');
   const fecha=dateEl?dateEl.value:today();
@@ -1863,7 +1689,7 @@ function renderDailyStats(){
     </div>`;
   }
 
-  // -- Interés --
+  // ── Interés ──
   const interesOpts=['No Cumple PANT','No Interesado','Cotizando','Interesad@ en Compra'];
   const intColors={'No Cumple PANT':'#EF5350','No Interesado':'#EF5350','Cotizando':'#F47920','Interesad@ en Compra':'#4CAF50'};
   const sinInteres=arr.filter(l=>!l.interes).length;
@@ -1879,7 +1705,7 @@ function renderDailyStats(){
       `<div style="font-size:10px;color:var(--mut);margin-top:4px;text-align:right">Total actualizados: <strong>${total}</strong></div>`;
   }
 
-  // -- Responde --
+  // ── Responde ──
   const respOpts=['Responde','No responde'];
   const respColors={'Responde':'#4CAF50','No responde':'#EF5350'};
   const sinResp=arr.filter(l=>!l.responde).length;
@@ -1894,7 +1720,7 @@ function renderDailyStats(){
       `<div style="font-size:10px;color:var(--mut);margin-top:4px;text-align:right">Total actualizados: <strong>${arr.length}</strong></div>`;
   }
 
-  // -- Regestión --
+  // ── Regestión ──
   const regestOpts=['Regestionado','Sin Regestión'];
   const regestColors={'Regestionado':'#4CAF50','Sin Regestión':'#EF5350'};
   const sinRegest=arr.filter(l=>!l.regest).length;
@@ -1909,7 +1735,7 @@ function renderDailyStats(){
       `<div style="font-size:10px;color:var(--mut);margin-top:4px;text-align:right">Total actualizados: <strong>${arr.length}</strong></div>`;
   }
 
-  // -- Lead list for that day --
+  // ── Lead list for that day ──
   const listEl=document.getElementById('daily-leads-list');
   if(listEl){
     if(arr.length===0){
@@ -1932,9 +1758,9 @@ function renderDailyStats(){
   }
 }
 
-// ---------------------------------------
+// ═══════════════════════════════════════
 // RENDER LEADS
-// ---------------------------------------
+// ═══════════════════════════════════════
 let leadsPage=0;const LEADS_PER_PAGE=50;
 function renderLeads(){
   const _allArr=filteredLeads(),mine=myLeads();
@@ -1995,9 +1821,9 @@ function renderLeads(){
   if(bulkMode)updBlk();updRemBadge();
 }
 
-// ---------------------------------------
+// ═══════════════════════════════════════
 // PIPELINE / DASHBOARD / RECORDATORIOS
-// ---------------------------------------
+// ═══════════════════════════════════════
 function renderPipeline(){
   const pa=document.getElementById('pipe-ase')?.value||'';
   let arr=myLeads();if(pa)arr=arr.filter(l=>String(l.uid)===pa);
@@ -2012,7 +1838,7 @@ function renderDashboard(){
   if(_ddp&&!_ddp.value)_ddp.value=today();
   renderDailyStats();
   const arr=myLeads(),venta=arr.filter(l=>l.est==='VENTA').length,perdido=arr.filter(l=>l.est==='PERDIDO').length,proceso=arr.filter(l=>l.est==='PROCESO').length,pct=arr.length>0?Math.round(venta/arr.length*100):0;
-  // -- PERFORMANCE CARD --
+  // ── PERFORMANCE CARD ──
   if(!isPriv()){
     const p=calcPerf(CU.id);
     const pc=perfColor(p.total);
@@ -2101,9 +1927,9 @@ function dismissRem(id){const l=findLead(id);if(!l)return;if(!confirm('¿Marcar 
 function openRem(id){remL=id;const l=findLead(id);document.getElementById('mr-title').textContent='Recordatorio — '+l.nom;document.getElementById('rem-lead-info').innerHTML=`${l.nom} · <span style="font-size:11px;color:var(--mut)">${l.linea} · ${l.ubi}</span>`;document.getElementById('rm-d').value=l.reminder?.date||today();document.getElementById('rm-t').value=l.reminder?.time||'09:00';document.getElementById('rm-n').value=l.reminder?.note||'';openM('m-rem');}
 function saveRemind(){const d=document.getElementById('rm-d').value;if(!d){toast('Selecciona una fecha');return;}const l=findLead(remL);l.reminder={date:d,time:document.getElementById('rm-t').value,note:document.getElementById('rm-n').value};l.fu=today();if(l.fa&&l.fa<today())l.regest='Regestionado';persist();cloudSaveLead(l);closeM('m-rem');renderAll();toast('Recordatorio guardado ✓');}
 
-// ---------------------------------------
+// ═══════════════════════════════════════
 // LEAD DETAIL
-// ---------------------------------------
+// ═══════════════════════════════════════
 function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas, no fichas individuales');return;}
   const l=findLead(id),priv=isPriv();
   const aseSel=priv?`<select class="fc" id="ds-ase" style="font-size:12px"><option value="">— Sin asignar</option>${users.map(u=>`<option value="${u.id}" ${u.id===l.uid?'selected':''}>${u.nombre}</option>`).join('')}</select>`:`<div style="display:flex;align-items:center;gap:6px">${atag(l.uid)}${isAdmin()?'<button class="btn bo bsm" style="font-size:10px" onclick="openQuickAssign('+l.id+')">✏️ Asignar</button>':''}</div>`;
@@ -2195,14 +2021,7 @@ function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas
     const label=code?code+' — '+a:a;
     return `<option value="${a.replace(/"/g,'&quot;')}" data-codigo="${code}" ${a===l.agencia?'selected':''}>${label}</option>`;
   }).join('');
-  const _dagEl=document.getElementById('ds-agencia');
-  if(_dagEl){
-    _dagEl.innerHTML='<option value="">— Sin agencia —</option>'+_dagOpts;
-    // Track when user actually interacts with this dropdown — used by saveDet to know
-    // whether an empty value means "user cleared it" or "value never was set properly".
-    _dagEl.dataset.userTouched='0';
-    _dagEl.addEventListener('change',()=>{ _dagEl.dataset.userTouched='1'; },{once:false});
-  }
+  const _dagEl=document.getElementById('ds-agencia');if(_dagEl)_dagEl.innerHTML='<option value="">— Sin agencia —</option>'+_dagOpts;
 }
 function renderNotas(l){if(!l.notas||l.notas.length===0)return `<div style="color:var(--mut);font-size:12px;text-align:center;padding:.75rem">Sin comentarios</div>`;return l.notas.map((n,i)=>`<div class="ni2"><div class="nt">${n.txt}</div><div class="nm"><span>✍️ ${n.by||'Asesor'}</span><span>${n.ts||''}</span></div><button class="nd" onclick="delNota(${l.id},${i})">✕</button></div>`).join('');}
 function addNota(lid){const txt=document.getElementById('new-nota')?.value?.trim();if(!txt){toast('Escribe algo');return;}const l=findLead(lid);if(!l.notas)l.notas=[];l.notas.push({txt,by:CU.nombre,ts:new Date().toLocaleString()});l.fu=today();if(l.fa&&l.fa<today())l.regest='Regestionado';document.getElementById('new-nota').value='';document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);renderAll();toast('Comentario agregado ✓');const gestUid=l.uid||CU.id;addGest(gestUid,1);}
@@ -2213,28 +2032,18 @@ function saveDet(id){
   const prevEst=l.est;
   l.est=document.getElementById('ds-est').value;
   l.tp=document.getElementById('ds-tp').value;
-  // CRITICAL DEFENSIVE LOGIC for agencia: this used to silently wipe out the lead's agencia
-  // when the dropdown wasn't properly populated/selected. The new rule is:
-  //
-  //   - If the dropdown has a non-empty selection: use it (user picked an agencia).
-  //   - If the dropdown has empty value AND user explicitly chose "— Sin agencia —"
-  //     (selectedIndex === 0): clear the agencia.
-  //   - In ANY other case (no selection, dropdown not populated): KEEP the existing agencia.
-  //     This prevents data loss when the dropdown couldn't display the lead's current agencia.
+  // Defensive: only update agencia if user actually interacted with the dropdown.
+  // Also extract the codigo from the selected option's data-codigo attr.
   const dagEl=document.getElementById('ds-agencia');
   if(dagEl){
     const newAg=dagEl.value||'';
-    const userExplicitlyChoseSinAgencia=(dagEl.selectedIndex===0&&dagEl.options[0]&&dagEl.options[0].value==='');
-    if(newAg){
-      // User picked an actual agencia
+    const userPicked=dagEl.selectedIndex>=0;
+    if(userPicked){
       l.agencia=newAg;
-      l.agencia_codigo=dagEl.options[dagEl.selectedIndex]?.dataset.codigo||'';
-    } else if(userExplicitlyChoseSinAgencia&&dagEl.dataset.userTouched==='1'){
-      // User explicitly cleared it
-      l.agencia='';
-      l.agencia_codigo='';
+      // Save the codigo too — this is the key fix so the cuadro doesn't have to
+      // guess the code later from a name that may have multiple matches.
+      l.agencia_codigo=newAg?(dagEl.options[dagEl.selectedIndex].dataset.codigo||''):'';
     }
-    // else: keep existing l.agencia (defensive — don't wipe data)
   }
   l.interes=document.getElementById('ds-interes')?.value||'';
   const manualRegest=document.getElementById('ds-regest')?.value||'';
@@ -2256,9 +2065,9 @@ function saveDet(id){
   persist();cloudSaveLead(l);closeM('m-det');renderAll();toast('Lead actualizado ✓');
 }
 
-// ---------------------------------------
+// ═══════════════════════════════════════
 // LEAD CRUD
-// ---------------------------------------
+// ═══════════════════════════════════════
 // Helper: set a select's value safely. If the value isn't an existing option,
 // add it dynamically so the browser doesn't silently fall back to "" (which
 // would later cause saveDet/saveLead to clear the lead's agencia).
@@ -2281,7 +2090,7 @@ function setSelectVal(el, val, codigo){
 
 function openLM(id){
   editL=id;
-  if(id){const l=findLead(id);document.getElementById('ml-title').textContent='Editar Lead';document.getElementById('lf-btn').textContent='Guardar cambios';document.getElementById('lf-nom').value=l.nom;document.getElementById('lf-tel').value=l.tel;document.getElementById('lf-ori').value=l.ori;document.getElementById('lf-tp').value=l.tp||'Contado';document.getElementById('lf-lin').value=l.linea;document.getElementById('lf-ubi').value=l.ubi;document.getElementById('lf-est').value=l.est;document.getElementById('lf-fa').value=l.fa||'';document.getElementById('lf-fu').value=l.fu||'';document.getElementById('lf-rd').value=l.reminder?.date||'';document.getElementById('lf-rt').value=l.reminder?.time||'09:00';document.getElementById('lf-rn').value=l.reminder?.note||'';document.getElementById('lf-com').value='';const af=document.getElementById('lf-ase');if(af)af.value=l.uid||'';const _cf=document.getElementById('lf-canal');if(_cf)_cf.value=l.canal||'';setSelectVal(document.getElementById('lf-agencia'),l.agencia||'',l.agencia_codigo||'');const _in=document.getElementById('lf-interes');if(_in)_in.value=l.interes||'';const _re=document.getElementById('lf-responde');if(_re)_re.value=l.responde||'';const _rg=document.getElementById('lf-regest');if(_rg)_rg.value=l.regest||'';const _ch=document.getElementById('lf-chasis');if(_ch)_ch.value=l.chasis||'';const _fc=document.getElementById('lf-factura');if(_fc)_fc.value=l.factura||'';const _ff=document.getElementById('lf-ffactura');if(_ff)_ff.value=l.ffactura||'';const _im=document.getElementById('lf-importe');if(_im)_im.value=l.importe||'';toggleCanalField();}
+  if(id){const l=findLead(id);document.getElementById('ml-title').textContent='Editar Lead';document.getElementById('lf-btn').textContent='Guardar cambios';document.getElementById('lf-nom').value=l.nom;document.getElementById('lf-tel').value=l.tel;document.getElementById('lf-ori').value=l.ori;document.getElementById('lf-tp').value=l.tp||'Contado';document.getElementById('lf-lin').value=l.linea;document.getElementById('lf-ubi').value=l.ubi;document.getElementById('lf-est').value=l.est;document.getElementById('lf-fa').value=l.fa||'';document.getElementById('lf-fu').value=l.fu||'';document.getElementById('lf-rd').value=l.reminder?.date||'';document.getElementById('lf-rt').value=l.reminder?.time||'09:00';document.getElementById('lf-rn').value=l.reminder?.note||'';document.getElementById('lf-com').value='';const af=document.getElementById('lf-ase');if(af)af.value=l.uid||'';const _cf=document.getElementById('lf-canal');if(_cf)_cf.value=l.canal||'';setSelectVal(document.getElementById('lf-agencia'),l.agencia||'',l.agencia_codigo||'');const _in=document.getElementById('lf-interes');if(_in)_in.value=l.interes||'';const _re=document.getElementById('lf-responde');if(_re)_re.value=l.responde||'';const _rg=document.getElementById('lf-regest');if(_rg)_rg.value=l.regest||'';toggleCanalField();}
   else{document.getElementById('ml-title').textContent='Nuevo Lead';document.getElementById('lf-btn').textContent='Guardar Lead';['lf-nom','lf-tel','lf-ubi','lf-com','lf-rd','lf-rn'].forEach(i=>document.getElementById(i).value='');document.getElementById('lf-fa').value=today();document.getElementById('lf-fu').value=today();document.getElementById('lf-rt').value='09:00';const af=document.getElementById('lf-ase');if(af)af.value=isPriv()?'':String(CU.id);const _cff=document.getElementById('lf-canal');if(_cff)_cff.value='';const _agn=document.getElementById('lf-agencia');if(_agn)_agn.value='';const _inn=document.getElementById('lf-interes');if(_inn)_inn.value='';const _ren=document.getElementById('lf-responde');if(_ren)_ren.value='';const _rgn=document.getElementById('lf-regest');if(_rgn)_rgn.value='';toggleCanalField();}
   openM('m-lead');
 }
@@ -2290,26 +2099,19 @@ function saveLead(){
   const afEl=document.getElementById('lf-ase'),uidVal=afEl&&isPriv()?afEl.value:String(CU.id),uid=uidVal?parseInt(uidVal):null,u=uid?users.find(x=>x.id===uid):null;
   const comTxt=document.getElementById('lf-com').value.trim();
   const rd=document.getElementById('lf-rd').value,reminder=rd?{date:rd,time:document.getElementById('lf-rt').value,note:document.getElementById('lf-rn').value}:null;
-  const _tp=document.getElementById('lf-tp').value||'No Informa';const _canal=document.getElementById('lf-est').value==='CITA'?(document.getElementById('lf-canal')?.value||''):'';const _chasis=document.getElementById('lf-chasis')?.value?.trim()||'';const _factura=document.getElementById('lf-factura')?.value?.trim()||'';const _ffactura=document.getElementById('lf-ffactura')?.value||'';const _importe=document.getElementById('lf-importe')?.value?.trim()||'';
+  const _tp=document.getElementById('lf-tp').value||'No Informa';const _canal=document.getElementById('lf-est').value==='CITA'?(document.getElementById('lf-canal')?.value||''):'';
   // Extract agencia + its codigo from the selected option (data-codigo attr).
   // This way the codigo travels WITH the lead and the cuadro doesn't have to guess later.
   const _agEl=document.getElementById('lf-agencia');
   const _agencia=_agEl?.value||'';
   const _agencia_codigo=_agEl&&_agEl.selectedIndex>=0?(_agEl.options[_agEl.selectedIndex].dataset.codigo||''):'';
-  const _interes=document.getElementById('lf-interes')?.value||'';const _responde=document.getElementById('lf-responde')?.value||'';const _regest=document.getElementById('lf-regest')?.value||'';const data={nom,tel:document.getElementById('lf-tel').value,ori:document.getElementById('lf-ori').value,tp:_tp,canal:_canal,agencia:_agencia,agencia_codigo:_agencia_codigo,interes:_interes,responde:_responde,regest:_regest,linea:document.getElementById('lf-lin').value,ubi:document.getElementById('lf-ubi').value,est:document.getElementById('lf-est').value,fa:document.getElementById('lf-fa').value,fu:today(),uid,anom:u?u.nombre:'',reminder,chasis:_chasis,factura:_factura,ffactura:_ffactura,importe:_importe};
+  const _interes=document.getElementById('lf-interes')?.value||'';const _responde=document.getElementById('lf-responde')?.value||'';const _regest=document.getElementById('lf-regest')?.value||'';const data={nom,tel:document.getElementById('lf-tel').value,ori:document.getElementById('lf-ori').value,tp:_tp,canal:_canal,agencia:_agencia,agencia_codigo:_agencia_codigo,interes:_interes,responde:_responde,regest:_regest,linea:document.getElementById('lf-lin').value,ubi:document.getElementById('lf-ubi').value,est:document.getElementById('lf-est').value,fa:document.getElementById('lf-fa').value,fu:today(),uid,anom:u?u.nombre:'',reminder};
   let savedLead;
   if(editL){
     const i=findLeadIndex(editL);
     const ex=leads[i];
     const prevEst=ex.est;
     if(comTxt)ex.notas=[...(ex.notas||[]),{txt:comTxt,by:CU.nombre,ts:new Date().toLocaleString()}];
-    // DEFENSIVE: if the agencia dropdown came back empty AND the existing lead had an agencia,
-    // preserve the existing value. This prevents "phantom wipes" when the dropdown couldn't
-    // find/select the lead's current agencia (e.g. due to whitespace/case mismatch).
-    if(!_agencia&&ex.agencia){
-      data.agencia=ex.agencia;
-      data.agencia_codigo=ex.agencia_codigo||'';
-    }
     leads[i]={...ex,...data,notas:ex.notas};
     savedLead=leads[i];
     // Track transition to CITA: if state changed from non-CITA to CITA, record fcita
@@ -2318,13 +2120,6 @@ function saveLead(){
       savedLead.fcita_ts=new Date().toISOString();
       savedLead.fcita_uid=CU.id;
       savedLead.fcita_anom=CU.nombre;
-    }
-    // Track transition to VENTA: record fventa timestamp
-    if(data.est==='VENTA'&&prevEst!=='VENTA'){
-      savedLead.fventa=today();
-      savedLead.fventa_ts=new Date().toISOString();
-      savedLead.fventa_uid=CU.id;
-      savedLead.fventa_anom=CU.nombre;
     }
     toast('Lead actualizado ✓');
   }
@@ -2340,13 +2135,6 @@ function saveLead(){
       savedLead.fcita_ts=new Date().toISOString();
       savedLead.fcita_uid=CU.id;
       savedLead.fcita_anom=CU.nombre;
-    }
-    // If new lead is created already in VENTA, register fventa right away
-    if(data.est==='VENTA'){
-      savedLead.fventa=today();
-      savedLead.fventa_ts=new Date().toISOString();
-      savedLead.fventa_uid=CU.id;
-      savedLead.fventa_anom=CU.nombre;
     }
     leads.unshift(savedLead);
     nlid=Math.max(nlid, newId+1);
@@ -2372,9 +2160,9 @@ async function delLead(id){
   closeM('m-det');renderAll();toast('Lead eliminado ✓');
 }
 
-// ---------------------------------------
+// ═══════════════════════════════════════
 // REPORTES
-// ---------------------------------------
+// ═══════════════════════════════════════
 // Chart instances
 const _charts={};
 function mkChart(id,type,labels,datasets,opts={}){
@@ -2393,7 +2181,7 @@ function renderReportes(){
   const venta=arr.filter(l=>l.est==='VENTA').length,perdido=arr.filter(l=>l.est==='PERDIDO').length,proceso=arr.filter(l=>l.est==='PROCESO').length;
   const interesados=arr.filter(l=>l.interes==='Interesad@ en Compra').length;
   const responden=arr.filter(l=>l.responde==='Responde').length;
-  const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);const ayer=yesterday.getFullYear()+'-'+String(yesterday.getMonth()+1).padStart(2,'0')+'-'+String(yesterday.getDate()).padStart(2,'0');
+  const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);const ayer=yesterday.toISOString().split('T')[0];
   const regest=arr.filter(l=>l.regest==='Regestionado'&&(l.fu||'').substring(0,10)<=ayer).length;
   document.getElementById('rep-mets').innerHTML=`
     <div class="met"><div class="ml">Total Leads</div><div class="mv">${arr.length}</div></div>
@@ -2429,9 +2217,9 @@ function renderReportes(){
   document.getElementById('rep-rank').innerHTML=ases.map((u,i)=>{const ul=arr.filter(l=>l.uid===u.id),uv=ul.filter(l=>l.est==='VENTA').length,up=ul.filter(l=>l.est==='PERDIDO').length,uu=ul.filter(l=>l.est==='PROCESO').length,pp=ul.length>0?Math.round(uv/ul.length*100):0;return `<tr><td style="font-weight:700;color:var(--navy)">${i+1}</td><td><div style="display:flex;align-items:center;gap:7px">${avU(u)}<span style="font-weight:600">${u.nombre}</span></div></td><td style="font-weight:700">${ul.length}</td><td>${uu}</td><td style="color:#1B5E20;font-weight:700">${uv}</td><td style="color:var(--red)">${up}</td><td style="font-weight:700;color:${pp>=30?'#1B5E20':'var(--red)'}">${pp}%</td></tr>`;}).join('');
 }
 
-// ---------------------------------------
+// ═══════════════════════════════════════
 // REPORTE DE CITAS — conversión por asesor por período (día/semana/mes)
-// ---------------------------------------
+// ═══════════════════════════════════════
 // State for sorting and current view
 let _rcSort={key:'fcita',dir:'desc'};
 
@@ -2454,71 +2242,6 @@ function backfillFcita(){
   return n;
 }
 
-// Fix leads whose fcita was saved one day ahead due to UTC offset bug.
-// Strategy 1 (precise): if fcita_ts exists, derive local date from it and compare.
-// Strategy 2 (fallback): if no fcita_ts but fu (last update) is the day BEFORE fcita,
-//   the lead was clearly updated on fu-day and fcita was set to fu+1 due to UTC shift.
-// Strategy 3 (emergency): if fcita === tomorrow's local date AND the lead was created/
-//   updated today (fu or fa equals today), force fcita back to today. This catches leads
-//   created on 29/04 that got fcita=30/04 because today() was using UTC midnight.
-function fixFcitaUtcShift(){
-  // Compute local "today" and "tomorrow" without relying on toISOString (avoid UTC bug)
-  const _now=new Date();
-  const _pad=n=>String(n).padStart(2,'0');
-  const _localDate=d=>d.getFullYear()+'-'+_pad(d.getMonth()+1)+'-'+_pad(d.getDate());
-  const todayLocal=_localDate(_now);
-  const _tom=new Date(_now);_tom.setDate(_now.getDate()+1);
-  const tomorrowLocal=_localDate(_tom);
-
-  let n=0;
-  leads.forEach(l=>{
-    if(!l.fcita)return;
-    if(l._fcitaShiftFixed)return;
-    const fcita=l.fcita.substring(0,10);
-
-    // Strategy 1: use fcita_ts if available
-    if(l.fcita_ts){
-      try{
-        const ts=new Date(l.fcita_ts);
-        if(!isNaN(ts)){
-          const localFromTs=_localDate(ts);
-          const utcFromTs=ts.toISOString().substring(0,10);
-          if(fcita===utcFromTs && localFromTs!==utcFromTs){
-            l.fcita=localFromTs;l._fcitaShiftFixed=true;n++;return;
-          }
-        }
-      }catch(e){}
-    }
-
-    // Strategy 2: fcita is tomorrow AND fu (or fa) is today → clear UTC-day shift
-    const fuDate=(l.fu||'').substring(0,10);
-    const faDate=(l.fa||'').substring(0,10);
-    if(fcita===tomorrowLocal && (fuDate===todayLocal||faDate===todayLocal)){
-      l.fcita=todayLocal;l._fcitaShiftFixed=true;n++;return;
-    }
-
-    // Strategy 3: fcita is tomorrow AND fu is yesterday (lead set to CITA after 6pm GT = UTC midnight)
-    const _yes=new Date(_now);_yes.setDate(_now.getDate()-1);
-    const yesterdayLocal=_localDate(_yes);
-    if(fcita===tomorrowLocal && (fuDate===yesterdayLocal||faDate===yesterdayLocal)){
-      // fu is yesterday → the CITA was set yesterday after 6pm GT (UTC rolled to tomorrow)
-      l.fcita=yesterdayLocal;l._fcitaShiftFixed=true;n++;
-    }
-  });
-
-  if(n>0){
-    persist();
-    console.log('[fcita] UTC-shift fixed on',n,'leads');
-    // Push corrected leads to Firebase so all devices see the fix
-    if(typeof window._fb!=='undefined'&&window._fb&&window._fb.isReady&&window._fb.isReady()){
-      leads.filter(l=>l._fcitaShiftFixed).forEach(l=>{
-        try{window._fb.saveLeadCloud(l);}catch(e){}
-      });
-    }
-  }
-  return n;
-}
-
 // Backfill agencia_codigo for leads that have an agencia name but no saved codigo.
 // Looks up the code from AGENCIA_DATA by exact name match. Runs idempotently.
 function backfillAgenciaCodigo(){
@@ -2538,89 +2261,6 @@ function backfillAgenciaCodigo(){
   return n;
 }
 
-// Migration: rename old AP-prefix King dealerships to the new KING channel.
-// SAFETY: Uses a localStorage flag (v3) to ensure it runs at most ONCE per device.
-// The flag is set AFTER the migration completes (success or no-op). This prevents
-// infinite loops when there are many leads + Firebase real-time sync feedback.
-let _kingMigrationRunning=false;
-function migrateKingAgencias(){
-  if(localStorage.getItem('tvs_king_migrated_v3')==='1')return{leads:0,agencias:0,skipped:true};
-  if(_kingMigrationRunning)return{leads:0,agencias:0,skipped:'already-running'};
-  _kingMigrationRunning=true;
-  try{
-    // Normalize a name for fuzzy matching: trim, collapse spaces, uppercase
-    const norm=s=>(s||'').trim().toUpperCase().replace(/\s+/g,' ');
-    const KING_RENAMES_NORM={
-      'AP ZONA KING COBAN':       {nom:'KING ZONA COBAN',       code:'KING001'},
-      'AP KING SAN JOSE PINULA':  {nom:'KING SAN JOSE PINULA',  code:'KING002'},
-      'AP REU KING':              {nom:'KING REU',              code:'KING003'},
-      'AP  ZONA KING COBAN':      {nom:'KING ZONA COBAN',       code:'KING001'},
-      'AP KING SAN JOSÉ PINULA':  {nom:'KING SAN JOSE PINULA',  code:'KING002'}
-    };
-    function lookupRename(name){return KING_RENAMES_NORM[norm(name)]||null;}
-    let leadsFixed=0,agenciasFixed=0,codesRemoved=0;
-    // 1) Migrate leads
-    if(typeof leads!=='undefined'&&Array.isArray(leads)){
-      leads.forEach(l=>{
-        if(l&&l.agencia){
-          const t=lookupRename(l.agencia);
-          if(t){l.agencia=t.nom;l.agencia_codigo=t.code;leadsFixed++;}
-        }
-      });
-    }
-    // 2) Migrate the local agencias[] list (rename in place, then dedupe)
-    if(typeof agencias!=='undefined'&&Array.isArray(agencias)){
-      for(let i=0;i<agencias.length;i++){
-        const t=lookupRename(agencias[i]);
-        if(t){agencias[i]=t.nom;agenciasFixed++;}
-      }
-      const seen=new Set();
-      agencias=agencias.filter(a=>{if(seen.has(a))return false;seen.add(a);return true;});
-      agencias.sort();
-    }
-    // 3) Clean up AGENCIA_DATA: remove ANY entry whose name matches the old AP King names
-    if(typeof AGENCIA_DATA!=='undefined'){
-      const toRemove=[];
-      for(const[code,d] of Object.entries(AGENCIA_DATA)){
-        if(d&&d.nom&&lookupRename(d.nom)){
-          if(code!=='KING001'&&code!=='KING002'&&code!=='KING003')toRemove.push(code);
-        }
-      }
-      toRemove.forEach(code=>{
-        console.log('[KING migration] Removing stale AGENCIA_DATA entry:',code,'→',AGENCIA_DATA[code].nom);
-        delete AGENCIA_DATA[code];
-        codesRemoved++;
-      });
-      // Ensure canonical KING entries exist
-      if(!AGENCIA_DATA['KING001'])AGENCIA_DATA['KING001']={nom:'KING ZONA COBAN',coord:'PACAY ACTÉ CESAR ANIBAL',tel:''};
-      if(!AGENCIA_DATA['KING002'])AGENCIA_DATA['KING002']={nom:'KING SAN JOSE PINULA',coord:'',tel:''};
-      if(!AGENCIA_DATA['KING003'])AGENCIA_DATA['KING003']={nom:'KING REU',coord:'',tel:''};
-    }
-    // CRITICAL: Mark as done IMMEDIATELY before any persist/sync to ensure idempotency
-    localStorage.setItem('tvs_king_migrated_v3','1');
-    if(leadsFixed>0||agenciasFixed>0||codesRemoved>0){
-      try{persist();}catch(e){console.warn('[KING migration] persist error:',e);}
-      console.log('[KING migration] Fixed',leadsFixed,'leads,',agenciasFixed,'agencias,',codesRemoved,'stale codes');
-      // Sync to Firebase (debounced) — uploads ONCE with all changes
-      setTimeout(()=>{
-        try{
-          if(window._fb&&typeof window._fb.saveAllLeads==='function'&&leadsFixed>0){
-            window._fb.saveAllLeads(leads);
-          }
-          if(window._fb&&typeof window._fb.saveAgenciasCloud==='function'&&agenciasFixed>0){
-            window._fb.saveAgenciasCloud(agencias);
-          }
-        }catch(e){console.warn('[KING migration] Firebase sync error:',e);}
-      },3000);
-    } else {
-      console.log('[KING migration] No old KING data found — already migrated or never present');
-    }
-    return{leads:leadsFixed,agencias:agenciasFixed,codesRemoved:codesRemoved};
-  } finally {
-    _kingMigrationRunning=false;
-  }
-}
-
 // Get the effective fcita date (handles missing data gracefully)
 function getFcitaDate(l){
   if(l.fcita&&/^\d{4}-\d{2}-\d{2}/.test(l.fcita))return l.fcita.substring(0,10);
@@ -2636,7 +2276,6 @@ function getFcitaTime(l){
   try{
     const d=new Date(l.fcita_ts);
     if(isNaN(d))return '';
-    // Use local time (not UTC) — avoids UTC offset shifting the hour
     const hh=String(d.getHours()).padStart(2,'0');
     const mm=String(d.getMinutes()).padStart(2,'0');
     return hh+':'+mm;
@@ -2654,7 +2293,7 @@ function bucketKey(dateStr,grouping){
     if(isNaN(d))return dateStr;
     const day=d.getDay()||7; // Sun=0 → 7
     if(day!==1)d.setDate(d.getDate()-(day-1));
-    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); // Monday YYYY-MM-DD (local)
+    return d.toISOString().substring(0,10); // Monday YYYY-MM-DD
   }
   return dateStr;
 }
@@ -2675,7 +2314,7 @@ function bucketLabel(key,grouping){
   if(grouping==='week'){
     const d=new Date(key+'T00:00:00');
     const e=new Date(d);e.setDate(e.getDate()+6);
-    return `Sem. ${key} → ${e.getFullYear()+'-'+String(e.getMonth()+1).padStart(2,'0')+'-'+String(e.getDate()).padStart(2,'0')}`;
+    return `Sem. ${key} → ${e.toISOString().substring(0,10)}`;
   }
   return key;
 }
@@ -2684,14 +2323,13 @@ function setRcQuickRange(opt){
   const fdEl=document.getElementById('rc-fd');
   const fhEl=document.getElementById('rc-fh');
   const t=new Date();
-  // Use local date — NOT toISOString() which returns UTC and shifts day in GT (UTC-6)
-  const localFmt=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const fmt=d=>d.toISOString().substring(0,10);
   if(opt===7||opt===30){
     const since=new Date(t);since.setDate(t.getDate()-opt);
-    fdEl.value=localFmt(since);fhEl.value=localFmt(t);
+    fdEl.value=fmt(since);fhEl.value=fmt(t);
   } else if(opt==='thismonth'){
-    const ym=localFmt(t).substring(0,7);
-    fdEl.value=ym+'-01';fhEl.value=localFmt(t);
+    fdEl.value=fmt(t).substring(0,7)+'-01';
+    fhEl.value=fmt(t);
   } else if(opt==='all'){
     fdEl.value='';fhEl.value='';
   }
@@ -2716,48 +2354,10 @@ function initRepCitasTab(){
   }
 }
 
-// EMERGENCY FIX: force-corrects all leads with fcita="2026-04-30" to "2026-04-29"
-// regardless of fu/fa values. Pushes directly to Firebase. One-time use.
-async function emergencyFixFcita(){
-  const TARGET='2026-04-30';
-  const CORRECT='2026-04-29';
-  const btn=document.getElementById('btn-fix-fcita');
-  if(btn){btn.textContent='⏳ Corrigiendo...';btn.disabled=true;}
-  let n=0;
-  const toFix=leads.filter(l=>l.fcita&&l.fcita.substring(0,10)===TARGET);
-  toFix.forEach(l=>{
-    l.fcita=CORRECT;
-    l._fcitaShiftFixed=true;
-    n++;
-  });
-  if(n===0){
-    toast('No hay citas con fecha 30/04 para corregir');
-    if(btn){btn.textContent='✅ Sin cambios';btn.disabled=false;}
-    return;
-  }
-  persist();
-  // Push all fixed leads to Firebase
-  if(useCloud&&window._fb&&window._fb.isReady()){
-    try{
-      await Promise.all(toFix.map(l=>window._fb.saveLeadCloud(l)));
-      toast(`✅ ${n} citas corregidas a 29/04 y sincronizadas`);
-    }catch(e){
-      toast(`✅ ${n} citas corregidas localmente (error Firebase: ${e.message})`);
-    }
-  } else {
-    toast(`✅ ${n} citas corregidas a 29/04 (sin nube)`);
-  }
-  renderRepCitas();
-  if(btn){btn.textContent='✅ Listo';setTimeout(()=>{btn.textContent='🔧 Corregir fechas';btn.disabled=false;},3000);}
-}
-
 // Filter leads with CITA + apply date range and asesor filter
 function getRepCitasArr(){
-  // Reset shift-fix flag so the improved fixFcitaUtcShift() re-evaluates every lead.
-  // This is safe because the function is idempotent and only moves dates back, never forward.
-  leads.forEach(l=>{if(l._fcitaShiftFixed)delete l._fcitaShiftFixed;});
+  // Run backfill in case any lead lacks fcita
   backfillFcita();
-  fixFcitaUtcShift();
   const fd=document.getElementById('rc-fd')?.value||'';
   const fh=document.getElementById('rc-fh')?.value||'';
   const aseId=document.getElementById('rc-ase')?.value||'';
@@ -2777,7 +2377,7 @@ function renderRepCitas(){
   const arr=getRepCitasArr();
   const grp=document.getElementById('rc-grp')?.value||'day';
   document.getElementById('rc-grp-label').textContent=grp==='day'?'día':grp==='week'?'semana':'mes';
-  // --- KPIs ---
+  // ─── KPIs ───
   const totCitas=arr.length;
   const ases=new Set(arr.map(l=>l.uid).filter(Boolean)).size;
   const motos=new Set(arr.map(l=>l.linea).filter(Boolean)).size;
@@ -2790,7 +2390,7 @@ function renderRepCitas(){
     <div class="met"><div class="met-v">${avg}</div><div class="met-l">Promedio / ${grp==='day'?'día':grp==='week'?'semana':'mes'}</div></div>
     <div class="met"><div class="met-v">${motos}</div><div class="met-l">Modelos distintos</div></div>
     <div class="met"><div class="met-v">${ags}</div><div class="met-l">Agencias distintas</div></div>`;
-  // --- Resumen pivote: filas=bucket(día/sem/mes), columnas=asesor ---
+  // ─── Resumen pivote: filas=bucket(día/sem/mes), columnas=asesor ───
   const bucketSet=new Set(),aseTot={};
   const matrix={}; // matrix[bucket][aseId] = count
   arr.forEach(l=>{
@@ -2833,7 +2433,7 @@ function renderRepCitas(){
   aseList.forEach(a=>{const t=aseTot[a]||0;grandTot+=t;body+=`<td style="text-align:center;color:var(--navy)">${t}</td>`;});
   body+=`<td style="text-align:center;background:#FFC107;color:var(--navy)">${grandTot}</td></tr>`;
   document.getElementById('rc-resumen-body').innerHTML=body||'<tr><td colspan="99" style="text-align:center;padding:1.5rem;color:var(--mut)">Sin citas en este período</td></tr>';
-  // --- Tabla detalle ---
+  // ─── Tabla detalle ───
   const sortKey=_rcSort.key,sortDir=_rcSort.dir;
   arr.sort((a,b)=>{
     let va,vb;
@@ -2986,7 +2586,7 @@ function descargarDashboard(){
   const interesMap={'No Cumple PANT':0,'No Interesado':0,'Cotizando':0,'Interesad@ en Compra':0};arr.forEach(l=>{if(l.interes&&interesMap[l.interes]!==undefined)interesMap[l.interes]++;});
   const interesRows=Object.entries(interesMap).map(([k,v])=>`<tr><td>${k}</td><td style="font-weight:700">${v}</td><td>${arr.length>0?Math.round(v/arr.length*100):0}%</td></tr>`).join('');
   const respondeRows=[['Responde',arr.filter(l=>l.responde==='Responde').length],['No responde',arr.filter(l=>l.responde==='No responde').length]].map(([k,v])=>`<tr><td>${k}</td><td style="font-weight:700">${v}</td><td>${arr.length>0?Math.round(v/arr.length*100):0}%</td></tr>`).join('');
-  const yesterday2=new Date();yesterday2.setDate(yesterday2.getDate()-1);const ayer2=yesterday2.getFullYear()+'-'+String(yesterday2.getMonth()+1).padStart(2,'0')+'-'+String(yesterday2.getDate()).padStart(2,'0');
+  const yesterday2=new Date();yesterday2.setDate(yesterday2.getDate()-1);const ayer2=yesterday2.toISOString().split('T')[0];
   const regestRows=[['Regestionado',arr.filter(l=>l.regest==='Regestionado'&&(l.fu||'').substring(0,10)<=ayer2).length],['Sin Regestión',arr.filter(l=>l.regest==='Sin Regestión').length]].map(([k,v])=>`<tr><td>${k}</td><td style="font-weight:700">${v}</td><td>${arr.length>0?Math.round(v/arr.length*100):0}%</td></tr>`).join('');
   const interesados=interesMap['Interesad@ en Compra'];
   const responden=arr.filter(l=>l.responde==='Responde').length;
@@ -3086,9 +2686,9 @@ new Chart(document.getElementById('cd'),{type:'line',data:{labels:dL,datasets:[{
   w.document.close();
 }
 
-// ---------------------------------------
+// ═══════════════════════════════════════
 // USUARIOS
-// ---------------------------------------
+// ═══════════════════════════════════════
 function renderUsers(){
   if(!isAdmin())return;
   const known=new Set(users.map(u=>u.leadsname?.trim().toLowerCase()).filter(Boolean));
@@ -3132,7 +2732,7 @@ function doChgPass(){const p1=document.getElementById('pm-p1').value,p2=document
 function changeMyPass(){const old=document.getElementById('pf-old').value,n=document.getElementById('pf-new').value,n2=document.getElementById('pf-new2').value,err=document.getElementById('pf-err');if(CU.pass!==old){err.textContent='Contraseña actual incorrecta';err.style.display='block';return;}if(n.length<6){err.textContent='Mínimo 6';err.style.display='block';return;}if(n!==n2){err.textContent='No coinciden';err.style.display='block';return;}CU.pass=n;users.find(x=>x.id===CU.id).pass=n;err.style.display='none';persist();toast('Contraseña actualizada ✓');['pf-old','pf-new','pf-new2'].forEach(i=>document.getElementById(i).value='');}
 function renderPerfil(){const mine=myLeads(),uv=mine.filter(l=>l.est==='VENTA').length;document.getElementById('perf-body').innerHTML=`<div style="display:flex;align-items:center;gap:11px;margin-bottom:1rem">${avU(CU,'av-lg')}<div><div style="font-size:17px;font-weight:700;color:var(--navy)">${CU.nombre}</div><div style="font-size:12px;color:var(--mut)">${CU.rol} · @${CU.user}</div></div></div><div class="dr"><span class="dl">Email</span><span class="dv">${CU.email||'—'}</span></div><div class="dr"><span class="dl">WhatsApp</span><span class="dv">${CU.tel||'—'}</span></div><div class="dr"><span class="dl">Zona</span><span class="dv">${CU.zona||'—'}</span></div><div class="dr"><span class="dl">Mis leads</span><span class="dv" style="font-weight:700">${mine.length}</span></div><div class="dr"><span class="dl">Ventas</span><span class="dv" style="color:#1B5E20;font-weight:700">${uv}</span></div><div class="dr"><span class="dl">Sincronización</span><span class="dv">${useCloud?'☁️ Firebase Firestore':'📱 Solo este dispositivo'}</span></div>`;}
 
-// -- GESTIONES MANUALES --
+// ── GESTIONES MANUALES ──
 function openAddGest(){
   const existing=document.getElementById('m-addgest');
   if(existing){existing.remove();}
@@ -3167,7 +2767,7 @@ function saveAddGest(){
   renderDashboard();
   toast(`${n} gestión(es) registrada(s) ✓`);
 }
-// -- CONFIG METAS (solo admin) --
+// ── CONFIG METAS (solo admin) ──
 function openPerfConfig(){
   const existing=document.getElementById('m-perfcfg');
   if(existing){existing.remove();}
@@ -3303,13 +2903,13 @@ function handleDrop(e){const f=e.dataTransfer.files[0];if(f)procFile(f);}
 function handleFileImport(e){const f=e.target.files[0];if(f)procFile(f);}
 function procFile(file){const n=file.name.toLowerCase();if(n.endsWith('.csv')||n.endsWith('.txt')){const r=new FileReader();r.onload=ev=>{showPrev(parseCSV(ev.target.result),file.name);};r.readAsText(file,'UTF-8');}else if(n.endsWith('.xlsx')||n.endsWith('.xls')){if(typeof XLSX==='undefined'){toast('Cargando...');return;}const r=new FileReader();r.onload=ev=>{try{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];showPrev(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),file.name);}catch(e){toast('Error: '+e.message);}};r.readAsArrayBuffer(file);}else toast('Usa CSV o Excel');}
 function showPrev(rows,fname){pendRows=rows;const valid=rows.filter((r,i)=>i>0&&r.some(c=>c)).length;document.getElementById('imp-info').textContent=`"${fname}" · ${valid} registros`;const prev=rows.slice(0,5);document.getElementById('imp-tbl').innerHTML=`<table><thead><tr>${(prev[0]||[]).map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${prev.slice(1,4).map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;document.getElementById('imp-prev').style.display='block';}
-function confirmImport(){const added=importRows(pendRows);impHist.unshift({fecha:new Date().toLocaleString(),arch:'Importación',reg:Math.max(added,0),por:CU.nombre});renderImpHist();document.getElementById('imp-prev').style.display='none';document.getElementById('imp-f').value='';pendRows=[];persist();renderAll();toast(added>0?`${added} leads importados ✓`:added===0?'Sin nuevos registros':'No se encontró columna de nombre');}
-function renderImpHist(){const ih=document.getElementById('imp-hist');const btn=document.getElementById('btn-clr-h');if(!ih)return;if(impHist.length===0){ih.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--mut);padding:1.5rem;font-size:12px">Sin importaciones</td></tr>`;if(btn)btn.style.display='none';return;}if(btn)btn.style.display='inline-flex';ih.innerHTML=impHist.map((h,i)=>`<tr><td style="font-size:11px">${h.fecha}</td><td>${h.arch}</td><td style="font-weight:700;color:var(--navy)">${h.reg}</td><td>${h.por}</td><td><button class="btn bg bsm" onclick="downloadImpHist(${i})" title="Descargar CSV">⬇ CSV</button></td><td><button class="btn bd bsm" onclick="delImpE(${i})">X</button></td></tr>`).join('');}
-function delImpE(i){if(!confirm('¿Eliminar este registro?'))return;impHist.splice(i,1);persist();renderImpHist();}
-function clearImpHist(){if(!confirm('¿Borrar historial?'))return;impHist=[];persist();renderImpHist();}
+function confirmImport(){const added=importRows(pendRows);impHist.unshift({fecha:new Date().toLocaleString(),arch:'Importación',reg:Math.max(added,0),por:CU.nombre});renderImpHist();document.getElementById('imp-prev').style.display='none';document.getElementById('imp-f').value='';pendRows=[];persist();renderAll();cloudSaveMeta();toast(added>0?`${added} leads importados ✓`:added===0?'Sin nuevos registros':'No se encontró columna de nombre');}
+function renderImpHist(){const ih=document.getElementById('imp-hist');const btn=document.getElementById('btn-clr-h');if(!ih)return;if(impHist.length===0){ih.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--mut);padding:1.5rem;font-size:12px">Sin importaciones</td></tr>`;if(btn)btn.style.display='none';return;}if(btn)btn.style.display='inline-flex';ih.innerHTML=impHist.map((h,i)=>`<tr><td style="font-size:11px">${h.fecha}</td><td>${h.arch}</td><td style="font-weight:700;color:var(--navy)">${h.reg}</td><td>${h.por}</td><td><button class="btn bg bsm" onclick="downloadImpHist(${i})" title="Descargar CSV">⬇ CSV</button></td><td><button class="btn bd bsm" onclick="delImpE(${i})">🗑</button></td></tr>`).join('');}
+function delImpE(i){if(!confirm('¿Eliminar este registro?'))return;impHist.splice(i,1);persist();renderImpHist();cloudSaveMeta();}
+function clearImpHist(){if(!confirm('¿Borrar historial?'))return;impHist=[];persist();renderImpHist();cloudSaveMeta();}
 async function connectSheets(){const url=document.getElementById('gs-url').value.trim();if(!url){toast('Pega la URL');return;}let csvUrl=url;const m=url.match(/\/d\/([a-zA-Z0-9_-]+)/);if(m){const gm=url.match(/[?&#]gid=(\d+)/);csvUrl=`https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv${gm?'&gid='+gm[1]:''}`;}driveConn.url=csvUrl;await syncNow();}
 async function syncNow(){if(!driveConn.url){toast('Sin fuente');return;}toast('Sincronizando...');try{const r=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(driveConn.url),{signal:AbortSignal.timeout(9000)});if(r.ok){const text=await r.text();if(text&&text.length>20){const rows=parseCSV(text);const added=importRows(rows);driveConn.lastSync=new Date().toISOString();persist();cloudSaveMeta();renderAll();const st=document.getElementById('sync-st');if(st)st.textContent='✅ '+new Date().toLocaleString()+' · '+Math.max(added,0)+' nuevos';document.getElementById('btn-sync').style.display='inline-flex';document.getElementById('btn-autosync').style.display='inline-flex';document.getElementById('btn-disco').style.display='inline-flex';toast(added>0?`${added} leads ✓`:'Sin nuevos');return;}}throw new Error();}catch(e){const st=document.getElementById('sync-st');if(st)st.textContent='⚠️ Error. Publica el Sheet como CSV.';toast('Error al sincronizar');}}
-// --- AGENCIAS ---
+// ─── AGENCIAS ───
 function renderAgencias(){
   const el=document.getElementById('agencias-list');if(!el)return;
   if(agencias.length===0){el.innerHTML='<div style="color:var(--mut);font-size:12px">Sin agencias registradas</div>';return;}
@@ -3319,52 +2919,22 @@ function renderAgencias(){
   el.innerHTML=Object.entries(groups).filter(([,v])=>v.length).map(([k,v])=>`
     <div style="margin-bottom:10px">
       <div style="font-size:10px;font-weight:700;color:${colors[k]};text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Canal ${k} — ${v.length} agencias</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px">${v.map(a=>`<span style="background:var(--s2);border:1px solid var(--bd);border-radius:20px;padding:3px 10px;font-size:12px">${a}</span>`).join('')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">${v.map(a=>`<span style="background:var(--s2);border:1px solid var(--bd);border-radius:20px;padding:3px 10px;font-size:12px">🏢 ${a}</span>`).join('')}</div>
     </div>`).join('');
 }
 // Generate the next available auto-code for a given prefix (HT/AP/AC/OT).
 // Returns e.g. "HT012" if HT001..HT011 already exist.
 function genAgenciaCode(prefix){
-  // KING: KING001, KING002... (new channel for King-branded dealerships)
-  if(prefix==='KING'){
-    let n=1;
-    while(AGENCIA_DATA['KING'+String(n).padStart(3,'0')]){n++;if(n>999)break;}
-    return 'KING'+String(n).padStart(3,'0');
-  }
-  // AP: use 5xxx range (51xx is HT, so AP gets 52xx-5Fxx for new ones)
-  if(prefix==='AP'){
-    for(let n=0x200;n<=0xFFF;n++){
-      const code='5'+n.toString(16).toUpperCase();
-      if(!AGENCIA_DATA[code])return code;
-    }
-  }
-  // HT: use 51xx range beyond 51FF (52xx onward won't clash)
-  if(prefix==='HT'){
-    // Use 51Gx style? No — just use 52xx range for HT extras
-    for(let n=0x200;n<=0xFFF;n++){
-      const code='51'+n.toString(16).toUpperCase();
-      if(!AGENCIA_DATA[code])return code;
-    }
-  }
-  // AC: generate 9-digit code starting at 300000001 (clearly fabricated)
-  if(prefix==='AC'){
-    let n=300000001;
-    while(AGENCIA_DATA[String(n)]){n++;}
-    return String(n);
-  }
-  // OT or other
   let n=1;
   while(AGENCIA_DATA[prefix+String(n).padStart(3,'0')]){n++;if(n>9999)break;}
   return prefix+String(n).padStart(3,'0');
 }
-// Determine the prefix from a name. AP/HT/AC/KING explicit; otherwise OT (other).
+// Determine the prefix from a name. AP/HT/AC explicit; otherwise OT (other).
 function detectAgenciaPrefix(name){
   const u=(name||'').trim().toUpperCase();
-  if(u.startsWith('KING '))return 'KING';
   if(u.startsWith('AP '))return 'AP';
   if(u.startsWith('HT '))return 'HT';
   if(u.startsWith('AC '))return 'AC';
-  if(u.startsWith('TVS '))return 'AP'; // TVS = AP
   return 'OT';
 }
 // Register a new agencia in AGENCIA_DATA so it appears in the Cuadro de Cita
@@ -3451,8 +3021,6 @@ function toggleCanalField(){
   const est=document.getElementById('lf-est')?.value;
   const cf=document.getElementById('canal-field');
   if(cf)cf.style.display=(est==='CITA')?'flex':'none';
-  const vf=document.getElementById('venta-field');
-  if(vf)vf.style.display=(est==='VENTA')?'block':'none';
 }
 function downloadImpHist(idx){
   const h=impHist[idx];if(!h){toast('Error');return;}
@@ -3754,7 +3322,7 @@ async function dupsAssignNewIds(){
   renderDupsReview();
   toast(`${renamed} ID(s) reasignado(s) ✓`);
 }
-// --- DUPLICADOS POR NOMBRE+TELÉFONO --- //
+// ─── DUPLICADOS POR NOMBRE+TELÉFONO ─── //
 // Returns groups of leads that share the same normalized name + tel.
 // Each group has at least 2 leads.
 function findDupsByNameGroups(){
@@ -3983,7 +3551,7 @@ async function delUnassigned(){
   persist();renderAll();renderDataManager();
   toast(`${arr.length} eliminados ✓`);
 }
-function clearImpHistAdmin(){if(!confirm('¿Limpiar historial?'))return;impHist=[];persist();renderImpHist();renderDataManager();toast('Historial borrado ✓');}
+function clearImpHistAdmin(){if(!confirm('¿Limpiar historial?'))return;impHist=[];persist();renderImpHist();renderDataManager();cloudSaveMeta();toast('Historial borrado ✓');}
 async function delAllLeads(){
   if(leads.length===0){toast('Sin leads');return;}
   const conf=prompt(`¿Eliminar TODOS los ${leads.length} leads?\nEscribe CONFIRMAR:`);
@@ -4004,201 +3572,9 @@ async function delAllLeads(){
 async function fullReset(){const conf=prompt('Reset total: borrará TODO en la nube.\nEscribe RESET TOTAL:');if(conf!=='RESET TOTAL'){toast('Cancelado');return;}const lids=leads.map(l=>l.id),uids=users.filter(u=>u.id>1).map(u=>u.id);leads=[];users=[DEF_USERS[0]];impHist=[];driveConn={url:'',lastSync:null,autoSync:false};nuid=9;nlid=1;clearInterval(autoTimer);if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all([...lids.map(id=>window._fb.deleteLeadCloud(id)),...uids.map(id=>window._fb.deleteUserCloud(id))]);setSyncStatus('ok');}Object.keys(localStorage).filter(k=>k.startsWith('tvs8_')).forEach(k=>localStorage.removeItem(k));persist();exitBulk();populateSel();renderAll();renderDataManager();toast('CRM reseteado ✓');}
 
 
-// ---------------------------------------
-// =======================================================
-// REPORTE DE VENTAS
-// =======================================================
-let _rvSort={key:'fventa',dir:'desc'};
-
-function getFventaDate(l){
-  if(l.fventa&&/^\d{4}-\d{2}-\d{2}/.test(l.fventa))return l.fventa.substring(0,10);
-  if(l.fu&&/^\d{4}-\d{2}-\d{2}/.test(l.fu))return l.fu.substring(0,10);
-  if(l.fa&&/^\d{4}-\d{2}-\d{2}/.test(l.fa))return l.fa.substring(0,10);
-  return '';
-}
-
-function setRvQuickRange(opt){
-  const fdEl=document.getElementById('rv-fd');
-  const fhEl=document.getElementById('rv-fh');
-  const t=new Date();
-  const lf=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  if(opt===7||opt===30){
-    const since=new Date(t);since.setDate(t.getDate()-opt);
-    fdEl.value=lf(since);fhEl.value=lf(t);
-  } else if(opt==='thismonth'){
-    fdEl.value=lf(t).substring(0,7)+'-01';fhEl.value=lf(t);
-  } else if(opt==='all'){
-    fdEl.value='';fhEl.value='';
-  }
-  renderRepVentas();
-}
-
-function initRepVentasTab(){
-  const sel=document.getElementById('rv-ase');
-  if(sel&&sel.options.length<=1){
-    users.forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.nombre;sel.appendChild(o);});
-  }
-  if(!document.getElementById('rv-fd').value&&!document.getElementById('rv-fh').value){
-    setRvQuickRange(30);
-  } else {
-    renderRepVentas();
-  }
-}
-
-function getRepVentasArr(){
-  const fd=document.getElementById('rv-fd')?.value||'';
-  const fh=document.getElementById('rv-fh')?.value||'';
-  const aseId=document.getElementById('rv-ase')?.value||'';
-  let arr=leads.filter(l=>l.est==='VENTA');
-  if(aseId){const id=parseInt(aseId);arr=arr.filter(l=>l.uid===id);}
-  arr=arr.filter(l=>{
-    const d=getFventaDate(l);
-    if(!d)return false;
-    if(fd&&d<fd)return false;
-    if(fh&&d>fh)return false;
-    return true;
-  });
-  return arr;
-}
-
-function renderRepVentas(){
-  const arr=getRepVentasArr();
-  const grp=document.getElementById('rv-grp')?.value||'day';
-  document.getElementById('rv-grp-label').textContent=grp==='day'?'dia':grp==='week'?'semana':'mes';
-
-  // KPIs
-  const total=arr.length;
-  const ases=new Set(arr.map(l=>l.uid).filter(Boolean)).size;
-  const importe=arr.reduce((s,l)=>s+(parseFloat(l.importe)||0),0);
-  const conChasis=arr.filter(l=>l.chasis).length;
-  const conFactura=arr.filter(l=>l.factura).length;
-  const buckets=new Set(arr.map(l=>_rvBucketKey(getFventaDate(l),grp)));
-  const avg=buckets.size>0?(total/buckets.size).toFixed(1):'0';
-  const fmtQ=n=>n>0?'Q '+n.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2}):'Q 0.00';
-  document.getElementById('rv-mets').innerHTML=`
-    <div class="met" style="border-top-color:#4CAF50"><div class="ml">Ventas en periodo</div><div class="mv" style="color:#1B5E20">${total}</div></div>
-    <div class="met" style="border-top-color:#1B2F6E"><div class="ml">Asesores activos</div><div class="mv">${ases}</div></div>
-    <div class="met" style="border-top-color:#F47920"><div class="ml">Promedio / ${grp==='day'?'dia':grp==='week'?'semana':'mes'}</div><div class="mv" style="color:#F47920">${avg}</div></div>
-    <div class="met" style="border-top-color:#EAB308"><div class="ml">Importe total</div><div class="mv" style="color:#5a4200;font-size:16px">${fmtQ(importe)}</div></div>
-    <div class="met" style="border-top-color:#C8102E"><div class="ml">Con chasis</div><div class="mv" style="color:var(--red)">${conChasis}</div></div>`;
-
-  // Pivot table
-  const bucketSet=new Set(),aseTot={};
-  const matrix={};
-  arr.forEach(l=>{
-    const b=_rvBucketKey(getFventaDate(l),grp);
-    const ase=l.uid?String(l.uid):'sin';
-    bucketSet.add(b);
-    if(!matrix[b])matrix[b]={};
-    matrix[b][ase]=(matrix[b][ase]||0)+1;
-    aseTot[ase]=(aseTot[ase]||0)+1;
-  });
-  const aseList=Object.entries(aseTot).sort((a,b)=>b[1]-a[1]).map(([k])=>k);
-  const aseLabels=aseList.map(k=>{if(k==='sin')return 'Sin asignar';const u=users.find(x=>x.id===parseInt(k));return u?u.nombre:'Usuario #'+k;});
-  const buckets2=[...bucketSet].sort().reverse();
-  let head='<tr><th style="position:sticky;left:0;background:var(--surf);z-index:2">'+(grp==='day'?'Dia':grp==='week'?'Semana':'Mes')+'</th>';
-  aseLabels.forEach(n=>head+=`<th>${n}</th>`);
-  head+='<th style="background:var(--gbg);color:#1B5E20">Total</th></tr>';
-  document.getElementById('rv-resumen-head').innerHTML=head;
-  let body='';
-  buckets2.forEach(b=>{
-    body+=`<tr><td style="position:sticky;left:0;background:var(--surf);font-weight:700;color:#1B5E20;white-space:nowrap">${_rvBucketLabel(b,grp)}</td>`;
-    let rowTot=0;
-    aseList.forEach(a=>{const v=matrix[b]?.[a]||0;rowTot+=v;body+=`<td style="text-align:center;${v>0?'font-weight:700;color:#1B5E20':'color:var(--mut)'}">${v||'—'}</td>`;});
-    body+=`<td style="text-align:center;font-weight:800;background:var(--gbg);color:#1B5E20">${rowTot}</td></tr>`;
-  });
-  body+='<tr style="background:var(--s2);font-weight:800"><td style="position:sticky;left:0;background:var(--s2);color:var(--navy)">TOTAL</td>';
-  let grandTot=0;
-  aseList.forEach(a=>{const t=aseTot[a]||0;grandTot+=t;body+=`<td style="text-align:center;color:#1B5E20">${t}</td>`;});
-  body+=`<td style="text-align:center;background:#66BB6A;color:white">${grandTot}</td></tr>`;
-  document.getElementById('rv-resumen-body').innerHTML=body||'<tr><td colspan="99" style="text-align:center;padding:1.5rem;color:var(--mut)">Sin ventas en este periodo</td></tr>';
-
-  // Detail table
-  const sortKey=_rvSort.key,sortDir=_rvSort.dir;
-  arr.sort((a,b)=>{
-    let va,vb;
-    if(sortKey==='fventa'){va=getFventaDate(a);vb=getFventaDate(b);}
-    else{va=String(a[sortKey]||'');vb=String(b[sortKey]||'');}
-    if(va<vb)return sortDir==='asc'?-1:1;
-    if(va>vb)return sortDir==='asc'?1:-1;
-    return 0;
-  });
-  document.getElementById('rv-detalle-count').textContent=arr.length+' ventas';
-  const detBody=document.getElementById('rv-detalle-body');
-  if(arr.length===0){detBody.innerHTML='<tr><td colspan="12" style="text-align:center;padding:2rem;color:var(--mut)">Sin ventas en este periodo</td></tr>';return;}
-  detBody.innerHTML=arr.map(l=>{
-    const u=l.uid?users.find(x=>x.id===l.uid):null;
-    const aseN=u?u.nombre:(l.anom||'Sin asignar');
-    const fv=getFventaDate(l);
-    const imp=parseFloat(l.importe)||0;
-    return `<tr>
-      <td style="white-space:nowrap;font-weight:600;color:#1B5E20">${fv||'—'}</td>
-      <td><div style="display:flex;align-items:center;gap:6px">${u?avU(u):'<span style="font-size:10px">—</span>'}<span>${aseN}</span></div></td>
-      <td style="font-weight:600">${l.nom||'—'}</td>
-      <td><a href="https://wa.me/${(l.tel||'').replace(/\D/g,'')}" target="_blank" style="color:#25D366;font-weight:600">${l.tel||'—'}</a></td>
-      <td>${l.linea||'—'}</td>
-      <td>${tpBadge(l.tp)}</td>
-      <td style="font-weight:600;color:var(--navy)">${l.agencia||'—'}</td>
-      <td style="font-family:monospace;font-size:11px;color:var(--navy)">${l.chasis||'<span style="color:var(--mut)">—</span>'}</td>
-      <td style="font-family:monospace;font-size:11px">${l.factura||'<span style="color:var(--mut)">—</span>'}</td>
-      <td style="white-space:nowrap">${l.ffactura||'<span style="color:var(--mut)">—</span>'}</td>
-      <td style="font-weight:700;color:#1B5E20;white-space:nowrap">${imp>0?fmtQ(imp):'<span style="color:var(--mut)">—</span>'}</td>
-      <td><button class="btn bn bxs" onclick="openDet(${l.id})">👁</button></td>
-    </tr>`;
-  }).join('');
-}
-
-function _rvBucketKey(dateStr,grp){
-  if(!dateStr)return '';
-  if(grp==='day')return dateStr;
-  if(grp==='month')return dateStr.substring(0,7);
-  if(grp==='week'){
-    const d=new Date(dateStr+'T00:00:00');if(isNaN(d))return dateStr;
-    const day=d.getDay()||7;if(day!==1)d.setDate(d.getDate()-(day-1));
-    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  }
-  return dateStr;
-}
-function _rvBucketLabel(key,grp){
-  if(!key)return '—';
-  if(grp==='day'){const d=new Date(key+'T00:00:00');if(isNaN(d))return key;const days=['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];return `${days[d.getDay()]} ${key}`;}
-  if(grp==='month'){const meses={'01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio','07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre'};const[y,m]=key.split('-');return `${meses[m]||m} ${y}`;}
-  if(grp==='week'){const d=new Date(key+'T00:00:00');const e=new Date(d);e.setDate(e.getDate()+6);const lf=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');return `Sem. ${key} -> ${lf(e)}`;}
-  return key;
-}
-
-function sortRepVentas(key){
-  if(_rvSort.key===key){_rvSort.dir=_rvSort.dir==='asc'?'desc':'asc';}else{_rvSort.key=key;_rvSort.dir='desc';}
-  renderRepVentas();
-}
-
-function exportRepVentasCSV(){
-  const arr=getRepVentasArr();
-  arr.sort((a,b)=>getFventaDate(b).localeCompare(getFventaDate(a)));
-  const cols=['Fecha Venta','Asesor','Cliente','Telefono','Linea','Tipo Pago','Agencia','Origen','Chasis','No. Factura','Fecha Factura','Importe'];
-  const rows=[cols,...arr.map(l=>{
-    const u=l.uid?users.find(x=>x.id===l.uid):null;
-    return[getFventaDate(l),u?u.nombre:(l.anom||''),l.nom||'',l.tel||'',l.linea||'',l.tp||'',l.agencia||'',l.ori||'',l.chasis||'',l.factura||'',l.ffactura||'',l.importe||''];
-  })];
-  const csv=rows.map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');
-  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv);a.download='reporte-ventas.csv';a.click();toast('CSV exportado');
-}
-
-function exportRepVentasXLSX(){
-  if(typeof XLSX==='undefined'){toast('Libreria XLSX no disponible');return;}
-  const arr=getRepVentasArr();
-  arr.sort((a,b)=>getFventaDate(b).localeCompare(getFventaDate(a)));
-  const rows=arr.map(l=>{
-    const u=l.uid?users.find(x=>x.id===l.uid):null;
-    return{'Fecha Venta':getFventaDate(l),'Asesor':u?u.nombre:(l.anom||''),'Cliente':l.nom||'','Telefono':l.tel||'','Linea':l.linea||'','Tipo Pago':l.tp||'','Agencia':l.agencia||'','Origen':l.ori||'','Chasis':l.chasis||'','No. Factura':l.factura||'','Fecha Factura':l.ffactura||'','Importe':parseFloat(l.importe)||0};
-  });
-  const ws=XLSX.utils.json_to_sheet(rows);
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Ventas');
-  XLSX.writeFile(wb,'reporte-ventas.xlsx');toast('Excel exportado');
-}
-
+// ═══════════════════════════════════════
 // REPORTES CANAL (AP / HT / AC)
-// ---------------------------------------
+// ═══════════════════════════════════════
 function renderCanalReportes(){
   const pfx=getAgenciaPrefix();if(!pfx)return;
   const dias=parseInt(document.getElementById('canal-rep-per')?.value||'0');
@@ -4279,7 +3655,7 @@ function delAgenciaModal(){
 }
 
 // NAV
-const TAB_LABELS={dashboard:'Dashboard',leads:'Leads',pipeline:'Pipeline',recordatorios:'Recordatorios',reportes:'Reportes','rep-citas':'Reporte de Citas','rep-ventas':'Reporte de Ventas','canal-reportes':'Reportes Canal',usuarios:'Usuarios',importar:'Importar / Vincular',storage:'Gestión de datos',perfil:'Mi Perfil'};
+const TAB_LABELS={dashboard:'Dashboard',leads:'Leads',pipeline:'Pipeline',recordatorios:'Recordatorios',reportes:'Reportes','rep-citas':'Reporte de Citas','canal-reportes':'Reportes Canal',usuarios:'Usuarios',importar:'Importar / Vincular',storage:'Gestión de datos',perfil:'Mi Perfil'};
 function goTab(name,btn){
   if(['usuarios','importar','storage'].includes(name)&&!isAdmin()){toast('Acceso restringido');return;}
   if(name!=='leads'&&bulkMode)exitBulk();
@@ -4293,7 +3669,6 @@ function goTab(name,btn){
   else if(name==='dashboard')renderDashboard();
   else if(name==='reportes')renderReportes();
   else if(name==='rep-citas')initRepCitasTab();
-  else if(name==='rep-ventas')initRepVentasTab();
   else if(name==='usuarios')renderUsers();
   else if(name==='perfil')renderPerfil();
   else if(name==='recordatorios'){if(getAgenciaPrefix()){toast('Acceso restringido');return;}renderRecordatorios();}
@@ -4317,36 +3692,36 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('pagehide',persist);window.addEventListener('beforeunload',persist);
 setInterval(()=>{if(CU)updRemBadge();},60000);
 
-// ---------------------------------------
+// ═══════════════════════════════════════
 // CUADRO DE CITA — generador de imagen para WhatsApp
-// ---------------------------------------
+// ═══════════════════════════════════════
 // Tabla de agencias del template oficial: código + nombre + coordinador + número
 const AGENCIA_DATA={
-  '5101':{nom:'AP CENTRAL YURRITA',coord:'JUAN JOSÉ CATALÁN',tel:'49405480'},
-  '5102':{nom:'AP METRO NORTE',coord:'BRANDON SALGUERO',tel:'35967239'},
-  '5103':{nom:'AP VILLA CANALES',coord:'JEFFERSON GARCIA',tel:'45970827'},
-  '5104':{nom:'AP 6TA AV ZONA 9',coord:'ROLANDO PORTILLO',tel:'39941954'},
-  '5105':{nom:'AP ESCUINTLA',coord:'JACQUELINE ESCOBAR',tel:'39486833'},
-  '5106':{nom:'AP RETALHULEU',coord:'CRISTIAN LOPEZ',tel:'41500849'},
-  '5108':{nom:'AP AMATITLAN',coord:'GUSTAVO DÍAZ',tel:'59472038'},
-  '5110':{nom:'AP CHIQUIMULA',coord:'MARICRUZ DIVAS',tel:'42334237'},
-  '5111':{nom:'AP LOS ALAMOS',coord:'BYRON SANDOVAL',tel:'50095161'},
-  '5112':{nom:'AP CALLE MARTI',coord:'JOSÉ GÓMEZ',tel:'59512688'},
-  '5113':{nom:'AP BARCENAS',coord:'JAVIER HERNÁNDEZ',tel:'36034945'},
-  '5114':{nom:'AP QUETZALTENANGO',coord:'ROBERTO MERIDA',tel:'45057324'},
-  '5115':{nom:'AP ESKALA',coord:'RICARDO ORTIZ',tel:'42555667'},
-  '5116':{nom:'AP JALAPA',coord:'LUIS FIGUEROA',tel:'55785555'},
-  '5118':{nom:'AP EL CASTAÑO',coord:'ALEJANDRO VALLEJO',tel:'35958802'},
-  '5124':{nom:'AP COATEPEQUE',coord:'HERMAN OTONIEL',tel:'37874514'},
-  '5126':{nom:'AP SANARATE',coord:'AZUCENA ARGUETA',tel:'54585356'},
-  '5127':{nom:'AP CHIMALTENANGO',coord:'IGNACIO RIVERA',tel:'33557204'},
-  // Note: '5125' (formerly AP ZONA KING COBAN) moved to KING channel as KING001 below
-  '5180':{nom:'HT AMATITLÁN',coord:'ANA VICTORIA GONZALES BARRERA',tel:''},
+  '5101':{nom:'TVS YURRITA',coord:'JUAN JOSÉ CATALÁN',tel:'49405480'},
+  '5102':{nom:'TVS METRONORTE',coord:'BRANDON SALGUERO',tel:'35967239'},
+  '5103':{nom:'TVS VILLA CANALES',coord:'JEFFERSON GARCIA',tel:'45970827'},
+  '5104':{nom:'TVS 6TA AV',coord:'ROLANDO PORTILLO',tel:'39941954'},
+  '5105':{nom:'TVS ESCUINTLA',coord:'JACQUELINE ESCOBAR',tel:'39486833'},
+  '5106':{nom:'TVS RETALHULEU',coord:'CRISTIAN LOPEZ',tel:'41500849'},
+  '5108':{nom:'TVS AMATITLÁN',coord:'GUSTAVO DÍAZ',tel:'59472038'},
+  '5110':{nom:'TVS CHIQUIMULA',coord:'MARICRUZ DIVAS',tel:'42334237'},
+  '5111':{nom:'TVS ALAMOS',coord:'BYRON SANDOVAL',tel:'50095161'},
+  '5112':{nom:'TVS CALLE MARTI',coord:'JOSÉ GÓMEZ',tel:'59512688'},
+  '5113':{nom:'TVS BARCENAS',coord:'JAVIER HERNÁNDEZ',tel:'36034945'},
+  '5114':{nom:'TVS QUETZALTENANGO',coord:'ROBERTO MERIDA',tel:'45057324'},
+  '5115':{nom:'TVS ESKALA',coord:'RICARDO ORTIZ',tel:'42555667'},
+  '5116':{nom:'TVS JALAPA',coord:'LUIS FIGUEROA',tel:'55785555'},
+  '5118':{nom:'TVS EL CASTAÑO',coord:'ALEJANDRO VALLEJO',tel:'35958802'},
+  '5124':{nom:'TVS COATEPEQUE',coord:'HERMAN OTONIEL',tel:'37874514'},
+  '5125':{nom:'TVS COBAN',coord:'PACAY ACTÉ CESAR ANIBAL',tel:''},
+  '5126':{nom:'TVS SANARATE',coord:'AZUCENA ARGUETA',tel:'54585356'},
+  '5127':{nom:'TVS CHIMALTENANGO',coord:'IGNACIO RIVERA',tel:'33557204'},
+  '5180':{nom:'HT AMATITLAN ASIOLE',coord:'ANA VICTORIA GONZALES BARRERA',tel:''},
   '5181':{nom:'HT SANTA LUCIA',coord:'GOMEZ COS DE LOPEZ VIVIANA',tel:''},
   '5182':{nom:'HT COATEPEQUE',coord:'SILAS LOPEZ',tel:''},
-  '5183':{nom:'HT NVA. CONCEPCION',coord:'BRAN MARROQUIN ADONIA',tel:''},
-  '5185':{nom:'HT GUASTATO',coord:'OLIVA LÓPEZ JOSÉ HILIBERTO',tel:''},
-  '5187':{nom:'HT ESQUIPUL',coord:'LANDAVERRY RAMÍREZ KAROL',tel:''},
+  '5183':{nom:'HT NUEVA CONCEPCIÓN',coord:'BRAN MARROQUIN ADONIA',tel:''},
+  '5185':{nom:'HT GUASTATOYA',coord:'OLIVA LÓPEZ JOSÉ HILIBERTO',tel:''},
+  '5187':{nom:'HT ESQUIPULAS',coord:'LANDAVERRY RAMÍREZ KAROL',tel:''},
   '5188':{nom:'HT CHIMALTENANGO',coord:'AZÚRDIA BLANCO DE JIMÉNEZ',tel:''},
   '5189':{nom:'HT JALAPA',coord:'',tel:''},
   '5191':{nom:'HT SANTO TOMAS',coord:'',tel:''},
@@ -4356,10 +3731,10 @@ const AGENCIA_DATA={
   '5195':{nom:'HT QUICHE',coord:'',tel:''},
   '5196':{nom:'HT COBAN',coord:'PACAY ACTÉ CESAR ANIBAL',tel:''},
   '5197':{nom:'HT HUEHUETENANGO',coord:'FÚNES LÓPEZ HEIDY HELEN',tel:''},
-  '5198':{nom:'HT PRADERA EXPS V.N.',coord:'CALDERON CRUZ JOHAN',tel:''},
-  '5199':{nom:'HT EL CASTAÑO',coord:'SANTIAGO SANTIAGO JUAN',tel:''},
+  '5198':{nom:'HT VILLA NUEVA PRADERA',coord:'CALDERON CRUZ JOHAN',tel:''},
+  '5199':{nom:'HT CASTAÑO',coord:'SANTIAGO SANTIAGO JUAN',tel:''},
   '51A0':{nom:'HT PUERTO SAN JOSE',coord:'HERRARTE GATICA ESVIN',tel:''},
-  '51A1':{nom:'HT SAN PEDRO SAC',coord:'',tel:''},
+  '51A1':{nom:'HT SAN PEDRO',coord:'',tel:''},
   '51A3':{nom:'HT MAZATENANGO',coord:'HENRY ESQUIVEL',tel:''},
   '51A4':{nom:'HT CHIQUIMULA',coord:'ANGEL GUTIERREZ CHEGUEN',tel:''},
   '51B1':{nom:'HT RETALHULEU',coord:'MÉNDEZ CHIHUIL BAGNER',tel:''},
@@ -4370,25 +3745,26 @@ const AGENCIA_DATA={
   '51B7':{nom:'HT SANARATE',coord:'',tel:''},
   '51B8':{nom:'HT TECUN UMAN',coord:'',tel:''},
   '51B9':{nom:'HT NEBAJ',coord:'',tel:''},
-  '51C0':{nom:'HT BARBERENA',coord:'',tel:''},
+  '51C0':{nom:'HIPERTIENDA BARBERENA',coord:'',tel:''},
   '51C1':{nom:'HT TECULUTAN',coord:'',tel:''},
   '51C2':{nom:'HT SAYAXCHE',coord:'',tel:''},
   '51C3':{nom:'HT MORALES',coord:'MARTINEZ DÍAZ YONI',tel:''},
-  '51C4':{nom:'HT SANTA ELENA PETEN',coord:'SUÁREZ CANCHÁN CARLOS',tel:''},
+  '51C4':{nom:'HT SANTA ELENA',coord:'SUÁREZ CANCHÁN CARLOS',tel:''},
   '51C6':{nom:'HT TIQUISATE',coord:'',tel:''},
-  '51C7':{nom:'HT JUTIAPA',coord:'',tel:''},
+  '51C7':{nom:'HT PROGRESO JUTIAPA',coord:'',tel:''},
   '51C8':{nom:'HT POPTUN',coord:'JUAN CARLOS FELIPE',tel:''},
-  '51C9':{nom:'HT PLAZA TECA',coord:'',tel:''},
+  '51C9':{nom:'HT PLAZA TECA COATEPEQUE',coord:'',tel:''},
   '51D1':{nom:'HT SAN ANTONIO SUCHI',coord:'RODRÍGUEZ GARCÍA KATHERINE',tel:''},
-  '51D2':{nom:'HT HUEHUETENANGO 2',coord:'',tel:''},
+  '51D2':{nom:'HT CAMBOTE/HUEHUE',coord:'',tel:''},
   '51D3':{nom:'HT EL ESTOR',coord:'',tel:''},
-  '51D4':{nom:'HT JUTIAPA 2',coord:'REYES PÁIZ JOSEPH RICARDO',tel:''},
+  '51D4':{nom:'HT JUTIAPA',coord:'REYES PÁIZ JOSEPH RICARDO',tel:''},
   '51D5':{nom:'HT PUERTO BARRIOS',coord:'URRUTIA CASTILLO EDUARDO',tel:''},
   '51D8':{nom:'HT PETAPA',coord:'RAMÍREZ PÉREZ GLENDY',tel:''},
   '51F4':{nom:'HT LOS AMATES',coord:'',tel:''},
   '51F6':{nom:'HT ATLANTIDA',coord:'AGUIRRE HERNÁNDEZ HAMILTON',tel:''},
+  // ─── Agentes de Comercio (AC) — códigos largos del Excel oficial ───
   '100391611':{nom:'AC SAN JUAN SAC / SAN PEDRO SAC',coord:'',tel:''},
-  '100430286':{nom:'AC TECPAN GUATEMALA',coord:'',tel:''},
+  '100430286':{nom:'AC TECPAN',coord:'',tel:''},
   '100624532':{nom:'AC CIUDAD SAN CRISTOBAL / ZONA 1 MIXCO',coord:'',tel:''},
   '100830168':{nom:'AC ZONA 7/ UTATLAN',coord:'',tel:''},
   '100948386':{nom:'AC SAN JUAN SACATEPEQUEZ',coord:'',tel:''},
@@ -4425,42 +3801,42 @@ const AGENCIA_DATA={
   '100522433':{nom:'AC JOCOTENANGO',coord:'',tel:''},
   '100725218':{nom:'AC BARBERENA',coord:'',tel:''},
   '100760485':{nom:'AC CHIMALTENANGO / PARRAMOS',coord:'',tel:''},
-  '100765898':{nom:'AC AGUILAR BATRES 2',coord:'',tel:''},
+  '100765898':{nom:'AC AGUILAR BATRES',coord:'',tel:''},
   '100791050':{nom:'AC ZONA 5',coord:'',tel:''},
   '100889740':{nom:'AC CALZADA SAN JUAN',coord:'',tel:''},
-  '101009407':{nom:'AC AVENIDA PETAPA 2',coord:'',tel:''},
+  '101009407':{nom:'AC AVENIDA PETAPA',coord:'',tel:''},
   '101015551':{nom:'AC CIUDAD SAN CRISTOBAL',coord:'',tel:''},
-  '101076261':{nom:'AC ZONA 1 2',coord:'',tel:''},
+  '101076261':{nom:'AC ZONA 1',coord:'',tel:''},
   '101165345':{nom:'AC LA REFORMITA',coord:'',tel:''},
   '101186175':{nom:'AC VILLA NUEVA',coord:'',tel:''},
   '101204403':{nom:'AC POPTÚN / DOLORES',coord:'',tel:''},
-  '101272651':{nom:'AC JOCOTENANGO 2',coord:'',tel:''},
+  '101272651':{nom:'AC JOCOTENANGO',coord:'',tel:''},
   '101333196':{nom:'AC ZONA 1 / SAN MIGUEL PETAPA',coord:'',tel:''},
   '101419745':{nom:'AC TELEMAN / SENAU',coord:'',tel:''},
   '101421329':{nom:'AC COATEPEQUE / LA BLANCA',coord:'',tel:''},
   '101429967':{nom:'AC ESCUINTLA',coord:'',tel:''},
-  '101510104':{nom:'AC AVENIDA PETAPA 3',coord:'',tel:''},
+  '101510104':{nom:'AC AVENIDA PETAPA',coord:'',tel:''},
   '101555125':{nom:'AC COATEPEQUE',coord:'',tel:''},
-  '101579009':{nom:'AC COBAN 2',coord:'',tel:''},
-  '101592020':{nom:'AC COATEPEQUE 2',coord:'',tel:''},
+  '101579009':{nom:'AC COBAN',coord:'',tel:''},
+  '101592020':{nom:'AC COATEPEQUE',coord:'',tel:''},
   '101606755':{nom:'AC CHAHAL',coord:'',tel:''},
   '200023002':{nom:'AC TIQUISATE',coord:'',tel:''},
   '200023579':{nom:'AC FRAY BARTOLOME / CHISEC',coord:'',tel:''},
   '200024591':{nom:'AC CHIMALTENANGO',coord:'',tel:''},
   '200024615':{nom:'AC VILLA CANALES / BOCA DEL MONTE',coord:'',tel:''},
-  '200030933':{nom:'AC PUERTO DE SAN JOSE 2',coord:'',tel:''},
+  '200030933':{nom:'AC PUERTO DE SAN JOSE',coord:'',tel:''},
   '200031601':{nom:'AC SANTA LUCIA MILPAS ALTAS',coord:'',tel:''},
   '100005122':{nom:'AC SANTIAGO ATITLAN / SAN LUCAS TOLIMAN',coord:'',tel:''},
   '100023295':{nom:'AC SALAMA',coord:'',tel:''},
   '100083009':{nom:'AC TACTIC',coord:'',tel:''},
-  '100083093':{nom:'AC COBAN 3',coord:'',tel:''},
-  '100094284':{nom:'AC TIQUISATE 2',coord:'',tel:''},
+  '100083093':{nom:'AC COBAN',coord:'',tel:''},
+  '100094284':{nom:'AC TIQUISATE',coord:'',tel:''},
   '100303384':{nom:'AC PALENCIA',coord:'',tel:''},
   '100322278':{nom:'AC ESQUIPULAS',coord:'',tel:''},
   '100468716':{nom:'AC EL FRUTAL / SAN MIGUL PETAPA',coord:'',tel:''},
   '100524217':{nom:'AC FREELANCE',coord:'',tel:''},
-  '100556236':{nom:'AC CHIMALTENANGO 2',coord:'',tel:''},
-  '100584719':{nom:'AC CALZADA SAN JUAN 2',coord:'',tel:''},
+  '100556236':{nom:'AC CHIMALTENANGO',coord:'',tel:''},
+  '100584719':{nom:'AC CALZADA SAN JUAN',coord:'',tel:''},
   '100684509':{nom:'AC MAZATENANGO / RETALHULEU',coord:'',tel:''},
   '100768420':{nom:'AC IXCAN PLAYA',coord:'',tel:''},
   '100776149':{nom:'AC PATZUN',coord:'',tel:''},
@@ -4469,7 +3845,7 @@ const AGENCIA_DATA={
   '100871957':{nom:'AC AMATITLAN',coord:'',tel:''},
   '100912545':{nom:'AC MAZATENANGO',coord:'',tel:''},
   '100946534':{nom:'AC PATZICIA',coord:'',tel:''},
-  '100970031':{nom:'AC FREELANCE 2',coord:'',tel:''},
+  '100970031':{nom:'AC FREELANCE',coord:'',tel:''},
   '100986448':{nom:'AC BOCA DEL MONTE',coord:'',tel:''},
   '101270283':{nom:'AC SAN CRISTOBAL',coord:'',tel:''},
   '101324261':{nom:'AC CHISEC / COJAJ / CAMPUR',coord:'',tel:''},
@@ -4477,13 +3853,13 @@ const AGENCIA_DATA={
   '101451285':{nom:'AC SAN MIGUEL PETAPA',coord:'',tel:''},
   '101541248':{nom:'AC RETALHULEU',coord:'',tel:''},
   '101552748':{nom:'AC METATERMINAL',coord:'',tel:''},
-  '200002625':{nom:'AC IXCAN PLAYA 2',coord:'',tel:''},
+  '200002625':{nom:'AC IXCAN PLAYA',coord:'',tel:''},
   '200008268':{nom:'AC JALAPA',coord:'',tel:''},
   '200022201':{nom:'AC SAN RAFAEL',coord:'',tel:''},
   '200023622':{nom:'AC SAN LUCAS SACATEPQUEZ',coord:'',tel:''},
   '200024500':{nom:'AC SAN PEDRO AYAMPUC',coord:'',tel:''},
   '200024631':{nom:'AC SAN FELIPE',coord:'',tel:''},
-  '100008198':{nom:'AC FREELANCE 3',coord:'',tel:''},
+  '100008198':{nom:'AC FREELANCE',coord:'',tel:''},
   '100026150':{nom:'AC HUEHUETENANGO',coord:'',tel:''},
   '100036843':{nom:'AC CHIQUIMULILLA',coord:'',tel:''},
   '100083717':{nom:'AC JOCOTAN',coord:'',tel:''},
@@ -4491,18 +3867,18 @@ const AGENCIA_DATA={
   '100131859':{nom:'AC RIO DULCE',coord:'',tel:''},
   '100216815':{nom:'AC COLOTENANGO',coord:'',tel:''},
   '100224354':{nom:'AC SANTA CLARA LA LAGUNA',coord:'',tel:''},
-  '100366993':{nom:'AC JOCOTAN 2',coord:'',tel:''},
+  '100366993':{nom:'AC JOCOTAN',coord:'',tel:''},
   '100389340':{nom:'AC RABINAL',coord:'',tel:''},
   '100431123':{nom:'AC ZACAPA',coord:'',tel:''},
   '100441102':{nom:'AC SANTA CRUZ DEL QUICHE',coord:'',tel:''},
-  '100533649':{nom:'AC HUEHUETENANGO 2',coord:'',tel:''},
+  '100533649':{nom:'AC HUEHUETENANGO',coord:'',tel:''},
   '100572834':{nom:'AC CUILCO',coord:'',tel:''},
   '100586857':{nom:'AC RETALHULEU / COATEPEQUE',coord:'',tel:''},
   '100594430':{nom:'AC JOYABAJ',coord:'',tel:''},
   '100653601':{nom:'AC SAN MATEO IXTATAN',coord:'',tel:''},
   '100683723':{nom:'AC XELA',coord:'',tel:''},
-  '100769599':{nom:'AC BARBERENA 2',coord:'',tel:''},
-  '100774133':{nom:'AC XELA 2',coord:'',tel:''},
+  '100769599':{nom:'AC BARBERENA',coord:'',tel:''},
+  '100774133':{nom:'AC XELA',coord:'',tel:''},
   '100792771':{nom:'AC CASAS VIEJAS',coord:'',tel:''},
   '100926510':{nom:'AC PATULUL',coord:'',tel:''},
   '101037218':{nom:'AC COLOMBA COSTA CUCA',coord:'',tel:''},
@@ -4511,23 +3887,62 @@ const AGENCIA_DATA={
   '101213038':{nom:'AC SAN PEDRO PINULA',coord:'',tel:''},
   '101227571':{nom:'AC BARCENAS',coord:'',tel:''},
   '101266020':{nom:'AC AGUACATÁN',coord:'',tel:''},
-  '101267134':{nom:'AC FREELANCE 4',coord:'',tel:''},
-  '101417163':{nom:'AC JALAPA 2',coord:'',tel:''},
+  '101267134':{nom:'AC FREELANCE',coord:'',tel:''},
+  '101417163':{nom:'AC JALAPA',coord:'',tel:''},
   '101427417':{nom:'AC BARILLAS',coord:'',tel:''},
-  '101614858':{nom:'AC RABINAL 2',coord:'',tel:''},
+  '101614858':{nom:'AC RABINAL',coord:'',tel:''},
   '101766913':{nom:'AC TECUN UMAN',coord:'',tel:''},
   '200000878':{nom:'AC SIPACATE',coord:'',tel:''},
-  '200012930':{nom:'AC XELA 3',coord:'',tel:''},
+  '200012930':{nom:'AC XELA',coord:'',tel:''},
   '200024301':{nom:'AC CARCHA',coord:'',tel:''},
-  '200024450':{nom:'AC CIUDAD SAN CRISTOBAL / LA BETHANIA 2',coord:'',tel:''},
-  '200024825':{nom:'AC N/A',coord:'',tel:''},
-  '200024890':{nom:'AC AVENIDA BOLIVAR 2',coord:'',tel:''},
+  '200024450':{nom:'AC CIUDAD SAN CRISTOBAL / LA BETHANIA',coord:'',tel:''},
+  '200024890':{nom:'AC AVENIDA BOLIVAR',coord:'',tel:''},
   '200026930':{nom:'AC MORALES',coord:'',tel:''},
   '200032133':{nom:'AC SAN JUAN LA LAGUNA',coord:'',tel:''},
-  // KING channel — King-branded dealerships, separated from AP for tracking purposes
-  'KING001':{nom:'KING ZONA COBAN',coord:'PACAY ACTÉ CESAR ANIBAL',tel:''},
-  'KING002':{nom:'KING SAN JOSE PINULA',coord:'',tel:''},
-  'KING003':{nom:'KING REU',coord:'',tel:''},
+  // ─── Agencias propias TVS/HT/AP/AC sin código oficial — códigos auto-generados ───
+  'HT001':{nom:'HT BARBERENA',coord:'',tel:''},
+  'HT002':{nom:'HT AMATITLÁN',coord:'',tel:''},
+  'HT003':{nom:'HT PLAZA TECA',coord:'',tel:''},
+  'HT004':{nom:'HT SAN PEDRO SAC',coord:'',tel:''},
+  'HT005':{nom:'HT SANTA ELENA PETEN',coord:'',tel:''},
+  'HT006':{nom:'HT ESQUIPUL',coord:'',tel:''},
+  'HT007':{nom:'HT PRADERA EXPS V.N.',coord:'',tel:''},
+  'HT008':{nom:'HT EL CASTAÑO',coord:'',tel:''},
+  'HT009':{nom:'HT GUASTATO',coord:'',tel:''},
+  'HT010':{nom:'HT NVA. CONCEPCION',coord:'',tel:''},
+  'HT011':{nom:'HT SANTA ELENA PETEN 2',coord:'',tel:''},
+  'AP001':{nom:'AP ZONA KING COBAN',coord:'',tel:''},
+  'AP002':{nom:'AP CENTRAL YURRITA',coord:'',tel:''},
+  'AP003':{nom:'AP 6TA AV ZONA 9',coord:'',tel:''},
+  'AP004':{nom:'AP AMATITLAN',coord:'',tel:''},
+  'AP005':{nom:'AP BARCENAS',coord:'',tel:''},
+  'AP006':{nom:'AP CALLE MARTI',coord:'',tel:''},
+  'AP007':{nom:'AP CHIMALTENANGO',coord:'',tel:''},
+  'AP008':{nom:'AP CHIQUIMULA',coord:'',tel:''},
+  'AP009':{nom:'AP COATEPEQUE',coord:'',tel:''},
+  'AP010':{nom:'AP EL CASTAÑO',coord:'',tel:''},
+  'AP011':{nom:'AP ESCUINTLA',coord:'',tel:''},
+  'AP012':{nom:'AP ESKALA',coord:'',tel:''},
+  'AP013':{nom:'AP JALAPA',coord:'',tel:''},
+  'AP014':{nom:'AP LOS ALAMOS',coord:'',tel:''},
+  'AP015':{nom:'AP METRO NORTE',coord:'',tel:''},
+  'AP016':{nom:'AP QUETZALTENANGO',coord:'',tel:''},
+  'AP017':{nom:'AP RETALHULEU',coord:'',tel:''},
+  'AP018':{nom:'AP SANARATE',coord:'',tel:''},
+  'AP019':{nom:'AP VILLA CANALES',coord:'',tel:''},
+  'AC001':{nom:'AC SAN JOSE PINULA',coord:'',tel:''},
+  'AC002':{nom:'AC ALOTENANGO',coord:'',tel:''},
+  'AC003':{nom:'AC LA BRIGADA',coord:'',tel:''},
+  'AC004':{nom:'AC UTATLAN',coord:'',tel:''},
+  'AC005':{nom:'AC SAN LUCAS',coord:'',tel:''},
+  'AC006':{nom:'AC CIUDAD VIEJA',coord:'',tel:''},
+  'AC007':{nom:'AC PALIN',coord:'',tel:''},
+  'AC008':{nom:'AC ANTIGUA',coord:'',tel:''},
+  'AC009':{nom:'AC BETHANIA',coord:'',tel:''},
+  'AC010':{nom:'AC PETAPA',coord:'',tel:''},
+  'AC011':{nom:'AC OBELISCO',coord:'',tel:''},
+  'AC012':{nom:'AC BOSQUES',coord:'',tel:''}
+
 };
 
 // Map a CRM agencia name -> code in AGENCIA_DATA (best-effort fuzzy match by normalized name)
@@ -4535,14 +3950,14 @@ function findAgenciaCode(agName){
   if(!agName)return '';
   const norm=s=>s.toUpperCase().replace(/[ÁÀ]/g,'A').replace(/[ÉÈ]/g,'E').replace(/[ÍÌ]/g,'I').replace(/[ÓÒ]/g,'O').replace(/[ÚÙÜ]/g,'U').replace(/Ñ/g,'N').replace(/[^A-Z0-9 ]/g,'').replace(/\s+/g,' ').trim();
   const target=norm(agName);
-  // EXACT match only — no fuzzy, to avoid confusing "KING SAN JOSE PINULA" with "AC SAN JOSE PINULA / ZONA 9".
+  // EXACT match only — no fuzzy, to avoid confusing "AP KING SAN JOSE PINULA" with "AC SAN JOSE PINULA / ZONA 9".
   for(const[code,d]of Object.entries(AGENCIA_DATA)){
     if(norm(d.nom)===target)return code;
   }
   return '';
 }
 
-// --- TABLA DE PRECIOS OFICIALES (Q) — TVS Motos Guatemala --- //
+// ─── TABLA DE PRECIOS OFICIALES (Q) — TVS Motos Guatemala ─── //
 // Key: nombre del modelo normalizado (mayúsculas, sin tildes, sin paréntesis).
 // Si el lead trae "2025" o "2026" en linea, se busca primero la versión con año.
 const PRECIOS_MOTOS={
@@ -4620,98 +4035,6 @@ function fmtQuetzales(amount){
   return 'Q '+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 
-// Cuadro searchable dropdown helpers
-let _cuadroActiveDd=null;
-let _cuadroActiveIdx=-1;
-
-function _cuadroGetOptions(ddId){
-  const dd=document.getElementById(ddId);
-  if(!dd)return[];
-  try{return JSON.parse(dd.dataset.options.replace(/&#39;/g,"'"));}catch(e){return[];}
-}
-
-function _cuadroBuildItems(ddId,opts,query){
-  const dd=document.getElementById(ddId);
-  if(!dd)return;
-  const q=(query||'').trim().toLowerCase();
-  const filtered=q?opts.filter(o=>o.label.toLowerCase().includes(q)||o.code.toLowerCase().includes(q)):opts;
-  if(filtered.length===0){
-    dd.innerHTML='<div class="cuadro-dd-empty">Sin resultados</div>';
-    return;
-  }
-  dd.innerHTML=filtered.map((o,i)=>{
-    const lbl=q?o.label.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<em>$1</em>'):o.label;
-    return `<div class="cuadro-dd-item" data-code="${(o.code||'').replace(/"/g,'&quot;')}" data-idx="${i}" onmousedown="cuadroDropdownPick(event,'${ddId}',this)">${lbl}</div>`;
-  }).join('');
-  _cuadroActiveIdx=-1;
-}
-
-function cuadroDropdownOpen(ddId,inp){
-  // Close any other open dropdown first
-  if(_cuadroActiveDd&&_cuadroActiveDd!==ddId)cuadroDropdownClose(_cuadroActiveDd);
-  _cuadroActiveDd=ddId;
-  // Select all text so user sees ALL options immediately (not filtered by existing value).
-  // They can then type to filter or just pick from the full list.
-  inp.select();
-  const opts=_cuadroGetOptions(ddId);
-  // Show ALL options on focus (empty query = no filter)
-  _cuadroBuildItems(ddId,opts,'');
-  const dd=document.getElementById(ddId);
-  if(dd)dd.style.display='block';
-}
-
-function cuadroDropdownFilter(ddId,inp){
-  if(_cuadroActiveDd!==ddId){
-    _cuadroActiveDd=ddId;
-    const dd=document.getElementById(ddId);
-    if(dd)dd.style.display='block';
-  }
-  const opts=_cuadroGetOptions(ddId);
-  _cuadroBuildItems(ddId,opts,inp.value);
-}
-
-function cuadroDropdownPick(evt,ddId,item){
-  evt.preventDefault();
-  const inp=document.querySelector(`[data-dd="${ddId}"] .cuadro-fld`);
-  if(inp){inp.value=item.dataset.code||item.textContent;renderCuadroCanvas();}
-  cuadroDropdownClose(ddId);
-  // Sync codigo <-> agencia after pick
-  const codSel=document.getElementById('cu-codigo');
-  const agSel=document.getElementById('cu-agencia');
-  if(!codSel||!agSel)return;
-  if(inp&&inp.id==='cu-agencia'){
-    const nom=inp.value.trim();
-    for(const[c,d]of Object.entries(AGENCIA_DATA)){if(d.nom===nom){codSel.value=c;break;}}
-  } else if(inp&&inp.id==='cu-codigo'){
-    const ag=AGENCIA_DATA[inp.value.trim().toUpperCase()];
-    if(ag)agSel.value=ag.nom;
-  }
-  renderCuadroCanvas();
-}
-
-function cuadroDropdownBlur(ddId){
-  // Small delay so mousedown on item fires before blur hides it
-  setTimeout(()=>cuadroDropdownClose(ddId),180);
-}
-
-function cuadroDropdownClose(ddId){
-  const dd=document.getElementById(ddId);
-  if(dd)dd.style.display='none';
-  if(_cuadroActiveDd===ddId){_cuadroActiveDd=null;_cuadroActiveIdx=-1;}
-}
-
-function cuadroDropdownKey(evt,ddId,inp){
-  const dd=document.getElementById(ddId);
-  if(!dd||dd.style.display==='none'){if(evt.key==='ArrowDown'||evt.key==='Enter'){cuadroDropdownOpen(ddId,inp);}return;}
-  const items=[...dd.querySelectorAll('.cuadro-dd-item')];
-  if(evt.key==='ArrowDown'){evt.preventDefault();_cuadroActiveIdx=Math.min(_cuadroActiveIdx+1,items.length-1);}
-  else if(evt.key==='ArrowUp'){evt.preventDefault();_cuadroActiveIdx=Math.max(_cuadroActiveIdx-1,0);}
-  else if(evt.key==='Enter'&&_cuadroActiveIdx>=0){evt.preventDefault();if(items[_cuadroActiveIdx])items[_cuadroActiveIdx].dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));return;}
-  else if(evt.key==='Escape'){cuadroDropdownClose(ddId);return;}
-  items.forEach((it,i)=>it.classList.toggle('active',i===_cuadroActiveIdx));
-  if(items[_cuadroActiveIdx])items[_cuadroActiveIdx].scrollIntoView({block:'nearest'});
-}
-
 let cuadroLeadId=null;
 
 function openCuadroCita(id){
@@ -4723,8 +4046,8 @@ function openCuadroCita(id){
   // Without this, agencies created on another device that synced through Firebase
   // may not be in AGENCIA_DATA yet, so they'd be missing from the dropdown.
   agencias.forEach(name=>{
-    const existsCode=findAgenciaCode(name)||getOfficialAgenciaCode(name);
-    if(!existsCode)registerAgenciaCode(name); // only register if truly new
+    const exists=Object.values(AGENCIA_DATA).some(d=>d.nom===name);
+    if(!exists)registerAgenciaCode(name); // adds as auto:true placeholder
   });
   // Pre-fill from lead data
   const u=l.uid?users.find(x=>x.id===l.uid):null;
@@ -4784,21 +4107,14 @@ function openCuadroCita(id){
       </div>`;
     }
     if(f.type==='datalist'){
-      // Custom searchable dropdown — shows ALL options on focus, filters as you type.
-      const ddId='cdd-'+f.k;
-      const safeVal=(f.val||'').replace(/"/g,'&quot;');
-      const safePh=f.placeholder||'';
-      const optionsJson=JSON.stringify(f.options.map(o=>({code:String(o.code||''),label:String(o.label||'')})));
-      return `<div class="fg cuadro-dd-wrap" style="margin-bottom:0;position:relative" data-dd="${ddId}">
+      // Editable input + a datalist of suggestions. The user can pick a suggestion
+      // OR type any value (e.g. a code that isn't in our list yet).
+      const dlId='dl-'+f.k;
+      const opts=f.options.map(o=>`<option value="${(o.code||'').replace(/"/g,'&quot;')}">${o.label}</option>`).join('');
+      return `<div class="fg" style="margin-bottom:0">
         <label class="fl" style="font-size:10px">${f.label}</label>
-        <input class="fc cuadro-fld" id="cu-${f.k}" data-k="${f.k}"
-               value="${safeVal}" placeholder="${safePh}"
-               style="font-size:12px" autocomplete="off"
-               oninput="cuadroDropdownFilter('${ddId}',this);renderCuadroCanvas()"
-               onfocus="cuadroDropdownOpen('${ddId}',this)"
-               onblur="cuadroDropdownBlur('${ddId}')"
-               onkeydown="cuadroDropdownKey(event,'${ddId}',this)">
-        <div id="${ddId}" class="cuadro-dd" style="display:none" data-options='${optionsJson.replace(/'/g,"&#39;")}'></div>
+        <input class="fc cuadro-fld" id="cu-${f.k}" data-k="${f.k}" list="${dlId}" value="${(f.val||'').replace(/"/g,'&quot;')}" placeholder="${f.placeholder}" style="font-size:12px" oninput="renderCuadroCanvas()">
+        <datalist id="${dlId}">${opts}</datalist>
       </div>`;
     }
     return `<div class="fg" style="margin-bottom:0">
@@ -4928,9 +4244,9 @@ function renderCuadroCanvas(){
   // White background
   ctx.fillStyle='#FFFFFF';
   ctx.fillRect(0,0,W,H);
-  // -- LOGO (top-left, official TVS Motos image) --
+  // ── LOGO (top-left, official TVS Motos image) ──
   drawTvsLogo(ctx,30,logoY,logoW,logoH);
-  // -- Title bar (centered, with black border) --
+  // ── Title bar (centered, with black border) ──
   ctx.fillStyle='#FFFFFF';
   ctx.strokeStyle='#000000';
   ctx.lineWidth=2;
@@ -4940,7 +4256,7 @@ function renderCuadroCanvas(){
   ctx.textAlign='center';
   ctx.textBaseline='middle';
   ctx.fillText('Cuadro Formal para enviar a las Agencias',W/2,titleY+titleH/2);
-  // -- Blue intro box --
+  // ── Blue intro box ──
   ctx.fillStyle='#0033CC';
   ctx.fillRect(20,introY,W-40,introH);
   ctx.fillStyle='#FFFFFF';
@@ -4948,7 +4264,7 @@ function renderCuadroCanvas(){
   ctx.textAlign='center';
   const introTxt='Buen día, favor contactar al cliente y darle el respectivo seguimiento. Este ya se encuentra cargado en su Salesforce. Quedo al pendiente de sus comentarios. ¡Gracias por el apoyo!';
   wrapText(ctx,introTxt,W/2,introY+35,W-80,26);
-  // -- Rows: left red label, right white value (CENTERED) --
+  // ── Rows: left red label, right white value (CENTERED) ──
   const rows=[
     ['CÓDIGO DE AGENCIA:',v.codigo],
     ['CLIENTE:',v.cliente],
@@ -5100,59 +4416,30 @@ function shareCuadroWhatsApp(){
 // in AGENCIA_DATA. Runs once at startup AFTER AGENCIA_DATA and registerAgenciaCode
 // are defined, ensuring previously-added agencias get codes too.
 (function startupAutoCodeAgencias(){
-  // STEP 1 — KING channel migration. Runs first against local storage data.
-  // If localStorage is empty (fresh device), this is a no-op and the deferred
-  // run below will handle it after cloud sync brings data.
-  if(typeof migrateKingAgencias==='function'){
-    try{ migrateKingAgencias(); }catch(e){ console.warn('[KING migration] error:',e); }
-  }
-  // STEP 2 — auto-code any agencia in localStorage that doesn't have a code yet
   let added=0;
   agencias.forEach(function(n){
-    const existsCode=findAgenciaCode(n)||getOfficialAgenciaCode(n);
-    if(!existsCode){registerAgenciaCode(n);added++;}
+    const exists=Object.values(AGENCIA_DATA).some(d=>d.nom===n);
+    if(!exists){registerAgenciaCode(n);added++;}
   });
   if(added>0)console.log('[agencias] Startup auto-coded',added,'agencies');
-  // STEP 3 — backfill leads that don't have agencia_codigo
+  // After ensuring all agencias have codes, backfill leads that don't have agencia_codigo.
+  // This makes existing leads created BEFORE this fix automatically gain their code.
   if(typeof leads!=='undefined'&&leads.length>0){
     backfillAgenciaCodigo();
   }
-  // STEP 4 — deferred KING migration: 8 seconds after page load, run migration ONCE more
-  // to catch data that came from Firebase. The flag inside migrateKingAgencias prevents
-  // re-running if it already completed. This is the safe way to handle both fresh devices
-  // (where Firebase is the only source of truth) and devices with localStorage data.
-  setTimeout(()=>{
-    if(typeof migrateKingAgencias==='function'){
-      try{ migrateKingAgencias(); }catch(e){ console.warn('[KING migration deferred] error:',e); }
-    }
-  }, 8000);
 })();
 
 // AUTO-CONNECT
 function doAutoConnect(){
-  try{
-    const saved=lsG('tvs8_fbcfg',null);
-    if(saved&&saved.apiKey&&saved.projectId&&window._fb){
-      ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{const el=document.getElementById('cfg-'+k.replace('Storage','').toLowerCase().replace('messaging','ms').replace('app','app').replace('auth','auth'));if(el&&saved[k])el.value=saved[k];});
-      const ok=window._fb.init(saved);
-      if(ok){useCloud=true;showLoginScreen(true);initRealtimeSync();}
-      else{showLoginScreen(false);}
-    }else{showLoginScreen(false);}
-  }catch(e){
-    console.error('doAutoConnect error:',e);
-    showLoginScreen(false);
-  }
+  const saved=lsG('tvs8_fbcfg',null);
+  if(saved&&saved.apiKey&&saved.projectId&&window._fb){
+    ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{const el=document.getElementById('cfg-'+k.replace('Storage','').toLowerCase().replace('messaging','ms').replace('app','app').replace('auth','auth'));if(el&&saved[k])el.value=saved[k];});
+    const ok=window._fb.init(saved);
+    if(ok){useCloud=true;showLoginScreen(true);initRealtimeSync();}
+    else{showLoginScreen(false);}
+  }else{showLoginScreen(false);}
 }
-// Retry until _fb module is ready (can take >500ms on slow connections)
-(function waitForFb(attempts){
-  if(window._fb){doAutoConnect();}
-  else if(attempts>0){setTimeout(()=>waitForFb(attempts-1),400);}
-  else{
-    // Firebase module never loaded — show login in local mode
-    console.warn('Firebase module not ready after retries — falling back to local mode');
-    showLoginScreen(false);
-  }
-})(10);
+if(window._fb){doAutoConnect();}else{setTimeout(doAutoConnect,500);}
 if(impHist.length>0)renderImpHist();
 </script>
 </body>
