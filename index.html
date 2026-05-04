@@ -508,6 +508,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <div class="nl">Administración</div>
     <button class="ni" onclick="goTab('reportes',this)"><span class="nco">📈</span><span>Reportes</span></button>
     <button class="ni" onclick="goTab('rep-citas',this)"><span class="nco">📋</span><span>Reporte de Citas</span></button>
+    <button class="ni" onclick="goTab('rep-ventas',this)"><span class="nco">💰</span><span>Reporte de Ventas</span></button>
     <button class="ni admin-only" onclick="goTab('usuarios',this)"><span class="nco">🧑‍💼</span><span>Usuarios</span><span class="nc" id="nc-users">0</span></button>
     <button class="ni admin-only" onclick="goTab('importar',this)"><span class="nco">📥</span><span>Importar / Vincular</span></button>
     <button class="ni admin-only" onclick="goTab('storage',this)"><span class="nco">🗂</span><span>Gestión de datos</span></button>
@@ -519,6 +520,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   <div class="ns" style="margin-top:.4rem">
     <div class="nl">Cuenta</div>
     <button class="ni" onclick="goTab('perfil',this)"><span class="nco">👤</span><span>Mi perfil</span></button>
+    <button class="ni" onclick="abrirCRMVentas()" style="background:rgba(212,175,55,.12);border:1px solid rgba(212,175,55,.3)"><span class="nco">🔗</span><span>DATOS DIARIOS</span></button>
     <button class="ni" onclick="doLogout()"><span class="nco">🚪</span><span>Cerrar sesión</span></button>
   </div>
   <div class="sf">
@@ -536,6 +538,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   </div>
   <div style="display:flex;align-items:center;gap:8px">
     <span class="sync-pill sync-off" id="sync-indicator"><span class="sync-dot dot-off" id="sync-dot"></span><span id="sync-label">—</span></span>
+    <button id="btn-crm-quejas" onclick="abrirCRMQuejas()" style="display:none;background:#E53935;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">🔗 CRM Quejas</button>
     <button class="up" onclick="goTab('perfil',null)">
       <div id="tb-av" class="av av-sm"></div>
       <div><div class="pn" id="tb-nm">—</div><div class="pr" id="tb-rl">—</div></div>
@@ -761,6 +764,55 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
 </div>
 
 
+<!-- REPORTE DE VENTAS -->
+<div id="tab-rep-ventas" class="tab admin-sup">
+  <div class="ph">
+    <div><div class="pt">Reporte de Ventas</div><div class="psb">Conversión a venta por asesor con detalle completo</div></div>
+    <div class="ha" style="flex-wrap:wrap;gap:6px;align-items:center">
+      <input type="date" class="fc" id="rv-fd" style="max-width:150px" onchange="renderRepVentas()">
+      <span style="font-size:11px;color:var(--mut)">a</span>
+      <input type="date" class="fc" id="rv-fh" style="max-width:150px" onchange="renderRepVentas()">
+      <select class="fc" id="rv-grp" onchange="renderRepVentas()" style="max-width:130px">
+        <option value="day">Por día</option>
+        <option value="week">Por semana</option>
+        <option value="month">Por mes</option>
+      </select>
+      <select class="fc" id="rv-ase" onchange="renderRepVentas()" style="max-width:170px">
+        <option value="">Todos los asesores</option>
+      </select>
+      <button class="btn bo bsm" onclick="setRvQuickRange(7)">7 días</button>
+      <button class="btn bo bsm" onclick="setRvQuickRange(30)">30 días</button>
+      <button class="btn bo bsm" onclick="setRvQuickRange('thismonth')">Este mes</button>
+      <button class="btn bo bsm" onclick="setRvQuickRange('all')">Todo</button>
+      <button class="btn bn bsm" onclick="exportRepVentasCSV()">&#11015; CSV</button>
+      <button class="btn bp bsm" onclick="exportRepVentasXLSX()">&#128202; Excel</button>
+    </div>
+  </div>
+  <div class="mets" id="rv-mets" style="margin-bottom:.8rem"></div>
+  <div class="card" style="margin-bottom:.75rem">
+    <div class="ch"><span class="ct">Resumen &mdash; ventas por asesor por <span id="rv-grp-label">dia</span></span></div>
+    <div class="tw" style="max-height:400px;overflow:auto">
+      <table id="rv-resumen-tbl"><thead id="rv-resumen-head"></thead><tbody id="rv-resumen-body"></tbody></table>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ch"><span class="ct">Detalle de ventas</span><span id="rv-detalle-count" style="margin-left:auto;font-size:11px;color:var(--mut);font-weight:600"></span></div>
+    <div class="tw" style="max-height:600px;overflow:auto">
+      <table>
+        <thead><tr>
+          <th style="cursor:pointer" onclick="sortRepVentas('fventa')">Fecha Venta</th>
+          <th>Asesor</th><th>Cliente</th><th>Telefono</th>
+          <th>Linea</th><th>Tipo Pago</th><th>Agencia</th>
+          <th>Chasis</th><th>No. Factura</th><th>F. Factura</th>
+          <th>Importe (Q)</th><th>Acciones</th>
+        </tr></thead>
+        <tbody id="rv-detalle-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
 <!-- REPORTES CANAL AP -->
 <div id="tab-canal-reportes" class="tab">
   <div class="ph">
@@ -977,6 +1029,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   <div class="mmi" onclick="goTab('pipeline',null);setMN('');toggleMM()">⚡ Pipeline</div>
   <div class="mmi admin-sup" onclick="goTab('reportes',null);setMN('');toggleMM()">📈 Reportes</div>
   <div class="mmi admin-sup" onclick="goTab('rep-citas',null);setMN('');toggleMM()">📋 Reporte de Citas</div>
+  <div class="mmi admin-sup" onclick="goTab('rep-ventas',null);setMN('');toggleMM()">💰 Reporte de Ventas</div>
   <div class="mmi admin-only" onclick="goTab('usuarios',null);setMN('');toggleMM()">🧑‍💼 Usuarios</div>
   <div class="mmi admin-only" onclick="goTab('importar',null);setMN('');toggleMM()">📥 Importar</div>
   <div class="mmi admin-only" onclick="goTab('storage',null);setMN('');toggleMM()">🗂 Datos</div>
@@ -998,7 +1051,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <div class="fr"><div class="fg"><label class="fl">Agencia</label><select class="fc" id="lf-agencia"><option value="">— Sin agencia —</option></select></div><div class="fg"><label class="fl">Ubicación</label><input class="fc" id="lf-ubi" list="ubi-list" placeholder="Ciudad o zona..."><datalist id="ubi-list"></datalist></div></div>
       <div class="fr"><div class="fg"><label class="fl">Fecha Actividad</label><input class="fc" type="date" id="lf-fa"></div><div class="fg"><label class="fl">Fecha Actualización</label><input class="fc" type="date" id="lf-fu"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Estado</label><select class="fc" id="lf-est" onchange="toggleCanalField()"><option>NUEVO</option><option>PROCESO</option><option>CITA</option><option>PRECALIFICADO</option><option>SEGUIMIENTO</option><option>VENTA</option><option>PERDIDO</option><option>PENDIENTE</option></select></div><div class="fg admin-sup"><label class="fl">Asesor</label><select class="fc" id="lf-ase"><option value="">— Sin asignar</option></select></div></div>
-      <div class="fr" id="canal-field" style="display:none"><div class="fg"><label class="fl">Canal de Cita</label><select class="fc" id="lf-canal"><option value="">— Seleccionar —</option><option value="AP">AP</option><option value="HT">HT</option><option value="AC">AC</option></select></div></div>
+      <div class="fr" id="canal-field" style="display:none"><div class="fg"><label class="fl">Canal de Cita</label><select class="fc" id="lf-canal"><option value="">— Seleccionar —</option><option value="AP">AP</option><option value="HT">HT</option><option value="AC">AC</option><option value="KING">KING</option></select></div></div>
       <div class="fr" style="gap:.75rem;margin-bottom:12px">
         <div class="fg" style="margin-bottom:0">
           <label class="fl">📊 Interés</label>
@@ -1063,7 +1116,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <div class="fr"><div class="fg"><label class="fl">Nombre completo *</label><input class="fc" id="uf-nom" autocapitalize="words"></div><div class="fg"><label class="fl">Usuario (login) *</label><input class="fc" id="uf-usr" autocorrect="off" autocapitalize="off"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Contraseña *</label><input class="fc" type="password" id="uf-pw" placeholder="Mínimo 6 caracteres"></div><div class="fg"><label class="fl">Confirmar</label><input class="fc" type="password" id="uf-pw2"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Email</label><input class="fc" type="email" id="uf-em" autocapitalize="off"></div><div class="fg"><label class="fl">WhatsApp</label><input class="fc" type="tel" id="uf-tel"></div></div>
-      <div class="fr"><div class="fg"><label class="fl">Rol</label><select class="fc" id="uf-rol"><option value="asesor">Asesor</option><option value="supervisor">Supervisor</option><option value="gerencia">Gerencia</option><option value="ap_gerencia">Canal AP</option><option value="ht_gerencia">Canal HT</option><option value="ac_gerencia">Canal AC</option><option value="admin">Administrador</option></select></div><div class="fg"><label class="fl">Zona</label><input class="fc" id="uf-zona"></div></div>
+      <div class="fr"><div class="fg"><label class="fl">Rol</label><select class="fc" id="uf-rol"><option value="asesor">Asesor</option><option value="supervisor">Supervisor</option><option value="gerencia">Gerencia</option><option value="ap_gerencia">Canal AP</option><option value="ht_gerencia">Canal HT</option><option value="ac_gerencia">Canal AC</option><option value="king_gerencia">Canal KING</option><option value="admin">Administrador</option></select></div><div class="fg"><label class="fl">Zona</label><input class="fc" id="uf-zona"></div></div>
       <div class="fg"><label class="fl">Nombre exacto en los leads</label><input class="fc" id="uf-ln" placeholder="Igual que columna Asesor"></div>
       <div class="fg"><label class="fl">Mensaje WhatsApp</label><textarea class="fc" id="uf-wa" placeholder="Hola {nombre}, soy {asesor} de TVS Motos..."></textarea></div>
       <div id="uf-err" class="wbox" style="display:none"></div>
@@ -1208,7 +1261,7 @@ const DEF_LEADS=[
 ];
 
 let users=[...DEF_USERS], leads=[...DEF_LEADS];
-const _AGENCIAS_MASTER=["HT BARBERENA","HT AMATITLÁN","HT TIQUISATE","HT PLAZA TECA","HT SAN PEDRO SAC","HT SANTA ELENA PETEN","HT HUEHUETENANGO","HT JALAPA","HT MAZATENANGO","HT MALACATAN","HT CHIQUIMULA","HT ATLANTIDA","HT ESCUINTLA","HT PUERTO SAN JOSE","HT SANTA LUCIA","HT CHIMALTENANGO","HT GOMERA","HT ESQUIPUL","HT POPTUN","HT LA LIBERTAD","HT PRADERA EXPS V.N.","HT EL CASTAÑO","HT PETAPA","HT TECULUTAN","HT JUTIAPA","HT SALAMA","HT COBAN","HT SAYAXCHE","HT LOS AMATES","HT SAN ANTONIO SUCHI","HT QUETZALTENANGO","HT COATEPEQUE","HT PUERTO BARRIOS","HT GUASTATO","HT MORALES","HT RETALHULEU","HT NVA. CONCEPCION","HT QUICHE","HT NEBAJ","HT SANTA ELENA PETEN 2","AP ZONA KING COBAN","AP CENTRAL YURRITA","AP 6TA AV ZONA 9","AP AMATITLAN","AP BARCENAS","AP CALLE MARTI","AP CHIMALTENANGO","AP CHIQUIMULA","AP COATEPEQUE","AP EL CASTAÑO","AP ESCUINTLA","AP ESKALA","AP JALAPA","AP LOS ALAMOS","AP METRO NORTE","AP QUETZALTENANGO","AP RETALHULEU","AP SANARATE","AP VILLA CANALES","AC JOCOTENANGO","AC SANTA LUCIA MILPAS ALTAS","AC SANTA CLARA LA LAGUNA","AC ESCUINTLA","AC SAN JOSE PINULA","AC ALOTENANGO","AC LA BRIGADA","AC ZONA 10","AC UTATLAN","AC SAN JUAN SACATEPEQUEZ","AC SAN LUCAS","AC CIUDAD VIEJA","AC BOCA DEL MONTE","AC VILLA NUEVA","AC PALIN","AC ANTIGUA","AC AMATITLAN","AC BETHANIA","AC ZONA 9","AC SAN MIGUEL PETAPA","AC LA GOMERA","AC PETAPA","AC ZONA 1","AC OBELISCO","AC BOSQUES","AC SAN RAFAEL","AC SAN JUAN SAC / SAN PEDRO SAC","AC TECPAN","AC CIUDAD SAN CRISTOBAL / ZONA 1 MIXCO","AC ZONA 7/ UTATLAN","AC AGUILAR BATRES","AC PALIN / ESCUINTLA","AC LA DEMOCRACIA","AC AVENIDA PETAPA","AC ALOTENANGO / YEPOCAPA","AC OBELISCO / AGUILAR BATRES","AC BOSQUES DE SAN NICOLAS / FLORIDA","AC SAN FRANCISCO / LO DE BRAN","AC CALLE MARTI","AC XELA / TOTONICAPAN / CANTEL","AC CIUDAD VIEJA / SANTA MARIA DE JESUS","AC CIUDAD QUETZAL","AC SAN RAYMUNDO","AC NARANJO FRONTERA","AC LA BRIGADA / MINERVA","AC CAES / SAN JOSE PINULA","AC CIUDAD SAN CRISTOBAL / LA BETHANIA","AC SAN BENITO / SAYAXCHÉ","AC ROOSEVELT / LA CASTELLANA","AC SAN JOSE PINULA / ZONA 9","AC AVENIDA BOLIVAR","AC COBAN","AC SAN JOSE POAQUIL","AC ANTIGUA GUATEMALA","AC SAN MIGUEL PETAPA / VILLA NUEVA","AC CENTRA NORTE","AC PUERTO DE SAN JOSE","AC BARBERENA","AC CHIMALTENANGO / PARRAMOS","AC ZONA 5","AC CALZADA SAN JUAN","AC CIUDAD SAN CRISTOBAL","AC LA REFORMITA","AC POPTÚN / DOLORES","AC ZONA 1 / SAN MIGUEL PETAPA","AC TELEMAN / SENAU","AC COATEPEQUE / LA BLANCA","AC COATEPEQUE","AC CHAHAL","AC TIQUISATE","AC FRAY BARTOLOME / CHISEC","AC CHIMALTENANGO","AC VILLA CANALES / BOCA DEL MONTE","AC SANTIAGO ATITLAN / SAN LUCAS TOLIMAN","AC SALAMA","AC TACTIC","AC PALENCIA","AC ESQUIPULAS","AC EL FRUTAL / SAN MIGUL PETAPA","AC FREELANCE","AC MAZATENANGO / RETALHULEU","AC IXCAN PLAYA","AC PATZUN","AC CARCHA / TACTIC","AC MAZATENANGO","AC PATZICIA","AC SAN CRISTOBAL","AC CHISEC / COJAJ / CAMPUR","AC PAJAPITA","AC RETALHULEU","AC METATERMINAL","AC JALAPA","AC SAN LUCAS SACATEPQUEZ","AC SAN PEDRO AYAMPUC","AC SAN FELIPE","AC HUEHUETENANGO","AC CHIQUIMULILLA","AC JOCOTAN","AC CAHABON / LANQUIN","AC RIO DULCE","AC COLOTENANGO","AC RABINAL","AC ZACAPA","AC SANTA CRUZ DEL QUICHE","AC CUILCO","AC RETALHULEU / COATEPEQUE","AC JOYABAJ","AC SAN MATEO IXTATAN","AC XELA","AC CASAS VIEJAS","AC PATULUL","AC COLOMBA COSTA CUCA","AC MALACATAN","AC CHAMELCO","AC SAN PEDRO PINULA","AC BARCENAS","AC AGUACATÁN","AC BARILLAS","AC TECUN UMAN","AC SIPACATE","AC CARCHA","AC MORALES","AC SAN JUAN LA LAGUNA"];
+const _AGENCIAS_MASTER=["HT BARBERENA","HT AMATITLÁN","HT TIQUISATE","HT PLAZA TECA","HT SAN PEDRO SAC","HT SANTA ELENA PETEN","HT HUEHUETENANGO","HT JALAPA","HT MAZATENANGO","HT MALACATAN","HT CHIQUIMULA","HT ATLANTIDA","HT ESCUINTLA","HT PUERTO SAN JOSE","HT SANTA LUCIA","HT CHIMALTENANGO","HT GOMERA","HT ESQUIPUL","HT POPTUN","HT LA LIBERTAD","HT PRADERA EXPS V.N.","HT EL CASTAÑO","HT PETAPA","HT TECULUTAN","HT JUTIAPA","HT SALAMA","HT COBAN","HT SAYAXCHE","HT LOS AMATES","HT SAN ANTONIO SUCHI","HT QUETZALTENANGO","HT COATEPEQUE","HT PUERTO BARRIOS","HT GUASTATO","HT MORALES","HT RETALHULEU","HT NVA. CONCEPCION","HT QUICHE","HT NEBAJ","HT SANTA ELENA PETEN 2","KING ZONA COBAN","AP CENTRAL YURRITA","AP 6TA AV ZONA 9","AP AMATITLAN","AP BARCENAS","AP CALLE MARTI","AP CHIMALTENANGO","AP CHIQUIMULA","AP COATEPEQUE","AP EL CASTAÑO","AP ESCUINTLA","AP ESKALA","AP JALAPA","AP LOS ALAMOS","AP METRO NORTE","AP QUETZALTENANGO","AP RETALHULEU","AP SANARATE","AP VILLA CANALES","AC JOCOTENANGO","AC SANTA LUCIA MILPAS ALTAS","AC SANTA CLARA LA LAGUNA","AC ESCUINTLA","AC SAN JOSE PINULA","AC ALOTENANGO","AC LA BRIGADA","AC ZONA 10","AC UTATLAN","AC SAN JUAN SACATEPEQUEZ","AC SAN LUCAS","AC CIUDAD VIEJA","AC BOCA DEL MONTE","AC VILLA NUEVA","AC PALIN","AC ANTIGUA","AC AMATITLAN","AC BETHANIA","AC ZONA 9","AC SAN MIGUEL PETAPA","AC LA GOMERA","AC PETAPA","AC ZONA 1","AC OBELISCO","AC BOSQUES","AC SAN RAFAEL","AC SAN JUAN SAC / SAN PEDRO SAC","AC TECPAN","AC CIUDAD SAN CRISTOBAL / ZONA 1 MIXCO","AC ZONA 7/ UTATLAN","AC AGUILAR BATRES","AC PALIN / ESCUINTLA","AC LA DEMOCRACIA","AC AVENIDA PETAPA","AC ALOTENANGO / YEPOCAPA","AC OBELISCO / AGUILAR BATRES","AC BOSQUES DE SAN NICOLAS / FLORIDA","AC SAN FRANCISCO / LO DE BRAN","AC CALLE MARTI","AC XELA / TOTONICAPAN / CANTEL","AC CIUDAD VIEJA / SANTA MARIA DE JESUS","AC CIUDAD QUETZAL","AC SAN RAYMUNDO","AC NARANJO FRONTERA","AC LA BRIGADA / MINERVA","AC CAES / SAN JOSE PINULA","AC CIUDAD SAN CRISTOBAL / LA BETHANIA","AC SAN BENITO / SAYAXCHÉ","AC ROOSEVELT / LA CASTELLANA","AC SAN JOSE PINULA / ZONA 9","AC AVENIDA BOLIVAR","AC COBAN","AC SAN JOSE POAQUIL","AC ANTIGUA GUATEMALA","AC SAN MIGUEL PETAPA / VILLA NUEVA","AC CENTRA NORTE","AC PUERTO DE SAN JOSE","AC BARBERENA","AC CHIMALTENANGO / PARRAMOS","AC ZONA 5","AC CALZADA SAN JUAN","AC CIUDAD SAN CRISTOBAL","AC LA REFORMITA","AC POPTÚN / DOLORES","AC ZONA 1 / SAN MIGUEL PETAPA","AC TELEMAN / SENAU","AC COATEPEQUE / LA BLANCA","AC COATEPEQUE","AC CHAHAL","AC TIQUISATE","AC FRAY BARTOLOME / CHISEC","AC CHIMALTENANGO","AC VILLA CANALES / BOCA DEL MONTE","AC SANTIAGO ATITLAN / SAN LUCAS TOLIMAN","AC SALAMA","AC TACTIC","AC PALENCIA","AC ESQUIPULAS","AC EL FRUTAL / SAN MIGUL PETAPA","AC FREELANCE","AC MAZATENANGO / RETALHULEU","AC IXCAN PLAYA","AC PATZUN","AC CARCHA / TACTIC","AC MAZATENANGO","AC PATZICIA","AC SAN CRISTOBAL","AC CHISEC / COJAJ / CAMPUR","AC PAJAPITA","AC RETALHULEU","AC METATERMINAL","AC JALAPA","AC SAN LUCAS SACATEPQUEZ","AC SAN PEDRO AYAMPUC","AC SAN FELIPE","AC HUEHUETENANGO","AC CHIQUIMULILLA","AC JOCOTAN","AC CAHABON / LANQUIN","AC RIO DULCE","AC COLOTENANGO","AC RABINAL","AC ZACAPA","AC SANTA CRUZ DEL QUICHE","AC CUILCO","AC RETALHULEU / COATEPEQUE","AC JOYABAJ","AC SAN MATEO IXTATAN","AC XELA","AC CASAS VIEJAS","AC PATULUL","AC COLOMBA COSTA CUCA","AC MALACATAN","AC CHAMELCO","AC SAN PEDRO PINULA","AC BARCENAS","AC AGUACATÁN","AC BARILLAS","AC TECUN UMAN","AC SIPACATE","AC CARCHA","AC MORALES","AC SAN JUAN LA LAGUNA"];
 let agencias=(function(){var saved=lsG('tvs8_agencias',null);if(!saved)return _AGENCIAS_MASTER.slice();var merged=_AGENCIAS_MASTER.slice();saved.forEach(function(a){if(merged.indexOf(a)===-1)merged.push(a);});return merged;})();
 let driveConn={url:'',lastSync:null,autoSync:false};
 let impHist=[], syncLogs=[];
@@ -1518,15 +1571,73 @@ function doLogin(){
 }
 document.getElementById('lp').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('lu').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('lp').focus();});
+// Mapeo de usuario TVS → usuario DATOS DIARIOS (CRM Citas)
+const CRM_VENTAS_URL = 'https://crm-citas.vercel.app';
+const CRM_VENTAS_MAP = {
+  'nancy.garcia':   {user:'nancy',  pin:'3333'},
+  'sofia.zarceno':  {user:'sofia',  pin:'1111'},
+  'carlos.pinillos':{user:'jc',     pin:'2222'},
+  'javier.macal':   {user:'javier', pin:'5555'},
+  'fernando.escobar':{user:'fernando',pin:'4444'},
+  'rocio.nij':      {user:'rocio',  pin:'6666'},
+  'admin':          {user:'admin',  pin:'1234'},
+  'supervisor':     {user:'admin',  pin:'1234'},
+  'gerencia':       {user:'admin',  pin:'1234'},
+};
+function abrirCRMVentas(){
+  if(!CU){toast('Debes iniciar sesión primero');return;}
+  const map=CRM_VENTAS_MAP[CU.user];
+  if(map){
+    window.open(CRM_VENTAS_URL+'/?user='+map.user+'&pin='+map.pin,'_blank');
+  } else {
+    window.open(CRM_VENTAS_URL,'_blank');
+  }
+}
+
+// CRM Quejas — SSO via HMAC-SHA256
+const CRM2_URL = 'https://project-hmids.vercel.app';
+const SSO_SECRET = 'tvs-crm-sso-secret-2024'; // debe coincidir con api/sso.js del CRM 2
+
+async function generarSSOPayload(email) {
+  const ts = String(Date.now());
+  const msg = email + '|' + ts;
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', enc.encode(SSO_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(msg));
+  const firma = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const raw = email + '|' + ts + '|' + firma;
+  return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+async function abrirCRMQuejas() {
+  if (!CU || !CU.email) { toast('No se encontró tu email en el perfil'); return; }
+  try {
+    const payload = await generarSSOPayload(CU.email);
+    window.open(CRM2_URL + '/?sso=' + payload, '_blank');
+  } catch(e) {
+    window.open(CRM2_URL, '_blank');
+    toast('Ingresa manualmente con tu correo en CRM Quejas');
+  }
+}
+
+// Mostrar el botón CRM Quejas en el topbar (se llama desde setupUI / login)
+function setupCRMQuejasBtn() {
+  const btn = document.getElementById('btn-crm-quejas');
+  if (btn) btn.style.display = 'inline-flex';
+}
+
 function doLogout(){persist();CU=null;document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('lu').value='';document.getElementById('lp').value='';closeSB();}
-function isPriv(){return CU&&(CU.rol==='admin'||CU.rol==='supervisor'||CU.rol==='gerencia'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia');}
+function isPriv(){return CU&&(CU.rol==='admin'||CU.rol==='supervisor'||CU.rol==='gerencia'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia'||CU.rol==='king_gerencia');}
 function isAdmin(){return CU&&CU.rol==='admin';}
-function isGerencia(){return CU&&(CU.rol==='gerencia'||CU.rol==='admin'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia');}
-function getAgenciaPrefix(){if(!CU)return null;if(CU.rol==='ap_gerencia')return 'AP';if(CU.rol==='ht_gerencia')return 'HT';if(CU.rol==='ac_gerencia')return 'AC';return null;}
+function isGerencia(){return CU&&(CU.rol==='gerencia'||CU.rol==='admin'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia'||CU.rol==='king_gerencia');}
+function getAgenciaPrefix(){if(!CU)return null;if(CU.rol==='ap_gerencia')return 'AP';if(CU.rol==='ht_gerencia')return 'HT';if(CU.rol==='ac_gerencia')return 'AC';if(CU.rol==='king_gerencia')return 'KING';return null;}
 function isCanal(){return !!getAgenciaPrefix();}
 function isAP(){return CU&&CU.rol==='ap_gerencia';}
 function isHT(){return CU&&CU.rol==='ht_gerencia';}
 function isAC(){return CU&&CU.rol==='ac_gerencia';}
+function isKING(){return CU&&CU.rol==='king_gerencia';}
 function setupUI(){
   document.querySelectorAll('.admin-sup').forEach(el=>el.style.display=isPriv()?'':'none');
   document.querySelectorAll('.admin-only').forEach(el=>{el.style.display=isAdmin()?'':'none';});
@@ -1550,6 +1661,7 @@ function setupUI(){
   document.getElementById('pwa-manifest').href=URL.createObjectURL(mb);
   document.getElementById('apple-icon').href='data:image/webp;base64,UklGRgwUAABXRUJQVlA4IAAUAACwcQCdASpYAsMAPm02l0ekIyUhJvLZqKANiWNu+DLIY7e+dNbshtyH4P+A/cD20bi/ivw58jF+v6d0H5TvW/+qvYZ/VD/E/1jsR+cL+b/6z9yfeA8530gOrG3qP9i/SA1UJkn+M6W72/7N/JthrtP/jn37/geursX+X2oX+Pfz//Y/2XhOQB/Xz0YJ6P1wyGmoDvBUKZEj6UfACR9KPgBI+lHwAkfSj4ASPpR8AJH0o+AEj6SttsjjnUVs5lxsy/XDngQixJ/3NYIygQU328dmZ0Fnoz3ZdtQcqdR2Kh4Sa9deV607f8RkP1UaiBIMN1NJrRvhemWYCR5AbSiglOwlWqmnSifxo6r1QIGKGJNuUdFbAtXqNUnkylf6Md7/tr7sxmuQNw37Qi/zRR/sMA8aj+g2/PhhOCwNurzPEqYoeu0OiRwuOhhkMt+VT13MamyEOPtj50VOqrbeM9WAcnlXZwZr4r1qkMU+cTSTKciHtLnwjnBmOolVEpnWBRIh9J81sDfpiw4rhiwtBTpK57EHxlt4oqbbHhUoVznF52QCTCrP+xQ27JPWFIaObWU0uOCcoeRXdP6+2f6Kw9zjmcXvqwTOgrl3Pa0qh91dyp16xkjkAntll01E/x7egAKkelrfKvIdoPi66AlCgEVAT6vqUO/N69O23UbsiCnzJgohGOrLcqu5c0jvUcf7i3B3UfGzhf/n72x/DAvmBR0LUM69Kw2yrulJX7y+Zl52PHytBUyQJiS/jdZom6Mv1FUe6iqY1gaXbcxBeXzN84jfTGry1iNum3YSG33JDi9UYtV6yNOzYPOFoGeM6u1/YgIUhmGr9Q8hxso3/lHZeeJsJFWB22DbGGN19sluAIFEOjIFmhpvSpQG8WUZqPqekpycp6djWPTLgx3ugfs1awl/dEpfDGWM7JFU3UBaICYF2ABSa/++/6Vecsw0XuFo9lgKoRpkOZ/bcDvDIPKPR4lZEMAiN7beUdrjRjtSiLbup4KeAVjbrlkZ1RVfCOBsAo2nIkfSj4FHMGj4ASPpR8AJH0o8mqmiRkc6XiTBC8Jve735XgvPYghSkq0ZLaYEVGs/ipWISYB1CmRI+lHwAkdk+ZMW8gorbtpqqpK93A2EVW5sCaW/yR4yV2aM0LY+4nVXgDqFMiR9KPf8qQPBbltqu76xuy/5ssf82zXHzSqlWCccKw7KvAHUKZEj6UfAC6eiAJH0o+AEfgAA/v8SgAAAAAAAAA1/tP7ZdjHM752E5aoMgPdGk3p4/jayFgH2hONRr1exRHLsNq5/Nx/pfM4Ct6+avCpD49RPt8ucP9b9v7EpNqmnpXlJvVlTSl2FToDAYBKit/uMVaJONcIs6DcuYHCu0IeQ9dpNCCQdpFoFPNsffpipjyvPgReotgvWspn6X2aztIANmcCLtMDGiK8bHi7Ks12f4/jC66vOOWkCa6S6B28v1Zt04oLoOwQKP6IXY+G2tsH/eCeGc8O5r7hvRPs4M5srUsid34cE585LTJ9LKosIleXtmsNy+9E9+EX78VOSPGWD9msU+sWLnXOrd34siJ8/w2wk8aJ7rsap/hvDgPiM4EXpWjWByDr8JcQGeZuMaJ9sdPh64n1Q0HhMGiRaQ6YuhzmWt4g9gB2EHYrB+V0Pco9DPRhQ83/n9kDLEOQJeLli7sajgBmVCho0hY9H238fwU2KXNoN1XfXP4iH1ZitZMm2fagOx2/k8BFazQHqwFPX+CM7nGP9RJtaeSZxg8a9gp2xk7huUYBeEpXDQiboEX2Fc98JkG2c/RoAwK6z99+fnHUnolcw+H/ijvPgyQlZS4dP8bQNN6ZDmgChaOdOdh7hvaf8f7X7Duqof98Fx5Stu5iBRlImD7nn1helJPsfQtkNLo2zPEtg+VV9GVPDmGk78CMgvNqHojZkZZbwsTh+Gz7cvTxeqciHnUYxUSdPs/GVpOnzvDddQ6MeJ16CbsQ+T1EexRHoRf4DCR4i6GG8HpK19zX5Gi8/N5A6SkIH6TE6/J4TX+OYxUQ+Od0QORMQ4hFFzz8N7Rq7Ae381j5OTBEGiDewYc8askegl/jQTJjhX2J5OPSMqzFh2EPMceNCCF6WUDYhHeyS33+ld0DLVH5HEVIauMr5hleqJOdDfa26xR9Fa1K0382WmUQKBLyYhvezq8imYvz60SOVVEVyJq2yDsm8TrmfnqcbKEw7+88lwdFa51DbEpE0eJjzrOebedx+le9XcCThcDGb8HpgjbNDDKD26L2ZCtkTZxOjSvMAUfD9FFZSD0IlYvy/ILtQH7hbhNzSd//9XQ8FdHO0DDnbSbNf7oJoHUO/1vT2DiSLP756GPfIl4GWvK8xo+NwXhrrm9Ly8esXGo8s1PBOT4x6EfYqsMmloaAr8YmYD2mDGFyyijuocsfYPKIOHt2YilTYeaGVRirWx/H4KRqrneUAJRQnfaq5I71zRHsxjkzkk6HZOkQ3kHVj8JO8+qIM/M1Ecr5pBkEqdearwapbM1Xgq3UEXFv9vwzVZoJmxabhQAdr6mwnSjLcfn0+QkLBNWQRBqz9lthOCQiC/qKdioFWCgkdZzwsMkoe3d5+Pw7pVsv+y1LChFkWAK2WggCSjJSx5OpKUlUYzxoTWdPZelOl37XPlMFVGWcvYuyZsYfRFFCq166MwlF4r09x/GjIiomVEGj3TKhtFedlC+C3Jukx1WQBjq/oYVyuAa/wx5/i+1NroHNz3IYQk+AR0/7ti4U2/XU1JbCrgCefTVOiDu+Zz6BHe9ncpNygI0mcewg6TCY3/vea5Yrp59o1tEWzJ2p4+mQg3/S772i5YPwffBufZGwgAj0Zl5hmFLszgTGllmK1TacPlQGkFFpJI9Ih3isFHlE8hLPoJvFu+6ayt8lQQgFVIuIYWVtD4g/f+F7dHvCeyntz6t7mNFi+d9oLh5pbC1HC1cNu3taaQX6QyC9//t6hEhE79y4WINdL9Jck2wFEWpMxCDkm4voZWKLs5UFk+7kGVEA3g0BhBI7keZGmIcwbn/jbLls00QH4rTm3pex12nydNhZmKmN0mE8qqRRXV5GZsUgOZ6G/PrV984gp3dxqxpTuLpz/D3/N4+VbYFx/ZLU88QGhfGrzvOC69dBmYZk4eF65p4U2/DlAp/lCbLMIYOd1Kyi1ihqz3isGCcigTw2Q6auHenE0D7zWOoPTaFZk62VetdZ/Co4WxoX4nXF5e4EainyTwWQtprScDROjWaB497sc+AtVxslBhoyCHLxptqEfMhD954plM7lzZgzLcU3jYX1GXKrT8yZRng4E9jVqTjnM/T4ANr+obW9KRQfUz0MsfyPZGRJJwmDOc2qC/3iAxC1MehIESjbEliF21a89ET/70AONgHuyiZ4Pwnrt1WiQS90ZYxW4gtqsT1/1/Hhlk/GGu1PDZ4mip63qT4v7H28v/8q2/sTLm7Utg0cYO8o5QC6iMzpbgNGxuyEixvbGq8yT5Gtw5B6fmg9ehaha5dnVLFZT4RO+/VE5xJ3+eL95JyeLNnAaijbJAD8+Eird4bVbUs6Q4Qg4aWUn3tibte6M/rBl9mapIgzx3pzEyYMi9hhw2Jxe9w9uRfjzjof1j4jFtxV8I4nKVvWga8N2LikkFFx7VUJwFbvp1AtAWwnOn4F6e6aurL/wXisC0BL4yZwwMnxiqaZxFBSCU+dpqJ8OFarR0he/V/ZQ3EOGDw8bpN2jftG1QBpSOSrsLmBnBKeM3qWAXpSu4TClTv/q/n3iEv9EdjUEem1ynaEu03cAols1JGquOiLwmXjjeqC4wvAFaD+z5K1+qhnoFrCk6knzqx5bonFRjUkbkDYqDDHZhbNgz1rAMJGgwf82Oz8XYOW5DJLL7zu6pmQheYmD9P8gJql+tdKSwMN9WsbO7sH4WFTtt3J4aAwmxAWPPLdb7YAs85u6KvsafajDV6CxU8eBONT8b99tq0UwBqGGKT7ldSUarbV7cK6CiRYMgoQGpQZTDKBxePcS+y+lstl/zp90NvuL8ne1wgRWIB3/w7TLzquzbu6X84z6qFDMRxaG44wQ2dUWbymOjrfWCRv83rGxi8M/nnMx4WSV1mwhnc1pajXAbz4Z7QyLjc5QKzd6fDQsZEprd4yR727BdWQD/0Ao1rMmBmL9QH+bEEI8XE/c7HZC/kGvfioW1ZWv3dJEcIzOqo6CEpN4IX+1RNIRPWpr2RhnihWADw5HQys5a0z/aOPTLhhK9TpUXB07r48PcXbrfNseIkyVlXyTLJ4AXpMWmBnyLLQBdTJIY1aV2Jw5VngY+ipxfxb/zOti4kGqaj+wA8dQsfbx3ZV/6W912uVebsMiiCO3baUBVwpmwfryCi/dVs9a36teKrB85IWEURL9r0M48SFT4AeiaHb3uMkJ+KV616v0n1144nz0BgniZhQhke+5/w8QAd5C1XvY4dXs37QNmDy8ObHDnrYjDN+HyxGdXXdTpwmU7CZTgI1safSlVNPgDkMeIJF2Ees1P1ycvCOk3VG3ib/QUAH6R/fXHKwUV9pzs6XxsOUBJLc/6lEu2oaejwbUkRkDudLD4AF2kSpNF58nHNNYwQKG8X/HaG9IdGbeLC0DhxAeQjw84iB7+2sg3OAls5hPgKUOu5VQTX76+e7cHpthilxWEfONuYOT2C+ddKzf7XT+UKK3AfaD//e4mVpLRI3NMXQoh3pkKzQmz0iiLrOJ7It60lMgcKcg6Fm5gh/J6O5Q/5Um4eC38/pEIGOEctbQuXfyz2UXsKT/RAb0o+lPaZDgsPvU5suPt3NloCEdwqJmKqR17JjQaloCEsTAkSJhO6kWSvRD0xluyLrqobndx5+zGwfm4GrxbXqDy7rfR5Prn9tef4yJ7UXm+7svh9GiOfhoivmFmDYgl51XvmzS+Lvq860f0NqMX83gsYQ/52IGdmZPqS8KOCsMVUFFG+xrgTNIGWSok3KtPdmJrQ9nTEZ6ya2Lti719VVRzKNCTMG4DsC2ifOKURaaMZCMbIXPFCclDyP7MJBonQ7/TaVT6gR4NbGO5v9RoC2PK8kZIIPyM3jMd3knf3HGD242qUqJPc4r9fRu4Bw1K5t1wZLD0bEvkfualYr5JBkvvKOvYjc0ZizHM4uOafQ3Psj31tmQ1MLr3PxmHMvPyXU6j+X+6nG3jp0M7xdKAhUTIH7BbJI55Be8WvBGX9QiZOySc3YHIkPvnXhXTpEr7/HHTTzKayRBjIojNSaRhIuXvFDdt7aWxvtTXuhVPiH5jm8ysniNUNevH+CHAolL94imLI4VlWbUYW3MWOqVEZhomLy4JQJS8su8M196dBYo1le4kliPkMl9Mhru1SPaYsopg8Y4hue3dQm8K2loH6sexLMVOc1jhaYt4g/O7Lan6uD9SEfDrsc1aiHh6EIizhkOO+lQR7sBogBuL1ba2syyMSeXanTJJ1XEkrCI65EMLMrxHTlaDPa7s4HLIPb5TkeRj1NjJKT86LCDshYIiVu0aaPCUQOn0kFGQnbSFWyLJRKh3bzYKhPptvPqyLGb5sTR/DRayfhp4ldjqHBzwOlEUvJV1zR1Chjg4srmIMzCPXJ2pWpKqeihKmAaO7M2Bsgp0wi7bVnVaJEZoU/BapwS0p9Vnzvv9A5iOfRQ3OaDIwKeoFIGtwrLCGKirSjr8u47LKlau9AyOEM9tB1zOum3H7+q3Y+/HMaYjggCdBm1sFfXzCy7VobfTGpGWS2c5mfWjEwMSRBA/334UtdKI8q0cHPWNzsTyoVDcugBGaR4sjoq8p6He7rtSilebpWlKY9ZxVVgTeseBlBN/wNSo89oq/rwjSveEowTNAAxxTew4Bcv9H9MNejQ1E6D9AZTu0utjlW8paQbN0dsUUpktane0iU7wzLQ17CownYY51z12diT9kdvsaVlay4EcLHh/xHXf/8t97T74O68iYC869P/QY6vnhvaiiie4Vvit/k23X5LlovxJXlehSD1EfWQlb/0mTPN/G2d4U5CrEWpe2zuJIhoqh//ldC7IPsUC/Iqs6ckXYvE5LrhYJA+lG3fLqWdP9icvvpkFdV5N5oGbE7ZiDb+VOH9XIvDkE6J+yKIruKVfwc2G0c5nEetpovXZYjP8nkgUdnVS1n28MeSCyIipZtUaatCAM6jfoCPwQOCFPJf9SscvLD+U9DKx9JOQ7wEoSzG2HTxz+8GSAmQIKZovLfULK/wwvZExr8aCP/0SHjiSzHZ9vXwWk0v25sNR3lI3qEGifTyKaV5N+M/HT1kQ4OlDs1WLdpl5KkgAM6Kz3XaAAB/K6gessb/5V6BizJAzGgG9uoik4AdL3Mlvq1te0TCzDwJOY/L5q2qABHMQXMQAAAAAAAAAHjmgmIFTBVHUL2Zt3ZCuSqgfT2O9/P7MZzFQWZqmcwO/X+UW1pydHJu/CWBu9mCDAF+nBKWpkzKFQp7RE/w+k+3a4th05ONNEfepADxa0MiuB5ySv9KDvFZuw403ZC1Su22N2pu5A81PpI7AY03hOTpyHm0OxX/dMC3A7hMIMHlCM3owLbFbIy9F1/AAArB2pw9SLldgs7Hq0I9Rjc24KfUQ9/snlp60rGaJ6N8AgVoWK5GVY0Q5Xp/12nUwfwGzOvAveZmWJPjsuRriqcXC+LOg8PB0T8QaU16A9ckVUKAAYbBh30ujMLZxXYEMtWoIncA35KxY9fTe3WrcyNBp2HsR3744MDrZ3nPh7LttkjpwiA2Z+ssZxiZ53wtPVllnwptlii1N5ZeVTiK9Lg3avewAAB8iqYWYC76I58zeteXf4bSRphgCZjjlSlZx+xSd94CzmZ2SBYrrFAAAAAAAAAAAA==';
   populateSel();checkMobile();setSyncStatus(useCloud?'ok':'off');
+  setupCRMQuejasBtn();
   // Canal roles: show canal nav, hide restricted nav items
   const pfx=getAgenciaPrefix();
   if(pfx){
@@ -2261,6 +2373,60 @@ function backfillAgenciaCodigo(){
   return n;
 }
 
+// One-time migration: rename old AP/etc King-related agencias to the new KING channel
+// while KEEPING their real codes (5125, 5200) and adding KING001 for "AP REU KING".
+// SAFETY: Uses a localStorage flag so it runs at most ONCE per device. Does NOT call
+// saveAllLeads (which would trigger Firebase echo loops). The cloudSaveLead writes
+// happen lead-by-lead next time each one is saved naturally — Firebase eventually
+// syncs everything across devices.
+let _kingMigrationRunning=false;
+function migrateKingAgencias(){
+  if(localStorage.getItem('tvs_king_migrated_v4')==='1')return{leads:0,agencias:0,skipped:true};
+  if(_kingMigrationRunning)return{leads:0,agencias:0,skipped:'running'};
+  _kingMigrationRunning=true;
+  try{
+    const norm=s=>(s||'').trim().toUpperCase().replace(/\s+/g,' ');
+    // Map of normalized OLD name -> {nom: newName, code: realOrAssignedCode}
+    const KING_RENAMES={
+      'AP ZONA KING COBAN':       {nom:'KING ZONA COBAN',       code:'5125'},   // real code
+      'AP KING SAN JOSE PINULA':  {nom:'KING SAN JOSE PINULA',  code:'5200'},   // real code
+      'AP REU KING':              {nom:'KING REU',              code:'KING001'} // assigned
+    };
+    let leadsFixed=0,agenciasFixed=0;
+    // 1) Rename leads
+    if(typeof leads!=='undefined'&&Array.isArray(leads)){
+      leads.forEach(l=>{
+        if(l&&l.agencia){
+          const t=KING_RENAMES[norm(l.agencia)];
+          if(t){l.agencia=t.nom;l.agencia_codigo=t.code;leadsFixed++;}
+        }
+      });
+    }
+    // 2) Rename in local agencias[] list
+    if(typeof agencias!=='undefined'&&Array.isArray(agencias)){
+      for(let i=0;i<agencias.length;i++){
+        const t=KING_RENAMES[norm(agencias[i])];
+        if(t){agencias[i]=t.nom;agenciasFixed++;}
+      }
+      // Dedup
+      const seen=new Set();
+      agencias=agencias.filter(a=>{if(seen.has(a))return false;seen.add(a);return true;});
+      agencias.sort();
+    }
+    // Mark done immediately
+    localStorage.setItem('tvs_king_migrated_v4','1');
+    if(leadsFixed>0||agenciasFixed>0){
+      try{persist();}catch(e){}
+      console.log('[KING migration] Renamed',leadsFixed,'leads,',agenciasFixed,'agencias');
+    } else {
+      console.log('[KING migration] Nothing to migrate');
+    }
+    return{leads:leadsFixed,agencias:agenciasFixed};
+  } finally {
+    _kingMigrationRunning=false;
+  }
+}
+
 // Get the effective fcita date (handles missing data gracefully)
 function getFcitaDate(l){
   if(l.fcita&&/^\d{4}-\d{2}-\d{2}/.test(l.fcita))return l.fcita.substring(0,10);
@@ -2565,6 +2731,194 @@ function exportRepCitasXLSX(){
   const fh=document.getElementById('rc-fh')?.value||'hoy';
   XLSX.writeFile(wb,`reporte-citas_${fd}_${fh}.xlsx`);
   toast('Excel exportado ✓');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// REPORTE DE VENTAS — same pattern as Reporte de Citas, filtered by est === 'VENTA'
+// ─────────────────────────────────────────────────────────────────
+let _rvSort={key:'fventa',dir:'desc'};
+
+function getFventaDate(l){
+  if(l.fventa&&/^\d{4}-\d{2}-\d{2}/.test(l.fventa))return l.fventa.substring(0,10);
+  if(l.fu&&/^\d{4}-\d{2}-\d{2}/.test(l.fu))return l.fu.substring(0,10);
+  if(l.fa&&/^\d{4}-\d{2}-\d{2}/.test(l.fa))return l.fa.substring(0,10);
+  return '';
+}
+
+function setRvQuickRange(opt){
+  const fdEl=document.getElementById('rv-fd');
+  const fhEl=document.getElementById('rv-fh');
+  const t=new Date();
+  const lf=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  if(opt===7||opt===30){
+    const since=new Date(t);since.setDate(t.getDate()-opt);
+    fdEl.value=lf(since);fhEl.value=lf(t);
+  } else if(opt==='thismonth'){
+    fdEl.value=lf(t).substring(0,7)+'-01';fhEl.value=lf(t);
+  } else if(opt==='all'){
+    fdEl.value='';fhEl.value='';
+  }
+  renderRepVentas();
+}
+
+function initRepVentasTab(){
+  const sel=document.getElementById('rv-ase');
+  if(sel&&sel.options.length<=1){
+    users.forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.nombre;sel.appendChild(o);});
+  }
+  if(!document.getElementById('rv-fd').value&&!document.getElementById('rv-fh').value){
+    setRvQuickRange(30);
+  } else {
+    renderRepVentas();
+  }
+}
+
+function getRepVentasArr(){
+  const fd=document.getElementById('rv-fd')?.value||'';
+  const fh=document.getElementById('rv-fh')?.value||'';
+  const aseId=document.getElementById('rv-ase')?.value||'';
+  let arr=leads.filter(l=>l.est==='VENTA');
+  if(aseId){const id=parseInt(aseId);arr=arr.filter(l=>l.uid===id);}
+  arr=arr.filter(l=>{
+    const d=getFventaDate(l);
+    if(!d)return false;
+    if(fd&&d<fd)return false;
+    if(fh&&d>fh)return false;
+    return true;
+  });
+  return arr;
+}
+
+function _rvBucketKey(dateStr,grp){
+  if(!dateStr)return '';
+  if(grp==='day')return dateStr;
+  if(grp==='month')return dateStr.substring(0,7);
+  if(grp==='week'){
+    const d=new Date(dateStr+'T00:00:00');if(isNaN(d))return dateStr;
+    const day=d.getDay()||7;if(day!==1)d.setDate(d.getDate()-(day-1));
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  return dateStr;
+}
+function _rvBucketLabel(key,grp){
+  if(!key)return '—';
+  if(grp==='day'){const d=new Date(key+'T00:00:00');if(isNaN(d))return key;const days=['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];return `${days[d.getDay()]} ${key}`;}
+  if(grp==='month'){const meses={'01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio','07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre'};const[y,m]=key.split('-');return `${meses[m]||m} ${y}`;}
+  if(grp==='week'){const d=new Date(key+'T00:00:00');const e=new Date(d);e.setDate(e.getDate()+6);const lf=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');return `Sem. ${key} -> ${lf(e)}`;}
+  return key;
+}
+
+function renderRepVentas(){
+  const arr=getRepVentasArr();
+  const grp=document.getElementById('rv-grp')?.value||'day';
+  document.getElementById('rv-grp-label').textContent=grp==='day'?'dia':grp==='week'?'semana':'mes';
+  // KPIs
+  const total=arr.length;
+  const ases=new Set(arr.map(l=>l.uid).filter(Boolean)).size;
+  const importe=arr.reduce((s,l)=>s+(parseFloat(l.importe)||0),0);
+  const conChasis=arr.filter(l=>l.chasis).length;
+  const buckets=new Set(arr.map(l=>_rvBucketKey(getFventaDate(l),grp)));
+  const avg=buckets.size>0?(total/buckets.size).toFixed(1):'0';
+  const fmtQ=n=>n>0?'Q '+n.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2}):'Q 0.00';
+  document.getElementById('rv-mets').innerHTML=`
+    <div class="met" style="border-top-color:#4CAF50"><div class="ml">Ventas en periodo</div><div class="mv" style="color:#1B5E20">${total}</div></div>
+    <div class="met" style="border-top-color:#1B2F6E"><div class="ml">Asesores activos</div><div class="mv">${ases}</div></div>
+    <div class="met" style="border-top-color:#F47920"><div class="ml">Promedio / ${grp==='day'?'dia':grp==='week'?'semana':'mes'}</div><div class="mv" style="color:#F47920">${avg}</div></div>
+    <div class="met" style="border-top-color:#EAB308"><div class="ml">Importe total</div><div class="mv" style="color:#5a4200;font-size:16px">${fmtQ(importe)}</div></div>
+    <div class="met" style="border-top-color:#C8102E"><div class="ml">Con chasis</div><div class="mv" style="color:var(--red)">${conChasis}</div></div>`;
+  // Pivot
+  const bucketSet=new Set(),aseTot={};
+  const matrix={};
+  arr.forEach(l=>{
+    const b=_rvBucketKey(getFventaDate(l),grp);
+    const ase=l.uid?String(l.uid):'sin';
+    bucketSet.add(b);
+    if(!matrix[b])matrix[b]={};
+    matrix[b][ase]=(matrix[b][ase]||0)+1;
+    aseTot[ase]=(aseTot[ase]||0)+1;
+  });
+  const aseList=Object.entries(aseTot).sort((a,b)=>b[1]-a[1]).map(([k])=>k);
+  const aseLabels=aseList.map(k=>{if(k==='sin')return 'Sin asignar';const u=users.find(x=>x.id===parseInt(k));return u?u.nombre:'Usuario #'+k;});
+  const buckets2=[...bucketSet].sort().reverse();
+  let head='<tr><th style="position:sticky;left:0;background:var(--surf);z-index:2">'+(grp==='day'?'Dia':grp==='week'?'Semana':'Mes')+'</th>';
+  aseLabels.forEach(n=>head+=`<th>${n}</th>`);
+  head+='<th style="background:var(--gbg);color:#1B5E20">Total</th></tr>';
+  document.getElementById('rv-resumen-head').innerHTML=head;
+  let body='';
+  buckets2.forEach(b=>{
+    body+=`<tr><td style="position:sticky;left:0;background:var(--surf);font-weight:700;color:#1B5E20;white-space:nowrap">${_rvBucketLabel(b,grp)}</td>`;
+    let rowTot=0;
+    aseList.forEach(a=>{const v=matrix[b]?.[a]||0;rowTot+=v;body+=`<td style="text-align:center;${v>0?'font-weight:700;color:#1B5E20':'color:var(--mut)'}">${v||'—'}</td>`;});
+    body+=`<td style="text-align:center;font-weight:800;background:var(--gbg);color:#1B5E20">${rowTot}</td></tr>`;
+  });
+  body+='<tr style="background:var(--s2);font-weight:800"><td style="position:sticky;left:0;background:var(--s2);color:var(--navy)">TOTAL</td>';
+  let grandTot=0;
+  aseList.forEach(a=>{const t=aseTot[a]||0;grandTot+=t;body+=`<td style="text-align:center;color:#1B5E20">${t}</td>`;});
+  body+=`<td style="text-align:center;background:#66BB6A;color:white">${grandTot}</td></tr>`;
+  document.getElementById('rv-resumen-body').innerHTML=body||'<tr><td colspan="99" style="text-align:center;padding:1.5rem;color:var(--mut)">Sin ventas en este periodo</td></tr>';
+  // Detail table
+  const sortKey=_rvSort.key,sortDir=_rvSort.dir;
+  arr.sort((a,b)=>{
+    let va,vb;
+    if(sortKey==='fventa'){va=getFventaDate(a);vb=getFventaDate(b);}
+    else{va=String(a[sortKey]||'');vb=String(b[sortKey]||'');}
+    if(va<vb)return sortDir==='asc'?-1:1;
+    if(va>vb)return sortDir==='asc'?1:-1;
+    return 0;
+  });
+  document.getElementById('rv-detalle-count').textContent=arr.length+' ventas';
+  const detBody=document.getElementById('rv-detalle-body');
+  if(arr.length===0){detBody.innerHTML='<tr><td colspan="12" style="text-align:center;padding:2rem;color:var(--mut)">Sin ventas en este periodo</td></tr>';return;}
+  detBody.innerHTML=arr.map(l=>{
+    const u=l.uid?users.find(x=>x.id===l.uid):null;
+    const aseN=u?u.nombre:(l.anom||'Sin asignar');
+    const fv=getFventaDate(l);
+    const imp=parseFloat(l.importe)||0;
+    return `<tr>
+      <td style="white-space:nowrap;font-weight:600;color:#1B5E20">${fv||'—'}</td>
+      <td><div style="display:flex;align-items:center;gap:6px">${u?avU(u):'<span style="font-size:10px">—</span>'}<span>${aseN}</span></div></td>
+      <td style="font-weight:600">${l.nom||'—'}</td>
+      <td><a href="https://wa.me/${(l.tel||'').replace(/\D/g,'')}" target="_blank" style="color:#25D366;font-weight:600">${l.tel||'—'}</a></td>
+      <td>${l.linea||'—'}</td>
+      <td>${tpBadge(l.tp)}</td>
+      <td style="font-weight:600;color:var(--navy)">${l.agencia||'—'}</td>
+      <td style="font-family:monospace;font-size:11px;color:var(--navy)">${l.chasis||'<span style="color:var(--mut)">—</span>'}</td>
+      <td style="font-family:monospace;font-size:11px">${l.factura||'<span style="color:var(--mut)">—</span>'}</td>
+      <td style="white-space:nowrap">${l.ffactura||'<span style="color:var(--mut)">—</span>'}</td>
+      <td style="font-weight:700;color:#1B5E20;white-space:nowrap">${imp>0?fmtQ(imp):'<span style="color:var(--mut)">—</span>'}</td>
+      <td><button class="btn bn bxs" onclick="openDet(${l.id})">👁</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function sortRepVentas(key){
+  if(_rvSort.key===key){_rvSort.dir=_rvSort.dir==='asc'?'desc':'asc';}else{_rvSort.key=key;_rvSort.dir='desc';}
+  renderRepVentas();
+}
+
+function exportRepVentasCSV(){
+  const arr=getRepVentasArr();
+  arr.sort((a,b)=>getFventaDate(b).localeCompare(getFventaDate(a)));
+  const cols=['Fecha Venta','Asesor','Cliente','Telefono','Linea','Tipo Pago','Agencia','Origen','Chasis','No. Factura','Fecha Factura','Importe'];
+  const rows=[cols,...arr.map(l=>{
+    const u=l.uid?users.find(x=>x.id===l.uid):null;
+    return[getFventaDate(l),u?u.nombre:(l.anom||''),l.nom||'',l.tel||'',l.linea||'',l.tp||'',l.agencia||'',l.ori||'',l.chasis||'',l.factura||'',l.ffactura||'',l.importe||''];
+  })];
+  const csv=rows.map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);a.download='reporte-ventas.csv';a.click();toast('CSV exportado');
+}
+
+function exportRepVentasXLSX(){
+  if(typeof XLSX==='undefined'){toast('Libreria XLSX no disponible');return;}
+  const arr=getRepVentasArr();
+  arr.sort((a,b)=>getFventaDate(b).localeCompare(getFventaDate(a)));
+  const rows=arr.map(l=>{
+    const u=l.uid?users.find(x=>x.id===l.uid):null;
+    return{'Fecha Venta':getFventaDate(l),'Asesor':u?u.nombre:(l.anom||''),'Cliente':l.nom||'','Telefono':l.tel||'','Linea':l.linea||'','Tipo Pago':l.tp||'','Agencia':l.agencia||'','Origen':l.ori||'','Chasis':l.chasis||'','No. Factura':l.factura||'','Fecha Factura':l.ffactura||'','Importe':parseFloat(l.importe)||0};
+  });
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Ventas');
+  XLSX.writeFile(wb,'reporte-ventas.xlsx');toast('Excel exportado');
 }
 
 function descargarDashboard(){
@@ -2913,9 +3267,9 @@ async function syncNow(){if(!driveConn.url){toast('Sin fuente');return;}toast('S
 function renderAgencias(){
   const el=document.getElementById('agencias-list');if(!el)return;
   if(agencias.length===0){el.innerHTML='<div style="color:var(--mut);font-size:12px">Sin agencias registradas</div>';return;}
-  const groups={AP:[],HT:[],AC:[],Otro:[]};
-  agencias.forEach(a=>{if(a.startsWith('AP '))groups.AP.push(a);else if(a.startsWith('HT '))groups.HT.push(a);else if(a.startsWith('AC '))groups.AC.push(a);else groups.Otro.push(a);});
-  const colors={AP:'#1B2F6E',HT:'#F47920',AC:'#4CAF50',Otro:'#5A6580'};
+  const groups={KING:[],AP:[],HT:[],AC:[],Otro:[]};
+  agencias.forEach(a=>{if(a.startsWith('KING '))groups.KING.push(a);else if(a.startsWith('AP '))groups.AP.push(a);else if(a.startsWith('HT '))groups.HT.push(a);else if(a.startsWith('AC '))groups.AC.push(a);else groups.Otro.push(a);});
+  const colors={KING:'#FFD700',AP:'#1B2F6E',HT:'#F47920',AC:'#4CAF50',Otro:'#5A6580'};
   el.innerHTML=Object.entries(groups).filter(([,v])=>v.length).map(([k,v])=>`
     <div style="margin-bottom:10px">
       <div style="font-size:10px;font-weight:700;color:${colors[k]};text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Canal ${k} — ${v.length} agencias</div>
@@ -2929,9 +3283,10 @@ function genAgenciaCode(prefix){
   while(AGENCIA_DATA[prefix+String(n).padStart(3,'0')]){n++;if(n>9999)break;}
   return prefix+String(n).padStart(3,'0');
 }
-// Determine the prefix from a name. AP/HT/AC explicit; otherwise OT (other).
+// Determine the prefix from a name. KING/AP/HT/AC explicit; otherwise OT (other).
 function detectAgenciaPrefix(name){
   const u=(name||'').trim().toUpperCase();
+  if(u.startsWith('KING '))return 'KING';
   if(u.startsWith('AP '))return 'AP';
   if(u.startsWith('HT '))return 'HT';
   if(u.startsWith('AC '))return 'AC';
@@ -3655,7 +4010,7 @@ function delAgenciaModal(){
 }
 
 // NAV
-const TAB_LABELS={dashboard:'Dashboard',leads:'Leads',pipeline:'Pipeline',recordatorios:'Recordatorios',reportes:'Reportes','rep-citas':'Reporte de Citas','canal-reportes':'Reportes Canal',usuarios:'Usuarios',importar:'Importar / Vincular',storage:'Gestión de datos',perfil:'Mi Perfil'};
+const TAB_LABELS={dashboard:'Dashboard',leads:'Leads',pipeline:'Pipeline',recordatorios:'Recordatorios',reportes:'Reportes','rep-citas':'Reporte de Citas','rep-ventas':'Reporte de Ventas','canal-reportes':'Reportes Canal',usuarios:'Usuarios',importar:'Importar / Vincular',storage:'Gestión de datos',perfil:'Mi Perfil'};
 function goTab(name,btn){
   if(['usuarios','importar','storage'].includes(name)&&!isAdmin()){toast('Acceso restringido');return;}
   if(name!=='leads'&&bulkMode)exitBulk();
@@ -3669,6 +4024,7 @@ function goTab(name,btn){
   else if(name==='dashboard')renderDashboard();
   else if(name==='reportes')renderReportes();
   else if(name==='rep-citas')initRepCitasTab();
+  else if(name==='rep-ventas')initRepVentasTab();
   else if(name==='usuarios')renderUsers();
   else if(name==='perfil')renderPerfil();
   else if(name==='recordatorios'){if(getAgenciaPrefix()){toast('Acceso restringido');return;}renderRecordatorios();}
@@ -3697,31 +4053,31 @@ setInterval(()=>{if(CU)updRemBadge();},60000);
 // ═══════════════════════════════════════
 // Tabla de agencias del template oficial: código + nombre + coordinador + número
 const AGENCIA_DATA={
-  '5101':{nom:'TVS YURRITA',coord:'JUAN JOSÉ CATALÁN',tel:'49405480'},
-  '5102':{nom:'TVS METRONORTE',coord:'BRANDON SALGUERO',tel:'35967239'},
-  '5103':{nom:'TVS VILLA CANALES',coord:'JEFFERSON GARCIA',tel:'45970827'},
-  '5104':{nom:'TVS 6TA AV',coord:'ROLANDO PORTILLO',tel:'39941954'},
-  '5105':{nom:'TVS ESCUINTLA',coord:'JACQUELINE ESCOBAR',tel:'39486833'},
-  '5106':{nom:'TVS RETALHULEU',coord:'CRISTIAN LOPEZ',tel:'41500849'},
-  '5108':{nom:'TVS AMATITLÁN',coord:'GUSTAVO DÍAZ',tel:'59472038'},
-  '5110':{nom:'TVS CHIQUIMULA',coord:'MARICRUZ DIVAS',tel:'42334237'},
-  '5111':{nom:'TVS ALAMOS',coord:'BYRON SANDOVAL',tel:'50095161'},
-  '5112':{nom:'TVS CALLE MARTI',coord:'JOSÉ GÓMEZ',tel:'59512688'},
-  '5113':{nom:'TVS BARCENAS',coord:'JAVIER HERNÁNDEZ',tel:'36034945'},
-  '5114':{nom:'TVS QUETZALTENANGO',coord:'ROBERTO MERIDA',tel:'45057324'},
-  '5115':{nom:'TVS ESKALA',coord:'RICARDO ORTIZ',tel:'42555667'},
-  '5116':{nom:'TVS JALAPA',coord:'LUIS FIGUEROA',tel:'55785555'},
-  '5118':{nom:'TVS EL CASTAÑO',coord:'ALEJANDRO VALLEJO',tel:'35958802'},
-  '5124':{nom:'TVS COATEPEQUE',coord:'HERMAN OTONIEL',tel:'37874514'},
-  '5125':{nom:'TVS COBAN',coord:'PACAY ACTÉ CESAR ANIBAL',tel:''},
-  '5126':{nom:'TVS SANARATE',coord:'AZUCENA ARGUETA',tel:'54585356'},
-  '5127':{nom:'TVS CHIMALTENANGO',coord:'IGNACIO RIVERA',tel:'33557204'},
-  '5180':{nom:'HT AMATITLAN ASIOLE',coord:'ANA VICTORIA GONZALES BARRERA',tel:''},
+  '5101':{nom:'AP CENTRAL YURRITA',coord:'JUAN JOSÉ CATALÁN',tel:'49405480'},
+  '5102':{nom:'AP METRO NORTE',coord:'BRANDON SALGUERO',tel:'35967239'},
+  '5103':{nom:'AP VILLA CANALES',coord:'JEFFERSON GARCIA',tel:'45970827'},
+  '5104':{nom:'AP 6TA AV ZONA 9',coord:'ROLANDO PORTILLO',tel:'39941954'},
+  '5105':{nom:'AP ESCUINTLA',coord:'JACQUELINE ESCOBAR',tel:'39486833'},
+  '5106':{nom:'AP RETALHULEU',coord:'CRISTIAN LOPEZ',tel:'41500849'},
+  '5108':{nom:'AP AMATITLAN',coord:'GUSTAVO DÍAZ',tel:'59472038'},
+  '5110':{nom:'AP CHIQUIMULA',coord:'MARICRUZ DIVAS',tel:'42334237'},
+  '5111':{nom:'AP LOS ALAMOS',coord:'BYRON SANDOVAL',tel:'50095161'},
+  '5112':{nom:'AP CALLE MARTI',coord:'JOSÉ GÓMEZ',tel:'59512688'},
+  '5113':{nom:'AP BARCENAS',coord:'JAVIER HERNÁNDEZ',tel:'36034945'},
+  '5114':{nom:'AP QUETZALTENANGO',coord:'ROBERTO MERIDA',tel:'45057324'},
+  '5115':{nom:'AP ESKALA',coord:'RICARDO ORTIZ',tel:'42555667'},
+  '5116':{nom:'AP JALAPA',coord:'LUIS FIGUEROA',tel:'55785555'},
+  '5118':{nom:'AP EL CASTAÑO',coord:'ALEJANDRO VALLEJO',tel:'35958802'},
+  '5124':{nom:'AP COATEPEQUE',coord:'HERMAN OTONIEL',tel:'37874514'},
+  '5126':{nom:'AP SANARATE',coord:'AZUCENA ARGUETA',tel:'54585356'},
+  '5127':{nom:'AP CHIMALTENANGO',coord:'IGNACIO RIVERA',tel:'33557204'},
+  '5125':{nom:'KING ZONA COBAN',coord:'PACAY ACTÉ CESAR ANIBAL',tel:''},
+  '5180':{nom:'HT AMATITLÁN',coord:'ANA VICTORIA GONZALES BARRERA',tel:''},
   '5181':{nom:'HT SANTA LUCIA',coord:'GOMEZ COS DE LOPEZ VIVIANA',tel:''},
   '5182':{nom:'HT COATEPEQUE',coord:'SILAS LOPEZ',tel:''},
-  '5183':{nom:'HT NUEVA CONCEPCIÓN',coord:'BRAN MARROQUIN ADONIA',tel:''},
-  '5185':{nom:'HT GUASTATOYA',coord:'OLIVA LÓPEZ JOSÉ HILIBERTO',tel:''},
-  '5187':{nom:'HT ESQUIPULAS',coord:'LANDAVERRY RAMÍREZ KAROL',tel:''},
+  '5183':{nom:'HT NVA. CONCEPCION',coord:'BRAN MARROQUIN ADONIA',tel:''},
+  '5185':{nom:'HT GUASTATO',coord:'OLIVA LÓPEZ JOSÉ HILIBERTO',tel:''},
+  '5187':{nom:'HT ESQUIPUL',coord:'LANDAVERRY RAMÍREZ KAROL',tel:''},
   '5188':{nom:'HT CHIMALTENANGO',coord:'AZÚRDIA BLANCO DE JIMÉNEZ',tel:''},
   '5189':{nom:'HT JALAPA',coord:'',tel:''},
   '5191':{nom:'HT SANTO TOMAS',coord:'',tel:''},
@@ -3731,10 +4087,10 @@ const AGENCIA_DATA={
   '5195':{nom:'HT QUICHE',coord:'',tel:''},
   '5196':{nom:'HT COBAN',coord:'PACAY ACTÉ CESAR ANIBAL',tel:''},
   '5197':{nom:'HT HUEHUETENANGO',coord:'FÚNES LÓPEZ HEIDY HELEN',tel:''},
-  '5198':{nom:'HT VILLA NUEVA PRADERA',coord:'CALDERON CRUZ JOHAN',tel:''},
-  '5199':{nom:'HT CASTAÑO',coord:'SANTIAGO SANTIAGO JUAN',tel:''},
+  '5198':{nom:'HT PRADERA EXPS V.N.',coord:'CALDERON CRUZ JOHAN',tel:''},
+  '5199':{nom:'HT EL CASTAÑO',coord:'SANTIAGO SANTIAGO JUAN',tel:''},
   '51A0':{nom:'HT PUERTO SAN JOSE',coord:'HERRARTE GATICA ESVIN',tel:''},
-  '51A1':{nom:'HT SAN PEDRO',coord:'',tel:''},
+  '51A1':{nom:'HT SAN PEDRO SAC',coord:'',tel:''},
   '51A3':{nom:'HT MAZATENANGO',coord:'HENRY ESQUIVEL',tel:''},
   '51A4':{nom:'HT CHIQUIMULA',coord:'ANGEL GUTIERREZ CHEGUEN',tel:''},
   '51B1':{nom:'HT RETALHULEU',coord:'MÉNDEZ CHIHUIL BAGNER',tel:''},
@@ -3745,26 +4101,25 @@ const AGENCIA_DATA={
   '51B7':{nom:'HT SANARATE',coord:'',tel:''},
   '51B8':{nom:'HT TECUN UMAN',coord:'',tel:''},
   '51B9':{nom:'HT NEBAJ',coord:'',tel:''},
-  '51C0':{nom:'HIPERTIENDA BARBERENA',coord:'',tel:''},
+  '51C0':{nom:'HT BARBERENA',coord:'',tel:''},
   '51C1':{nom:'HT TECULUTAN',coord:'',tel:''},
   '51C2':{nom:'HT SAYAXCHE',coord:'',tel:''},
   '51C3':{nom:'HT MORALES',coord:'MARTINEZ DÍAZ YONI',tel:''},
-  '51C4':{nom:'HT SANTA ELENA',coord:'SUÁREZ CANCHÁN CARLOS',tel:''},
+  '51C4':{nom:'HT SANTA ELENA PETEN',coord:'SUÁREZ CANCHÁN CARLOS',tel:''},
   '51C6':{nom:'HT TIQUISATE',coord:'',tel:''},
-  '51C7':{nom:'HT PROGRESO JUTIAPA',coord:'',tel:''},
+  '51C7':{nom:'HT JUTIAPA',coord:'',tel:''},
   '51C8':{nom:'HT POPTUN',coord:'JUAN CARLOS FELIPE',tel:''},
-  '51C9':{nom:'HT PLAZA TECA COATEPEQUE',coord:'',tel:''},
+  '51C9':{nom:'HT PLAZA TECA',coord:'',tel:''},
   '51D1':{nom:'HT SAN ANTONIO SUCHI',coord:'RODRÍGUEZ GARCÍA KATHERINE',tel:''},
-  '51D2':{nom:'HT CAMBOTE/HUEHUE',coord:'',tel:''},
+  '51D2':{nom:'HT HUEHUETENANGO 2',coord:'',tel:''},
   '51D3':{nom:'HT EL ESTOR',coord:'',tel:''},
-  '51D4':{nom:'HT JUTIAPA',coord:'REYES PÁIZ JOSEPH RICARDO',tel:''},
+  '51D4':{nom:'HT JUTIAPA 2',coord:'REYES PÁIZ JOSEPH RICARDO',tel:''},
   '51D5':{nom:'HT PUERTO BARRIOS',coord:'URRUTIA CASTILLO EDUARDO',tel:''},
   '51D8':{nom:'HT PETAPA',coord:'RAMÍREZ PÉREZ GLENDY',tel:''},
   '51F4':{nom:'HT LOS AMATES',coord:'',tel:''},
   '51F6':{nom:'HT ATLANTIDA',coord:'AGUIRRE HERNÁNDEZ HAMILTON',tel:''},
-  // ─── Agentes de Comercio (AC) — códigos largos del Excel oficial ───
   '100391611':{nom:'AC SAN JUAN SAC / SAN PEDRO SAC',coord:'',tel:''},
-  '100430286':{nom:'AC TECPAN',coord:'',tel:''},
+  '100430286':{nom:'AC TECPAN GUATEMALA',coord:'',tel:''},
   '100624532':{nom:'AC CIUDAD SAN CRISTOBAL / ZONA 1 MIXCO',coord:'',tel:''},
   '100830168':{nom:'AC ZONA 7/ UTATLAN',coord:'',tel:''},
   '100948386':{nom:'AC SAN JUAN SACATEPEQUEZ',coord:'',tel:''},
@@ -3801,42 +4156,42 @@ const AGENCIA_DATA={
   '100522433':{nom:'AC JOCOTENANGO',coord:'',tel:''},
   '100725218':{nom:'AC BARBERENA',coord:'',tel:''},
   '100760485':{nom:'AC CHIMALTENANGO / PARRAMOS',coord:'',tel:''},
-  '100765898':{nom:'AC AGUILAR BATRES',coord:'',tel:''},
+  '100765898':{nom:'AC AGUILAR BATRES 2',coord:'',tel:''},
   '100791050':{nom:'AC ZONA 5',coord:'',tel:''},
   '100889740':{nom:'AC CALZADA SAN JUAN',coord:'',tel:''},
-  '101009407':{nom:'AC AVENIDA PETAPA',coord:'',tel:''},
+  '101009407':{nom:'AC AVENIDA PETAPA 2',coord:'',tel:''},
   '101015551':{nom:'AC CIUDAD SAN CRISTOBAL',coord:'',tel:''},
-  '101076261':{nom:'AC ZONA 1',coord:'',tel:''},
+  '101076261':{nom:'AC ZONA 1 2',coord:'',tel:''},
   '101165345':{nom:'AC LA REFORMITA',coord:'',tel:''},
   '101186175':{nom:'AC VILLA NUEVA',coord:'',tel:''},
   '101204403':{nom:'AC POPTÚN / DOLORES',coord:'',tel:''},
-  '101272651':{nom:'AC JOCOTENANGO',coord:'',tel:''},
+  '101272651':{nom:'AC JOCOTENANGO 2',coord:'',tel:''},
   '101333196':{nom:'AC ZONA 1 / SAN MIGUEL PETAPA',coord:'',tel:''},
   '101419745':{nom:'AC TELEMAN / SENAU',coord:'',tel:''},
   '101421329':{nom:'AC COATEPEQUE / LA BLANCA',coord:'',tel:''},
   '101429967':{nom:'AC ESCUINTLA',coord:'',tel:''},
-  '101510104':{nom:'AC AVENIDA PETAPA',coord:'',tel:''},
+  '101510104':{nom:'AC AVENIDA PETAPA 3',coord:'',tel:''},
   '101555125':{nom:'AC COATEPEQUE',coord:'',tel:''},
-  '101579009':{nom:'AC COBAN',coord:'',tel:''},
-  '101592020':{nom:'AC COATEPEQUE',coord:'',tel:''},
+  '101579009':{nom:'AC COBAN 2',coord:'',tel:''},
+  '101592020':{nom:'AC COATEPEQUE 2',coord:'',tel:''},
   '101606755':{nom:'AC CHAHAL',coord:'',tel:''},
   '200023002':{nom:'AC TIQUISATE',coord:'',tel:''},
   '200023579':{nom:'AC FRAY BARTOLOME / CHISEC',coord:'',tel:''},
   '200024591':{nom:'AC CHIMALTENANGO',coord:'',tel:''},
   '200024615':{nom:'AC VILLA CANALES / BOCA DEL MONTE',coord:'',tel:''},
-  '200030933':{nom:'AC PUERTO DE SAN JOSE',coord:'',tel:''},
+  '200030933':{nom:'AC PUERTO DE SAN JOSE 2',coord:'',tel:''},
   '200031601':{nom:'AC SANTA LUCIA MILPAS ALTAS',coord:'',tel:''},
   '100005122':{nom:'AC SANTIAGO ATITLAN / SAN LUCAS TOLIMAN',coord:'',tel:''},
   '100023295':{nom:'AC SALAMA',coord:'',tel:''},
   '100083009':{nom:'AC TACTIC',coord:'',tel:''},
-  '100083093':{nom:'AC COBAN',coord:'',tel:''},
-  '100094284':{nom:'AC TIQUISATE',coord:'',tel:''},
+  '100083093':{nom:'AC COBAN 3',coord:'',tel:''},
+  '100094284':{nom:'AC TIQUISATE 2',coord:'',tel:''},
   '100303384':{nom:'AC PALENCIA',coord:'',tel:''},
   '100322278':{nom:'AC ESQUIPULAS',coord:'',tel:''},
   '100468716':{nom:'AC EL FRUTAL / SAN MIGUL PETAPA',coord:'',tel:''},
   '100524217':{nom:'AC FREELANCE',coord:'',tel:''},
-  '100556236':{nom:'AC CHIMALTENANGO',coord:'',tel:''},
-  '100584719':{nom:'AC CALZADA SAN JUAN',coord:'',tel:''},
+  '100556236':{nom:'AC CHIMALTENANGO 2',coord:'',tel:''},
+  '100584719':{nom:'AC CALZADA SAN JUAN 2',coord:'',tel:''},
   '100684509':{nom:'AC MAZATENANGO / RETALHULEU',coord:'',tel:''},
   '100768420':{nom:'AC IXCAN PLAYA',coord:'',tel:''},
   '100776149':{nom:'AC PATZUN',coord:'',tel:''},
@@ -3845,7 +4200,7 @@ const AGENCIA_DATA={
   '100871957':{nom:'AC AMATITLAN',coord:'',tel:''},
   '100912545':{nom:'AC MAZATENANGO',coord:'',tel:''},
   '100946534':{nom:'AC PATZICIA',coord:'',tel:''},
-  '100970031':{nom:'AC FREELANCE',coord:'',tel:''},
+  '100970031':{nom:'AC FREELANCE 2',coord:'',tel:''},
   '100986448':{nom:'AC BOCA DEL MONTE',coord:'',tel:''},
   '101270283':{nom:'AC SAN CRISTOBAL',coord:'',tel:''},
   '101324261':{nom:'AC CHISEC / COJAJ / CAMPUR',coord:'',tel:''},
@@ -3853,13 +4208,13 @@ const AGENCIA_DATA={
   '101451285':{nom:'AC SAN MIGUEL PETAPA',coord:'',tel:''},
   '101541248':{nom:'AC RETALHULEU',coord:'',tel:''},
   '101552748':{nom:'AC METATERMINAL',coord:'',tel:''},
-  '200002625':{nom:'AC IXCAN PLAYA',coord:'',tel:''},
+  '200002625':{nom:'AC IXCAN PLAYA 2',coord:'',tel:''},
   '200008268':{nom:'AC JALAPA',coord:'',tel:''},
   '200022201':{nom:'AC SAN RAFAEL',coord:'',tel:''},
   '200023622':{nom:'AC SAN LUCAS SACATEPQUEZ',coord:'',tel:''},
   '200024500':{nom:'AC SAN PEDRO AYAMPUC',coord:'',tel:''},
   '200024631':{nom:'AC SAN FELIPE',coord:'',tel:''},
-  '100008198':{nom:'AC FREELANCE',coord:'',tel:''},
+  '100008198':{nom:'AC FREELANCE 3',coord:'',tel:''},
   '100026150':{nom:'AC HUEHUETENANGO',coord:'',tel:''},
   '100036843':{nom:'AC CHIQUIMULILLA',coord:'',tel:''},
   '100083717':{nom:'AC JOCOTAN',coord:'',tel:''},
@@ -3867,18 +4222,18 @@ const AGENCIA_DATA={
   '100131859':{nom:'AC RIO DULCE',coord:'',tel:''},
   '100216815':{nom:'AC COLOTENANGO',coord:'',tel:''},
   '100224354':{nom:'AC SANTA CLARA LA LAGUNA',coord:'',tel:''},
-  '100366993':{nom:'AC JOCOTAN',coord:'',tel:''},
+  '100366993':{nom:'AC JOCOTAN 2',coord:'',tel:''},
   '100389340':{nom:'AC RABINAL',coord:'',tel:''},
   '100431123':{nom:'AC ZACAPA',coord:'',tel:''},
   '100441102':{nom:'AC SANTA CRUZ DEL QUICHE',coord:'',tel:''},
-  '100533649':{nom:'AC HUEHUETENANGO',coord:'',tel:''},
+  '100533649':{nom:'AC HUEHUETENANGO 2',coord:'',tel:''},
   '100572834':{nom:'AC CUILCO',coord:'',tel:''},
   '100586857':{nom:'AC RETALHULEU / COATEPEQUE',coord:'',tel:''},
   '100594430':{nom:'AC JOYABAJ',coord:'',tel:''},
   '100653601':{nom:'AC SAN MATEO IXTATAN',coord:'',tel:''},
   '100683723':{nom:'AC XELA',coord:'',tel:''},
-  '100769599':{nom:'AC BARBERENA',coord:'',tel:''},
-  '100774133':{nom:'AC XELA',coord:'',tel:''},
+  '100769599':{nom:'AC BARBERENA 2',coord:'',tel:''},
+  '100774133':{nom:'AC XELA 2',coord:'',tel:''},
   '100792771':{nom:'AC CASAS VIEJAS',coord:'',tel:''},
   '100926510':{nom:'AC PATULUL',coord:'',tel:''},
   '101037218':{nom:'AC COLOMBA COSTA CUCA',coord:'',tel:''},
@@ -3887,62 +4242,21 @@ const AGENCIA_DATA={
   '101213038':{nom:'AC SAN PEDRO PINULA',coord:'',tel:''},
   '101227571':{nom:'AC BARCENAS',coord:'',tel:''},
   '101266020':{nom:'AC AGUACATÁN',coord:'',tel:''},
-  '101267134':{nom:'AC FREELANCE',coord:'',tel:''},
-  '101417163':{nom:'AC JALAPA',coord:'',tel:''},
+  '101267134':{nom:'AC FREELANCE 4',coord:'',tel:''},
+  '101417163':{nom:'AC JALAPA 2',coord:'',tel:''},
   '101427417':{nom:'AC BARILLAS',coord:'',tel:''},
-  '101614858':{nom:'AC RABINAL',coord:'',tel:''},
+  '101614858':{nom:'AC RABINAL 2',coord:'',tel:''},
   '101766913':{nom:'AC TECUN UMAN',coord:'',tel:''},
   '200000878':{nom:'AC SIPACATE',coord:'',tel:''},
-  '200012930':{nom:'AC XELA',coord:'',tel:''},
+  '200012930':{nom:'AC XELA 3',coord:'',tel:''},
   '200024301':{nom:'AC CARCHA',coord:'',tel:''},
-  '200024450':{nom:'AC CIUDAD SAN CRISTOBAL / LA BETHANIA',coord:'',tel:''},
-  '200024890':{nom:'AC AVENIDA BOLIVAR',coord:'',tel:''},
+  '200024450':{nom:'AC CIUDAD SAN CRISTOBAL / LA BETHANIA 2',coord:'',tel:''},
+  '200024825':{nom:'AC N/A',coord:'',tel:''},
+  '200024890':{nom:'AC AVENIDA BOLIVAR 2',coord:'',tel:''},
   '200026930':{nom:'AC MORALES',coord:'',tel:''},
   '200032133':{nom:'AC SAN JUAN LA LAGUNA',coord:'',tel:''},
-  // ─── Agencias propias TVS/HT/AP/AC sin código oficial — códigos auto-generados ───
-  'HT001':{nom:'HT BARBERENA',coord:'',tel:''},
-  'HT002':{nom:'HT AMATITLÁN',coord:'',tel:''},
-  'HT003':{nom:'HT PLAZA TECA',coord:'',tel:''},
-  'HT004':{nom:'HT SAN PEDRO SAC',coord:'',tel:''},
-  'HT005':{nom:'HT SANTA ELENA PETEN',coord:'',tel:''},
-  'HT006':{nom:'HT ESQUIPUL',coord:'',tel:''},
-  'HT007':{nom:'HT PRADERA EXPS V.N.',coord:'',tel:''},
-  'HT008':{nom:'HT EL CASTAÑO',coord:'',tel:''},
-  'HT009':{nom:'HT GUASTATO',coord:'',tel:''},
-  'HT010':{nom:'HT NVA. CONCEPCION',coord:'',tel:''},
-  'HT011':{nom:'HT SANTA ELENA PETEN 2',coord:'',tel:''},
-  'AP001':{nom:'AP ZONA KING COBAN',coord:'',tel:''},
-  'AP002':{nom:'AP CENTRAL YURRITA',coord:'',tel:''},
-  'AP003':{nom:'AP 6TA AV ZONA 9',coord:'',tel:''},
-  'AP004':{nom:'AP AMATITLAN',coord:'',tel:''},
-  'AP005':{nom:'AP BARCENAS',coord:'',tel:''},
-  'AP006':{nom:'AP CALLE MARTI',coord:'',tel:''},
-  'AP007':{nom:'AP CHIMALTENANGO',coord:'',tel:''},
-  'AP008':{nom:'AP CHIQUIMULA',coord:'',tel:''},
-  'AP009':{nom:'AP COATEPEQUE',coord:'',tel:''},
-  'AP010':{nom:'AP EL CASTAÑO',coord:'',tel:''},
-  'AP011':{nom:'AP ESCUINTLA',coord:'',tel:''},
-  'AP012':{nom:'AP ESKALA',coord:'',tel:''},
-  'AP013':{nom:'AP JALAPA',coord:'',tel:''},
-  'AP014':{nom:'AP LOS ALAMOS',coord:'',tel:''},
-  'AP015':{nom:'AP METRO NORTE',coord:'',tel:''},
-  'AP016':{nom:'AP QUETZALTENANGO',coord:'',tel:''},
-  'AP017':{nom:'AP RETALHULEU',coord:'',tel:''},
-  'AP018':{nom:'AP SANARATE',coord:'',tel:''},
-  'AP019':{nom:'AP VILLA CANALES',coord:'',tel:''},
-  'AC001':{nom:'AC SAN JOSE PINULA',coord:'',tel:''},
-  'AC002':{nom:'AC ALOTENANGO',coord:'',tel:''},
-  'AC003':{nom:'AC LA BRIGADA',coord:'',tel:''},
-  'AC004':{nom:'AC UTATLAN',coord:'',tel:''},
-  'AC005':{nom:'AC SAN LUCAS',coord:'',tel:''},
-  'AC006':{nom:'AC CIUDAD VIEJA',coord:'',tel:''},
-  'AC007':{nom:'AC PALIN',coord:'',tel:''},
-  'AC008':{nom:'AC ANTIGUA',coord:'',tel:''},
-  'AC009':{nom:'AC BETHANIA',coord:'',tel:''},
-  'AC010':{nom:'AC PETAPA',coord:'',tel:''},
-  'AC011':{nom:'AC OBELISCO',coord:'',tel:''},
-  'AC012':{nom:'AC BOSQUES',coord:'',tel:''}
-
+  '5200':{nom:'KING SAN JOSE PINULA',coord:'',tel:''},
+  'KING001':{nom:'KING REU',coord:'',tel:''},
 };
 
 // Map a CRM agencia name -> code in AGENCIA_DATA (best-effort fuzzy match by normalized name)
@@ -3950,7 +4264,7 @@ function findAgenciaCode(agName){
   if(!agName)return '';
   const norm=s=>s.toUpperCase().replace(/[ÁÀ]/g,'A').replace(/[ÉÈ]/g,'E').replace(/[ÍÌ]/g,'I').replace(/[ÓÒ]/g,'O').replace(/[ÚÙÜ]/g,'U').replace(/Ñ/g,'N').replace(/[^A-Z0-9 ]/g,'').replace(/\s+/g,' ').trim();
   const target=norm(agName);
-  // EXACT match only — no fuzzy, to avoid confusing "AP KING SAN JOSE PINULA" with "AC SAN JOSE PINULA / ZONA 9".
+  // EXACT match only — no fuzzy, to avoid confusing "KING SAN JOSE PINULA" with "AC SAN JOSE PINULA / ZONA 9".
   for(const[code,d]of Object.entries(AGENCIA_DATA)){
     if(norm(d.nom)===target)return code;
   }
@@ -4422,11 +4736,22 @@ function shareCuadroWhatsApp(){
     if(!exists){registerAgenciaCode(n);added++;}
   });
   if(added>0)console.log('[agencias] Startup auto-coded',added,'agencies');
+  // KING migration: rename old AP-prefix King names to the new KING channel.
+  // Has its own flag to ensure it runs at most once per device.
+  if(typeof migrateKingAgencias==='function'){
+    try{ migrateKingAgencias(); }catch(e){ console.warn('[KING migration startup] error:',e); }
+  }
   // After ensuring all agencias have codes, backfill leads that don't have agencia_codigo.
   // This makes existing leads created BEFORE this fix automatically gain their code.
   if(typeof leads!=='undefined'&&leads.length>0){
     backfillAgenciaCodigo();
   }
+  // Deferred KING migration: 8 seconds after page load to catch data that arrived from Firebase
+  setTimeout(()=>{
+    if(typeof migrateKingAgencias==='function'){
+      try{ migrateKingAgencias(); }catch(e){ console.warn('[KING migration deferred] error:',e); }
+    }
+  }, 8000);
 })();
 
 // AUTO-CONNECT
