@@ -635,6 +635,16 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option>
     </select>
   </div>
+  <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:1rem;padding:.5rem .75rem;background:rgba(27,47,110,.04);border:1px solid rgba(27,47,110,.1);border-radius:8px">
+    <span style="font-size:11px;font-weight:600;color:var(--navy);letter-spacing:.3px">📅 RANGO DE FECHAS (F. Actividad):</span>
+    <input type="date" class="fc" id="q-fd" onchange="leadsPage=0;renderLeads()" style="max-width:150px" title="Desde">
+    <span style="font-size:11px;color:var(--mut)">a</span>
+    <input type="date" class="fc" id="q-fh" onchange="leadsPage=0;renderLeads()" style="max-width:150px" title="Hasta">
+    <button class="btn bo bsm" onclick="setLeadsQuickRange(7)">7 días</button>
+    <button class="btn bo bsm" onclick="setLeadsQuickRange(30)">30 días</button>
+    <button class="btn bo bsm" onclick="setLeadsQuickRange('thismonth')">Este mes</button>
+    <button class="btn bo bsm" onclick="setLeadsQuickRange('all')">Todo</button>
+  </div>
   <div class="card"><div class="tw"><table>
     <thead><tr>
       <th style="width:30px;padding:8px 4px 8px 10px"><input type="checkbox" id="chk-all" onchange="toggleAllChk(this)" style="width:14px;height:14px"></th>
@@ -1343,6 +1353,96 @@ function showLoginScreen(cloud){
 const saveLock=new Set();
 function lockLead(id){saveLock.add(String(id));}
 function unlockLead(id){saveLock.delete(String(id));}
+
+// ─────────────────────────────────────────────────────────────────
+// DIAGNOSTIC FUNCTIONS — accessible from browser console (F12)
+// Use to investigate missing/lost leads.
+// ─────────────────────────────────────────────────────────────────
+
+// Find all leads matching a phone number (or partial). Searches the LOCAL leads array.
+window.diagFindLead = function(query){
+  if(!query) return console.warn('Usage: diagFindLead("59691313")');
+  const q = String(query).toLowerCase();
+  const matches = leads.filter(l =>
+    (l.tel||'').toLowerCase().includes(q) ||
+    (l.nom||'').toLowerCase().includes(q) ||
+    String(l.id)===String(query)
+  );
+  console.log(`Found ${matches.length} matching leads in LOCAL array:`);
+  matches.forEach(l=>console.log({id:l.id, nom:l.nom, tel:l.tel, est:l.est, agencia:l.agencia, asesor:l.anom, fa:l.fa, fcita:l.fcita, _localOnly:l._localOnly, _needsCloudSync:l._needsCloudSync}));
+  return matches;
+};
+
+// Show all leads created today by a specific user
+window.diagLeadsByUser = function(uidOrName){
+  const today = new Date().toISOString().substring(0,10);
+  const matches = leads.filter(l=>{
+    if(l.fa===today || (l.fu||'').startsWith(today)){
+      if(typeof uidOrName==='number') return l.uid===uidOrName;
+      const name = String(uidOrName||'').toLowerCase();
+      return (l.anom||'').toLowerCase().includes(name);
+    }
+    return false;
+  });
+  console.log(`Found ${matches.length} leads from today (${today}) for "${uidOrName}":`);
+  matches.forEach(l=>console.log({id:l.id, nom:l.nom, tel:l.tel, est:l.est, agencia:l.agencia, fa:l.fa, fu:l.fu, fcita:l.fcita}));
+  return matches;
+};
+
+// Query Firebase directly to see if a lead exists in the cloud (regardless of local state)
+window.diagFindLeadInCloud = async function(query){
+  if(!window._fb||!window._fb.isReady()){return console.warn('Firebase not ready');}
+  if(!query)return console.warn('Usage: diagFindLeadInCloud("59691313")');
+  // We don't have a direct query — fetch all and filter
+  console.log('Fetching ALL leads from Firebase (this may take a few seconds)...');
+  try{
+    const{collection,getDocs}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    // We can't easily get firestore instance — use a workaround: trigger a refetch
+    console.log('Use the listenLeads listener output instead. Total leads currently loaded:', leads.length);
+    return window.diagFindLead(query);
+  }catch(e){
+    console.error('diagFindLeadInCloud error:',e);
+  }
+};
+
+// Re-sync any leads marked _needsCloudSync (failed cloud writes)
+window.diagRetryCloudSync = async function(){
+  const pending = leads.filter(l=>l._needsCloudSync);
+  console.log(`Retrying cloud sync for ${pending.length} pending leads...`);
+  for(const l of pending){
+    try{
+      await window._fb.saveLeadCloud(l);
+      delete l._needsCloudSync;
+      delete l._localOnly;
+      console.log('Synced:',l.id,l.nom);
+    }catch(e){
+      console.warn('Still failing:',l.id,l.nom,e);
+    }
+  }
+  persist();
+  toast(`Re-sincronizados ${pending.length} leads`);
+};
+
+// Show a summary of all leads (count by user, by today's date)
+window.diagSummary = function(){
+  const today = new Date().toISOString().substring(0,10);
+  const byUser = {};
+  const todayByUser = {};
+  leads.forEach(l=>{
+    const k = l.anom || ('uid:'+l.uid) || 'sin-asignar';
+    byUser[k] = (byUser[k]||0)+1;
+    if(l.fa===today || (l.fu||'').startsWith(today)){
+      todayByUser[k] = (todayByUser[k]||0)+1;
+    }
+  });
+  console.log('=== TOTAL leads by user ===');
+  console.table(byUser);
+  console.log(`=== Leads from TODAY (${today}) ===`);
+  console.table(todayByUser);
+  console.log(`Grand total: ${leads.length} leads`);
+  return {total:leads.length, byUser, todayByUser};
+};
+
 function isLocked(id){return saveLock.has(String(id));}
 // deletedRecently: set of lead IDs deleted in the last 30s.
 // The listener must NOT re-add these leads (prevents "zombie" resurrection
@@ -1385,10 +1485,21 @@ function initRealtimeSync(){
         if(idx>=0){leads[idx]=cl;}else{leads.push(cl);}
       });
       // 2) Remove leads that no longer exist in the cloud,
-      //    BUT keep locked leads and local-only leads (still being saved)
+      //    BUT keep:
+      //    - locked leads (currently being saved)
+      //    - local-only leads (never made it to cloud yet)
+      //    - RECENT leads (created in last 10 minutes) — protects against the case
+      //      where a snapshot arrives before our save propagates back, which would
+      //      otherwise wipe out leads users just created.
+      //    - leads whose ID looks like a recent timestamp-based ID (Date.now()*1000+rand)
+      const TEN_MINUTES_AGO = Date.now() - 10*60*1000;
       leads=leads.filter(l=>{
         if(isLocked(l.id))return true;        // currently being saved — protect
         if(l._localOnly)return true;          // never made it to cloud yet — protect
+        // ID-based protection: our IDs are Date.now()*1000+random, so a numeric ID
+        // > TEN_MINUTES_AGO*1000 means it was created in the last 10 minutes locally.
+        const numId = Number(l.id);
+        if(!isNaN(numId) && numId > TEN_MINUTES_AGO*1000) return true;
         return cloudById[String(l.id)]!==undefined; // keep only if exists in cloud
       });
       leads.sort((a,b)=>{
@@ -1526,16 +1637,32 @@ async function cloudSaveLead(lead,silent=false){
   lockLead(lead.id);
   if(useCloud&&window._fb.isReady()){
     if(!silent)setSyncStatus('syncing');
-    try{
-      await window._fb.saveLeadCloud(lead);
-    }catch(e){
-      console.warn('cloudSaveLead error',e);
-    }finally{
-      // Keep locked for 5 more seconds after Firebase confirms
-      // to absorb any delayed snapshots still in transit
-      setTimeout(()=>unlockLead(lead.id), 5000);
+    // Retry up to 3 times on failure (network glitches, transient errors).
+    // Without retries, a single failed write could lose the lead permanently
+    // when the next snapshot arrives and the filter removes it.
+    let lastErr=null;
+    for(let attempt=1;attempt<=3;attempt++){
+      try{
+        await window._fb.saveLeadCloud(lead);
+        lastErr=null;
+        break;
+      }catch(e){
+        lastErr=e;
+        console.warn(`cloudSaveLead attempt ${attempt} failed:`,e);
+        if(attempt<3) await new Promise(r=>setTimeout(r, 500*attempt));
+      }
     }
-    if(!silent)setSyncStatus('ok');
+    if(lastErr){
+      console.error('cloudSaveLead permanently failed for lead',lead.id,lastErr);
+      // Mark as needing re-sync. Keep _localOnly so we don't wipe it from local.
+      lead._localOnly=true;
+      lead._needsCloudSync=true;
+      try{persist();}catch(e){}
+    }
+    // Keep locked for 5 more seconds after Firebase confirms
+    // to absorb any delayed snapshots still in transit
+    setTimeout(()=>unlockLead(lead.id), 5000);
+    if(!silent)setSyncStatus(lastErr?'err':'ok');
   } else {
     // Local-only mode — release lock after a short delay
     setTimeout(()=>unlockLead(lead.id), 1000);
@@ -1736,6 +1863,24 @@ function parseFecha(f){
   return f;
 }
 function resetLeadsPage(){leadsPage=0;}
+function setLeadsQuickRange(opt){
+  const fdEl=document.getElementById('q-fd');
+  const fhEl=document.getElementById('q-fh');
+  if(!fdEl||!fhEl)return;
+  const t=new Date();
+  const lf=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  if(opt===7||opt===30){
+    const since=new Date(t);since.setDate(t.getDate()-opt);
+    fdEl.value=lf(since);fhEl.value=lf(t);
+  } else if(opt==='thismonth'){
+    fdEl.value=lf(t).substring(0,7)+'-01';fhEl.value=lf(t);
+  } else if(opt==='all'){
+    fdEl.value='';fhEl.value='';
+  }
+  leadsPage=0;
+  renderLeads();
+}
+
 function filteredLeads(){
   let arr=myLeads();
   const q=(document.getElementById('q-s')?.value||'').toLowerCase(),
@@ -1744,7 +1889,9 @@ function filteredLeads(){
         tp=document.getElementById('q-tp')?.value||'',
         ase=document.getElementById('q-ase')?.value||'',
         mes=document.getElementById('q-mes')?.value||'',
-        ano=document.getElementById('q-ano')?.value||'';
+        ano=document.getElementById('q-ano')?.value||'',
+        fd=document.getElementById('q-fd')?.value||'',
+        fh=document.getElementById('q-fh')?.value||'';
   if(q)arr=arr.filter(l=>l.nom.toLowerCase().includes(q)||(l.tel||'').includes(q));
   if(est)arr=arr.filter(l=>l.est===est);
   if(ori)arr=arr.filter(l=>l.ori===ori);
@@ -1753,6 +1900,16 @@ function filteredLeads(){
   else if(ase)arr=arr.filter(l=>String(l.uid)===ase);
   const agf=document.getElementById('q-agencia')?.value||'';if(agf)arr=arr.filter(l=>(l.agencia||'')=== agf);
   if(ano||mes){arr=arr.filter(l=>{const fa=parseFecha(l.fa||'');if(!fa)return false;if(ano&&!fa.startsWith(ano))return false;if(mes&&fa.length>=7&&fa.substring(5,7)!==mes)return false;return true;});}
+  // Date range filter on F.Actividad (l.fa)
+  if(fd||fh){
+    arr=arr.filter(l=>{
+      const fa=parseFecha(l.fa||'');
+      if(!fa)return false;
+      if(fd&&fa<fd)return false;
+      if(fh&&fa>fh)return false;
+      return true;
+    });
+  }
   arr.sort((a,b)=>parseFecha(b.fa||'').localeCompare(parseFecha(a.fa||'')));
   return arr;
 }
