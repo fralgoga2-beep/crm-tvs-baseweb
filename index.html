@@ -1443,6 +1443,45 @@ window.diagSummary = function(){
   return {total:leads.length, byUser, todayByUser};
 };
 
+// Find leads that look like they got rolled back (state was advanced and now is
+// back to NUEVO with no clear reason). Useful when investigating the CITA→NUEVO
+// rollback bug. Looks at leads that:
+//   - are currently in NUEVO state
+//   - were updated/touched today (fu === today)
+//   - have an asesor assigned (suggesting they were being worked on)
+window.diagFindRollbacks = function(){
+  const today = new Date().toISOString().substring(0,10);
+  const suspects = leads.filter(l=>{
+    if(l.est!=='NUEVO')return false;
+    if(!l.uid)return false;
+    if((l.fu||'').substring(0,10)!==today)return false;
+    return true;
+  });
+  console.log(`Found ${suspects.length} suspect leads (NUEVO + assigned + touched today):`);
+  suspects.forEach(l=>{
+    console.log({id:l.id, nom:l.nom, tel:l.tel, asesor:l.anom, fa:l.fa, fu:l.fu, fcita:l.fcita, regest:l.regest});
+  });
+  return suspects;
+};
+
+// Manually set a lead's state to CITA (use after confirming via diagFindRollbacks
+// that the rollback was wrong). Usage: diagRestoreToCita(123456) where 123456 is the lead id.
+window.diagRestoreToCita = function(leadId){
+  const l = leads.find(x=>String(x.id)===String(leadId));
+  if(!l)return console.warn('Lead no encontrado:',leadId);
+  console.log('ANTES:',{id:l.id, nom:l.nom, est:l.est, fcita:l.fcita});
+  l.est = 'CITA';
+  if(!l.fcita) l.fcita = new Date().toISOString().substring(0,10);
+  l.fu = new Date().toISOString().substring(0,10);
+  l._ts_local = Date.now();
+  persist();
+  if(typeof cloudSaveLead==='function')cloudSaveLead(l);
+  console.log('DESPUÉS:',{id:l.id, nom:l.nom, est:l.est, fcita:l.fcita});
+  toast(`Lead ${l.nom} restaurado a CITA`);
+  if(typeof renderAll==='function')renderAll();
+  return l;
+};
+
 function isLocked(id){return saveLock.has(String(id));}
 // deletedRecently: set of lead IDs deleted in the last 30s.
 // The listener must NOT re-add these leads (prevents "zombie" resurrection
@@ -1476,13 +1515,46 @@ function initRealtimeSync(){
       // Index cloud leads by id for fast lookup
       const cloudById={};
       cloudLeads.forEach(cl=>{ cloudById[String(cl.id)]=cl; });
-      // 1) Update existing leads from cloud, EXCEPT locked ones (recently saved locally)
-      //    AND skip any lead we just deleted (prevent zombie resurrection)
+      // 1) Update existing leads from cloud, EXCEPT:
+      //    - locked ones (recently saved locally)
+      //    - recently-deleted ones (prevent zombie resurrection)
+      //    - STALE snapshots (cloud version is older than what we have locally)
+      //
+      // The stale-snapshot check is the fix for the CITA→NUEVO rollback bug.
+      // Firebase can echo back delayed snapshots that contain an older state of
+      // a lead. Without this check, the listener overwrites our newer local
+      // change with the older cloud version. We use _ts_local (our own local
+      // millisecond timestamp set in cloudSaveLead) to compare versions.
       cloudLeads.forEach(cl=>{
         if(isLocked(cl.id))return; // user just saved this — preserve local version
         if(isRecentlyDeleted(cl.id))return; // we just deleted this — don't bring it back
         const idx=leads.findIndex(l=>String(l.id)===String(cl.id));
-        if(idx>=0){leads[idx]=cl;}else{leads.push(cl);}
+        if(idx>=0){
+          // Stale-snapshot guard: if our local version was saved more recently
+          // than this cloud version, the cloud version is a stale echo. Skip it.
+          const localTs = Number(leads[idx]._ts_local) || 0;
+          const cloudTs = Number(cl._ts_local) || 0;
+          if(localTs > 0 && cloudTs > 0 && cloudTs < localTs){
+            // cloud is older than local — it's a stale echo, ignore it
+            return;
+          }
+          // Also skip if local has _ts_local but cloud doesn't (means someone
+          // else is overwriting without the new field — most likely an old
+          // version of the app on another device — wait until they sync)
+          if(localTs > 0 && cloudTs === 0){
+            // 30 second grace: if our local change is still very recent,
+            // don't let an old-app-version snapshot wipe it out
+            if(Date.now() - localTs < 30000) return;
+          }
+          // If cloud doesn't have _ts_local yet, stamp it as we accept it.
+          // This way, future comparisons against this lead will work.
+          if(!cl._ts_local) cl._ts_local = Date.now();
+          leads[idx]=cl;
+        } else {
+          // New lead from cloud — stamp it too if missing
+          if(!cl._ts_local) cl._ts_local = Date.now();
+          leads.push(cl);
+        }
       });
       // 2) Remove leads that no longer exist in the cloud,
       //    BUT keep:
@@ -1635,6 +1707,12 @@ async function cloudSaveLead(lead,silent=false){
   // Lock immediately — even if cloud is not ready, any pending snapshot in flight
   // must not overwrite this lead. Lock is keyed by id (string).
   lockLead(lead.id);
+  // CRITICAL: stamp the lead with our local time BEFORE we send it.
+  // The listener uses this to detect "stale snapshots" — if Firebase echoes
+  // back a snapshot whose _ts_local is OLDER than what's in our local array,
+  // we know it's a stale echo and we ignore it. This prevents the
+  // CITA → NUEVO rollback bug.
+  lead._ts_local = Date.now();
   if(useCloud&&window._fb.isReady()){
     if(!silent)setSyncStatus('syncing');
     // Retry up to 3 times on failure (network glitches, transient errors).
@@ -1659,9 +1737,10 @@ async function cloudSaveLead(lead,silent=false){
       lead._needsCloudSync=true;
       try{persist();}catch(e){}
     }
-    // Keep locked for 5 more seconds after Firebase confirms
-    // to absorb any delayed snapshots still in transit
-    setTimeout(()=>unlockLead(lead.id), 5000);
+    // Keep locked for 30 seconds (was 5) — Firebase can take longer than 5s
+    // to propagate writes back via the listener, especially on slow networks.
+    // 30s gives plenty of margin to absorb delayed echo snapshots.
+    setTimeout(()=>unlockLead(lead.id), 30000);
     if(!silent)setSyncStatus(lastErr?'err':'ok');
   } else {
     // Local-only mode — release lock after a short delay
