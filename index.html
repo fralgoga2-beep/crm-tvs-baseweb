@@ -2004,7 +2004,15 @@ function populateSel(){
     const label=code?code+' — '+a:a;
     return `<option value="${a.replace(/"/g,'&quot;')}" data-codigo="${code}">${label}</option>`;
   }).join('');
-  ['lf-agencia','ds-agencia','q-agencia'].forEach(id=>{const el=document.getElementById(id);if(el){el.innerHTML=(id==='q-agencia'?'<option value="">Todas agencias</option>':'<option value="">— Sin agencia —</option>')+agOpts;}});
+  ['lf-agencia','ds-agencia','q-agencia'].forEach(id=>{const el=document.getElementById(id);if(el){el.innerHTML=(id==='q-agencia'?'<option value="">Todas agencias</option>':'<option value="">— Sin agencia —</option>')+agOpts;
+    // Track when user actually interacts with the dropdown (only for editing dropdowns,
+    // not the search filter q-agencia). Used by saveDet/saveLead to distinguish between
+    // "user explicitly chose no agencia" vs "dropdown couldn't display the lead's agencia".
+    if(id!=='q-agencia'&&!el.dataset.touchListenerAttached){
+      el.addEventListener('change',()=>{el.dataset.userTouched='1';});
+      el.dataset.touchListenerAttached='1';
+    }
+  }});
   // Ubicaciones datalist
   const ubiSet=[...new Set(leads.map(l=>l.ubi).filter(Boolean))].sort();
   const ubiList=document.getElementById('ubi-list');if(ubiList)ubiList.innerHTML=ubiSet.map(u=>`<option value="${u}">`).join('');
@@ -2369,7 +2377,20 @@ function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas
     const label=code?code+' — '+a:a;
     return `<option value="${a.replace(/"/g,'&quot;')}" data-codigo="${code}" ${a===l.agencia?'selected':''}>${label}</option>`;
   }).join('');
-  const _dagEl=document.getElementById('ds-agencia');if(_dagEl)_dagEl.innerHTML='<option value="">— Sin agencia —</option>'+_dagOpts;
+  const _dagEl=document.getElementById('ds-agencia');
+  if(_dagEl){
+    _dagEl.innerHTML='<option value="">— Sin agencia —</option>'+_dagOpts;
+    // Reset the userTouched flag — this dropdown was just freshly populated for
+    // this lead. Any "change" event from here on means the user actually picked
+    // something different from what we pre-selected.
+    _dagEl.dataset.userTouched='0';
+    // Attach the change listener if it isn't already there (innerHTML can reset
+    // listeners depending on browser, so we re-attach defensively each time).
+    if(!_dagEl.dataset.touchListenerAttached){
+      _dagEl.addEventListener('change',()=>{_dagEl.dataset.userTouched='1';});
+      _dagEl.dataset.touchListenerAttached='1';
+    }
+  }
 }
 function renderNotas(l){if(!l.notas||l.notas.length===0)return `<div style="color:var(--mut);font-size:12px;text-align:center;padding:.75rem">Sin comentarios</div>`;return l.notas.map((n,i)=>`<div class="ni2"><div class="nt">${n.txt}</div><div class="nm"><span>✍️ ${n.by||'Asesor'}</span><span>${n.ts||''}</span></div><button class="nd" onclick="delNota(${l.id},${i})">✕</button></div>`).join('');}
 function addNota(lid){const txt=document.getElementById('new-nota')?.value?.trim();if(!txt){toast('Escribe algo');return;}const l=findLead(lid);if(!l.notas)l.notas=[];l.notas.push({txt,by:CU.nombre,ts:new Date().toLocaleString()});l.fu=today();if(l.fa&&l.fa<today())l.regest='Regestionado';document.getElementById('new-nota').value='';document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);renderAll();toast('Comentario agregado ✓');const gestUid=l.uid||CU.id;addGest(gestUid,1);}
@@ -2380,18 +2401,29 @@ function saveDet(id){
   const prevEst=l.est;
   l.est=document.getElementById('ds-est').value;
   l.tp=document.getElementById('ds-tp').value;
-  // Defensive: only update agencia if user actually interacted with the dropdown.
-  // Also extract the codigo from the selected option's data-codigo attr.
+  // CRITICAL DEFENSIVE LOGIC for agencia: this used to silently wipe out the lead's
+  // agencia when the dropdown wasn't properly populated/selected. The new rule is:
+  //
+  //   - If the dropdown has a non-empty selection: use it (user picked an agencia).
+  //   - If the dropdown has empty value AND user explicitly chose "— Sin agencia —"
+  //     (userTouched flag is set): clear the agencia.
+  //   - In ANY other case (no selection, dropdown not populated): KEEP the existing
+  //     agencia. This prevents data loss when the dropdown couldn't display the
+  //     lead's current agencia (e.g. due to whitespace/case mismatch or timing).
   const dagEl=document.getElementById('ds-agencia');
   if(dagEl){
     const newAg=dagEl.value||'';
-    const userPicked=dagEl.selectedIndex>=0;
-    if(userPicked){
+    const userTouched=dagEl.dataset.userTouched==='1';
+    if(newAg){
+      // User picked an actual agencia — use it
       l.agencia=newAg;
-      // Save the codigo too — this is the key fix so the cuadro doesn't have to
-      // guess the code later from a name that may have multiple matches.
-      l.agencia_codigo=newAg?(dagEl.options[dagEl.selectedIndex].dataset.codigo||''):'';
+      l.agencia_codigo=dagEl.options[dagEl.selectedIndex]?.dataset.codigo||'';
+    } else if(userTouched){
+      // User explicitly selected "— Sin agencia —" — clear it
+      l.agencia='';
+      l.agencia_codigo='';
     }
+    // else: dropdown is empty but user didn't touch it → KEEP existing l.agencia
   }
   l.interes=document.getElementById('ds-interes')?.value||'';
   const manualRegest=document.getElementById('ds-regest')?.value||'';
@@ -2438,6 +2470,10 @@ function setSelectVal(el, val, codigo){
 
 function openLM(id){
   editL=id;
+  // Reset the agencia "userTouched" flag so this edit session starts clean.
+  // Without this, a previous session's flag could carry over and cause unintended clears.
+  const _resetAgFlag=document.getElementById('lf-agencia');
+  if(_resetAgFlag)_resetAgFlag.dataset.userTouched='0';
   if(id){const l=findLead(id);document.getElementById('ml-title').textContent='Editar Lead';document.getElementById('lf-btn').textContent='Guardar cambios';document.getElementById('lf-nom').value=l.nom;document.getElementById('lf-tel').value=l.tel;document.getElementById('lf-ori').value=l.ori;document.getElementById('lf-tp').value=l.tp||'Contado';document.getElementById('lf-lin').value=l.linea;document.getElementById('lf-ubi').value=l.ubi;document.getElementById('lf-est').value=l.est;document.getElementById('lf-fa').value=l.fa||'';document.getElementById('lf-fu').value=l.fu||'';document.getElementById('lf-rd').value=l.reminder?.date||'';document.getElementById('lf-rt').value=l.reminder?.time||'09:00';document.getElementById('lf-rn').value=l.reminder?.note||'';document.getElementById('lf-com').value='';const af=document.getElementById('lf-ase');if(af)af.value=l.uid||'';const _cf=document.getElementById('lf-canal');if(_cf)_cf.value=l.canal||'';setSelectVal(document.getElementById('lf-agencia'),l.agencia||'',l.agencia_codigo||'');const _in=document.getElementById('lf-interes');if(_in)_in.value=l.interes||'';const _re=document.getElementById('lf-responde');if(_re)_re.value=l.responde||'';const _rg=document.getElementById('lf-regest');if(_rg)_rg.value=l.regest||'';toggleCanalField();}
   else{document.getElementById('ml-title').textContent='Nuevo Lead';document.getElementById('lf-btn').textContent='Guardar Lead';['lf-nom','lf-tel','lf-ubi','lf-com','lf-rd','lf-rn'].forEach(i=>document.getElementById(i).value='');document.getElementById('lf-fa').value=today();document.getElementById('lf-fu').value=today();document.getElementById('lf-rt').value='09:00';const af=document.getElementById('lf-ase');if(af)af.value=isPriv()?'':String(CU.id);const _cff=document.getElementById('lf-canal');if(_cff)_cff.value='';const _agn=document.getElementById('lf-agencia');if(_agn)_agn.value='';const _inn=document.getElementById('lf-interes');if(_inn)_inn.value='';const _ren=document.getElementById('lf-responde');if(_ren)_ren.value='';const _rgn=document.getElementById('lf-regest');if(_rgn)_rgn.value='';toggleCanalField();}
   openM('m-lead');
@@ -2453,6 +2489,10 @@ function saveLead(){
   const _agEl=document.getElementById('lf-agencia');
   const _agencia=_agEl?.value||'';
   const _agencia_codigo=_agEl&&_agEl.selectedIndex>=0?(_agEl.options[_agEl.selectedIndex].dataset.codigo||''):'';
+  // Track whether the user explicitly interacted with the agencia dropdown.
+  // If they did NOT and the dropdown is empty, we'll preserve the existing agencia
+  // when merging below, instead of overwriting it with empty.
+  const _agUserTouched=_agEl?.dataset.userTouched==='1';
   const _interes=document.getElementById('lf-interes')?.value||'';const _responde=document.getElementById('lf-responde')?.value||'';const _regest=document.getElementById('lf-regest')?.value||'';const data={nom,tel:document.getElementById('lf-tel').value,ori:document.getElementById('lf-ori').value,tp:_tp,canal:_canal,agencia:_agencia,agencia_codigo:_agencia_codigo,interes:_interes,responde:_responde,regest:_regest,linea:document.getElementById('lf-lin').value,ubi:document.getElementById('lf-ubi').value,est:document.getElementById('lf-est').value,fa:document.getElementById('lf-fa').value,fu:today(),uid,anom:u?u.nombre:'',reminder};
   let savedLead;
   if(editL){
@@ -2460,6 +2500,14 @@ function saveLead(){
     const ex=leads[i];
     const prevEst=ex.est;
     if(comTxt)ex.notas=[...(ex.notas||[]),{txt:comTxt,by:CU.nombre,ts:new Date().toLocaleString()}];
+    // DEFENSIVE: if the agencia dropdown came back empty AND the user did NOT
+    // explicitly touch it, preserve the existing value. This prevents "phantom
+    // wipes" when the dropdown couldn't find/select the lead's current agencia
+    // (e.g. due to whitespace/case mismatch or timing during render).
+    if(!_agencia&&!_agUserTouched&&ex.agencia){
+      data.agencia=ex.agencia;
+      data.agencia_codigo=ex.agencia_codigo||'';
+    }
     leads[i]={...ex,...data,notas:ex.notas};
     savedLead=leads[i];
     // Track transition to CITA: if state changed from non-CITA to CITA, record fcita
