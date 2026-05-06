@@ -515,6 +515,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <button class="ni admin-sup" onclick="goTab('kpis',this)"><span class="nco">🎯</span><span>KPIs Mensuales</span></button>
     <button class="ni admin-sup" onclick="goTab('tracker-citas',this)"><span class="nco">📅</span><span>Tracker de Citas</span></button>
     <button class="ni admin-sup" onclick="goTab('citas-dia',this)"><span class="nco">📋</span><span>Citas por Día</span></button>
+    <button class="ni admin-sup" onclick="goTab('inf-gerencial',this)"><span class="nco">📊</span><span>Informe Gerencial</span></button>
   </div>
   <div class="ns canal-nav" style="margin-top:.4rem;display:none">
     <div class="nl" id="canal-nav-label">Mi Canal</div>
@@ -1229,6 +1230,26 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   <div style="font-size:10px;color:var(--mut);margin-top:.75rem;padding:.4rem .5rem">
     💡 Datos automáticos desde leads con estado <strong>CITA</strong>. Doble clic en cualquier celda para corregir manualmente (se guarda en el navegador).
   </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- INFORME GERENCIAL — módulo nuevo, no modifica nada        -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="tab-inf-gerencial" class="tab">
+  <div class="ph">
+    <div>
+      <div class="pt">📊 Informe Gerencial</div>
+      <div class="psb" id="ig-sub">Informe Contact Center mensual</div>
+    </div>
+    <div class="ha">
+      <select id="ig-mes" class="fc" style="max-width:150px;font-size:12px" onchange="renderIG()"></select>
+      <select id="ig-ano" class="fc" style="max-width:100px;font-size:12px" onchange="renderIG()">
+        <option value="2026">2026</option><option value="2025">2025</option>
+      </select>
+      <button class="btn bo bsm" onclick="igExportExcel()">⬇ Excel</button>
+    </div>
+  </div>
+  <div id="ig-body" style="overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
 </div>
 
 </div></main>
@@ -2460,6 +2481,15 @@ function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas
         </select>
         <div style="font-size:10px;color:var(--mut);margin-top:4px">Contabiliza desde ayer</div>
       </div>
+      ${l.est==='CITA'?`<div style="background:#FFF8E1;border:1px solid #F9A825;border-radius:var(--r);padding:10px">
+        <div style="font-size:10px;font-weight:700;color:#5a4200;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">📅 Estado de Cita</div>
+        <select class="fc" id="ds-est-cita" style="font-size:12px">
+          <option value="">— Seleccionar —</option>
+          <option value="En Proceso" ${l.est_cita==='En Proceso'?'selected':''}>🔵 En Proceso</option>
+          <option value="Verificada" ${l.est_cita==='Verificada'?'selected':''}>✅ Verificada</option>
+          <option value="Perdida" ${l.est_cita==='Perdida'?'selected':''}>❌ Perdida</option>
+        </select>
+      </div>`:''}
     </div>
     <div style="border:2px solid ${rs==='overdue'?'var(--red)':rs==='today'?'#EAB308':rs?'#4CAF50':'#EAB308'};border-radius:var(--r);padding:.9rem;margin-bottom:1rem">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px">
@@ -2528,6 +2558,7 @@ function saveDet(id){
   const manualRegest=document.getElementById('ds-regest')?.value||'';
   l.regest=manualRegest||(l.fa&&l.fa<today()?'Regestionado':'');
   l.responde=document.getElementById('ds-responde')?.value||'';
+  if(l.est==='CITA'){const ec=document.getElementById('ds-est-cita');if(ec)l.est_cita=ec.value||'';}
   l.fu=today();
   // Track transition to CITA: register fcita with timestamp and user info
   if(l.est==='CITA'&&prevEst!=='CITA'){
@@ -6159,6 +6190,249 @@ function citasDiaExport() {
 
 // ═══════════════════════════════════════════════════════════════════
 // FIN módulo Citas por Día
+// ═══════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════
+// INFORME GERENCIAL — Contact Center — módulo nuevo
+// ═══════════════════════════════════════════════════════════════════
+
+const _IG_MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+let _igReady = false;
+
+function _igInitSel() {
+  const sel = document.getElementById('ig-mes');
+  if (!sel || sel.options.length > 0) return;
+  _IG_MESES.forEach((l,i) => {
+    const o = document.createElement('option');
+    o.value = String(i+1).padStart(2,'0');
+    o.textContent = l;
+    sel.appendChild(o);
+  });
+  const now = new Date();
+  sel.value = String(now.getMonth()+1).padStart(2,'0');
+  const asel = document.getElementById('ig-ano');
+  if (asel) asel.value = String(now.getFullYear());
+}
+
+// ─── Calcular semanas del mes ───
+function _igSemanas(ano, mes) {
+  const y = parseInt(ano), m = parseInt(mes);
+  const days = new Date(y, m, 0).getDate();
+  // Semanas por rangos de lunes a domingo dentro del mes
+  const semanas = [];
+  let d = 1;
+  while (d <= days) {
+    const start = d;
+    // Avanzar hasta domingo o fin de mes
+    let dt = new Date(y, m-1, d);
+    while (dt.getDay() !== 0 && d <= days) { d++; dt = new Date(y, m-1, d); }
+    const end = Math.min(d, days);
+    semanas.push({ start, end });
+    d++;
+  }
+  return semanas;
+}
+
+// ─── Filtrar leads por rango de días del mes ───
+function _igLeadsDia(ano, mes, start, end) {
+  const ym = `${ano}-${mes}`;
+  return leads.filter(l => {
+    const f = (l.fa || '').substring(0,10);
+    if (!f.startsWith(ym)) return false;
+    const d = parseInt(f.substring(8,10));
+    return d >= start && d <= end;
+  });
+}
+
+// ─── Calcular métricas de un conjunto de leads ───
+function _igMetrics(arr) {
+  const total       = arr.length;
+  const noResp      = arr.filter(l => l.responde === 'No responde').length;
+  const resp        = arr.filter(l => l.responde === 'Responde').length;
+  const cotizo      = arr.filter(l => l.interes === 'Cotizando' || l.interes === 'Interesad@ en Compra').length;
+  const regest      = arr.filter(l => l.regest === 'Regestionado').length;
+  const noCumple    = arr.filter(l => l.interes === 'No Cumple PANT').length;
+  const noInter     = arr.filter(l => l.interes === 'No Interesado').length;
+  const citas       = arr.filter(l => l.est === 'CITA').length;
+  const citasVerif  = arr.filter(l => l.est === 'CITA' && l.est_cita === 'Verificada').length;
+  const citasProceso= arr.filter(l => l.est === 'CITA' && (l.est_cita === 'En Proceso' || !l.est_cita)).length;
+  const citasPerd   = arr.filter(l => l.est === 'CITA' && l.est_cita === 'Perdida').length;
+  // Ventas KING = 3 ruedas, resto = 2 ruedas
+  const ventasKING  = arr.filter(l => l.est === 'VENTA' && _cdCanal(l.agencia, l.canal) === 'KING').length;
+  const ventas2r    = arr.filter(l => l.est === 'VENTA' && _cdCanal(l.agencia, l.canal) !== 'KING').length;
+  const totalVentas = ventasKING + ventas2r;
+  // Créditos: citas con tipo pago Crédito
+  const creditos    = arr.filter(l => l.est === 'CITA' && (l.tp||'').toLowerCase().includes('créd')).length;
+  return { total, noResp, resp, cotizo, regest, noCumple, noInter, citas, citasVerif, citasProceso, citasPerd, ventasKING, ventas2r, totalVentas, creditos };
+}
+
+// ─── Render principal ───
+function renderIG() {
+  const mes  = document.getElementById('ig-mes')?.value;
+  const ano  = document.getElementById('ig-ano')?.value;
+  if (!mes || !ano) return;
+
+  const mesLabel = _IG_MESES[parseInt(mes)-1];
+  const sub = document.getElementById('ig-sub');
+  if (sub) sub.textContent = `Del 01 al ${new Date(parseInt(ano),parseInt(mes),0).getDate()} de ${mesLabel.toUpperCase()} Del ${ano}`;
+
+  const semanas = _igSemanas(ano, mes);
+  const sData   = semanas.map(s => ({ ...s, arr: _igLeadsDia(ano, mes, s.start, s.end) }));
+  const totArr  = _igLeadsDia(ano, mes, 1, 999);
+  const totM    = _igMetrics(totArr);
+  const sems    = sData.map(s => _igMetrics(s.arr));
+
+  // Columnas de semanas
+  const numSem = semanas.length;
+  const sCols  = semanas.map((s,i) => `Semana ${i+1}<br><span style="font-size:9px;font-weight:400">${s.start} al ${s.end}</span>`);
+
+  // pct helpers
+  const pct  = (a,b) => b>0 ? Math.round(a/b*100)+'%' : '—';
+  const pct1 = (a,b) => b>0 ? (a/b*100).toFixed(2)+'%' : '—';
+
+  // vs columns from totals
+  const vsLeads   = m => pct(m.total,   totM.total);
+  const vsCotizo  = m => pct(m.cotizo,  totM.cotizo);
+  const vsCitas   = m => pct(m.citas,   totM.citas);
+  const vsVentas  = m => pct(m.totalVentas, totM.totalVentas);
+
+  // Filas del informe: [label, color_header, color_row, getValue(m), vsLeads?, vsCotizo?, vsCitas?, vsVentas?]
+  const FILAS = [
+    { lbl:'Total Leads',       hc:'#1B2F6E', rc:'#1B2F6E', fc:'#fff', v: m=>m.total,        vsL: m=>pct(m.total,totM.total) },
+    { lbl:'No Respondió',      hc:'#C8102E', rc:'#C8102E', fc:'#fff', v: m=>m.noResp,        vsL: m=>pct(m.noResp,totM.total) },
+    { lbl:'Respondió',         hc:'#F9A825', rc:'#F9A825', fc:'#1a1a1a', v: m=>m.resp,       vsL: m=>pct(m.resp,totM.total) },
+    { lbl:'Cotizó',            hc:'#F9A825', rc:'#FFF9C4', fc:'#1a1a1a', v: m=>m.cotizo,     vsC: m=>pct(m.cotizo,totM.cotizo) },
+    { lbl:'Regestiones',       hc:'#F9A825', rc:'#FFF9C4', fc:'#1a1a1a', v: m=>m.regest },
+    { lbl:'No Cumple Pant',    hc:'#C8102E', rc:'#FFEBEE', fc:'#b71c1c', v: m=>m.noCumple,   vsC: m=>pct(m.noCumple,totM.cotizo) },
+    { lbl:'No Interesado',     hc:'#C8102E', rc:'#FFEBEE', fc:'#b71c1c', v: m=>m.noInter,    vsC: m=>pct(m.noInter,totM.cotizo) },
+    { lbl:'Citas',             hc:'#1B2F6E', rc:'#E3F2FD', fc:'#0d47a1', v: m=>m.citas,      vsA: m=>pct(m.citas,totM.citas) },
+    { lbl:'Citas Verificadas', hc:'#1B2F6E', rc:'#BBDEFB', fc:'#0d47a1', v: m=>m.citasVerif, vsA: m=>pct(m.citasVerif,totM.citas) },
+    { lbl:'Citas en Proceso',  hc:'#1B2F6E', rc:'#E3F2FD', fc:'#0d47a1', v: m=>m.citasProceso, vsA: m=>pct(m.citasProceso,totM.citas) },
+    { lbl:'Citas Perdidas',    hc:'#C8102E', rc:'#FFEBEE', fc:'#b71c1c', v: m=>m.citasPerd,  vsA: m=>pct(m.citasPerd,totM.citas) },
+    { lbl:'Ventas 3 Ruedas',   hc:'#2E7D32', rc:'#F1F8E9', fc:'#1B5E20', v: m=>m.ventasKING },
+    { lbl:'Ventas 2 Ruedas',   hc:'#2E7D32', rc:'#E8F5E9', fc:'#1B5E20', v: m=>m.ventas2r,  vsV: m=>pct1(m.ventas2r,totM.totalVentas) },
+    { lbl:'Total de Ventas',   hc:'#2E7D32', rc:'#C8E6C9', fc:'#1B5E20', v: m=>m.totalVentas },
+    { lbl:'Créditos Enviados', hc:'#F9A825', rc:'#FFF9C4', fc:'#1a1a1a', v: m=>m.creditos },
+  ];
+
+  // ─── Construir tabla ───
+  const thStyle = (bg,fg,al='center') =>
+    `style="padding:7px 10px;background:${bg};color:${fg};font-weight:700;font-size:11px;text-align:${al};border:1px solid rgba(0,0,0,.15);white-space:nowrap"`;
+  const tdStyle = (bg,fg,al='center',bold=false) =>
+    `style="padding:6px 8px;background:${bg};color:${fg};font-weight:${bold?'700':'400'};font-size:11px;text-align:${al};border:1px solid #e0e0e0"`;
+
+  let html = `
+  <div style="font-size:11px;font-weight:700;color:var(--mut);margin-bottom:.5rem">
+    Informe Contact Center · Del 01 al ${new Date(parseInt(ano),parseInt(mes),0).getDate()} de ${mesLabel.toUpperCase()} Del ${ano}
+  </div>
+  <table style="border-collapse:collapse;width:100%;min-width:${600+numSem*90}px;font-family:Arial,sans-serif">
+    <thead>
+      <tr>
+        <th ${thStyle('#000','#fff','left')}>Concepto</th>
+        ${sCols.map((_,i)=>`<th ${thStyle('#1B2F6E','#fff')}>${sCols[i]}</th>`).join('')}
+        <th ${thStyle('#000','#fff')}>TOTAL DEL MES</th>
+        <th ${thStyle('#1B2F6E','#fff')}>vs Total Leads</th>
+        <th ${thStyle('#F9A825','#1a1a1a')}>vs Cotizó</th>
+        <th ${thStyle('#1B2F6E','#fff')}>vs Citas</th>
+        <th ${thStyle('#2E7D32','#fff')}>vs Ventas</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+  FILAS.forEach(f => {
+    const tot = f.v(totM);
+    html += `<tr>
+      <td ${tdStyle(f.rc, f.fc, 'left', true)}>${f.lbl}</td>
+      ${sems.map(m=>`<td ${tdStyle(f.rc,f.fc)}>${f.v(m)||0}</td>`).join('')}
+      <td ${tdStyle(f.rc, f.fc, 'center', true)}>${tot||0}</td>
+      <td ${tdStyle('#fff','#1B2F6E')}>${f.vsL ? f.vsL(totM) : ''}</td>
+      <td ${tdStyle('#fff','#5a4200')}>${f.vsC ? f.vsC(totM) : ''}</td>
+      <td ${tdStyle('#fff','#0d47a1')}>${f.vsA ? f.vsA(totM) : ''}</td>
+      <td ${tdStyle('#fff','#1B5E20')}>${f.vsV ? f.vsV(totM) : ''}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table>
+  <div style="font-size:10px;color:var(--mut);margin-top:.6rem;padding:.3rem .5rem">
+    💡 <strong>Citas Verificadas / En Proceso / Perdidas</strong>: se asignan desde el campo "Estado de Cita" en el detalle de cada lead con estado CITA. · <strong>Créditos Enviados</strong>: citas con tipo de pago Crédito. · <strong>3 Ruedas</strong>: ventas del canal KING. · <strong>2 Ruedas</strong>: resto de ventas.
+  </div>`;
+
+  const body = document.getElementById('ig-body');
+  if (body) body.innerHTML = html;
+}
+
+// ─── Exportar Excel ───
+function igExportExcel() {
+  if (typeof XLSX === 'undefined') { toast('Librería XLSX no disponible'); return; }
+  const mes  = document.getElementById('ig-mes')?.value;
+  const ano  = document.getElementById('ig-ano')?.value;
+  if (!mes||!ano) { toast('Selecciona mes y año'); return; }
+  const mesLabel = _IG_MESES[parseInt(mes)-1];
+  const semanas  = _igSemanas(ano, mes);
+  const sData    = semanas.map(s => ({ ...s, arr: _igLeadsDia(ano, mes, s.start, s.end) }));
+  const totArr   = _igLeadsDia(ano, mes, 1, 999);
+  const totM     = _igMetrics(totArr);
+  const sems     = sData.map(s => _igMetrics(s.arr));
+  const pct      = (a,b) => b>0 ? Math.round(a/b*100)+'%' : '—';
+  const pct1     = (a,b) => b>0 ? (a/b*100).toFixed(2)+'%' : '—';
+
+  const FILAS = [
+    { lbl:'Total Leads',       v:m=>m.total,        vsL:m=>pct(m.total,totM.total) },
+    { lbl:'No Respondió',      v:m=>m.noResp,        vsL:m=>pct(m.noResp,totM.total) },
+    { lbl:'Respondió',         v:m=>m.resp,          vsL:m=>pct(m.resp,totM.total) },
+    { lbl:'Cotizó',            v:m=>m.cotizo,        vsC:m=>pct(m.cotizo,totM.cotizo) },
+    { lbl:'Regestiones',       v:m=>m.regest },
+    { lbl:'No Cumple Pant',    v:m=>m.noCumple,      vsC:m=>pct(m.noCumple,totM.cotizo) },
+    { lbl:'No Interesado',     v:m=>m.noInter,       vsC:m=>pct(m.noInter,totM.cotizo) },
+    { lbl:'Citas',             v:m=>m.citas,         vsA:m=>pct(m.citas,totM.citas) },
+    { lbl:'Citas Verificadas', v:m=>m.citasVerif,    vsA:m=>pct(m.citasVerif,totM.citas) },
+    { lbl:'Citas en Proceso',  v:m=>m.citasProceso,  vsA:m=>pct(m.citasProceso,totM.citas) },
+    { lbl:'Citas Perdidas',    v:m=>m.citasPerd,     vsA:m=>pct(m.citasPerd,totM.citas) },
+    { lbl:'Ventas 3 Ruedas',   v:m=>m.ventasKING },
+    { lbl:'Ventas 2 Ruedas',   v:m=>m.ventas2r,      vsV:m=>pct1(m.ventas2r,totM.totalVentas) },
+    { lbl:'Total de Ventas',   v:m=>m.totalVentas },
+    { lbl:'Créditos Enviados', v:m=>m.creditos },
+  ];
+
+  const headers = ['Concepto', ...semanas.map((s,i)=>`Semana ${i+1} (${s.start}-${s.end})`), 'TOTAL DEL MES', 'vs Total Leads', 'vs Cotizó', 'vs Citas', 'vs Ventas'];
+  const aoa = [
+    [`Informe Contact Center — ${mesLabel.toUpperCase()} ${ano}`],
+    [],
+    headers,
+    ...FILAS.map(f => [
+      f.lbl,
+      ...sems.map(m => f.v(m)||0),
+      f.v(totM)||0,
+      f.vsL ? f.vsL(totM) : '',
+      f.vsC ? f.vsC(totM) : '',
+      f.vsA ? f.vsA(totM) : '',
+      f.vsV ? f.vsV(totM) : '',
+    ])
+  ];
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:22}, ...semanas.map(()=>({wch:14})), {wch:16},{wch:14},{wch:12},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws, `${mesLabel} ${ano}`);
+  XLSX.writeFile(wb, `InformeGerencial_${mesLabel}_${ano}.xlsx`);
+  toast('Excel exportado ✓');
+}
+
+// ─── Hook goTab ───
+(function(){
+  const _origIG = window.goTab;
+  if (!_origIG) return;
+  window.goTab = function(tab, btn) {
+    _origIG(tab, btn);
+    if (tab === 'inf-gerencial') {
+      if (!_igReady) { _igReady=true; _igInitSel(); }
+      renderIG();
+    }
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// FIN módulo Informe Gerencial
 // ═══════════════════════════════════════════════════════════════════
 
 // AUTO-CONNECT
