@@ -513,6 +513,8 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <button class="ni admin-only" onclick="goTab('importar',this)"><span class="nco">📥</span><span>Importar / Vincular</span></button>
     <button class="ni admin-only" onclick="goTab('storage',this)"><span class="nco">🗂</span><span>Gestión de datos</span></button>
     <button class="ni admin-sup" onclick="goTab('kpis',this)"><span class="nco">🎯</span><span>KPIs Mensuales</span></button>
+    <button class="ni admin-sup" onclick="goTab('tracker-citas',this)"><span class="nco">📅</span><span>Tracker de Citas</span></button>
+    <button class="ni admin-sup" onclick="goTab('citas-dia',this)"><span class="nco">📋</span><span>Citas por Día</span></button>
   </div>
   <div class="ns canal-nav" style="margin-top:.4rem;display:none">
     <div class="nl" id="canal-nav-label">Mi Canal</div>
@@ -1136,6 +1138,96 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
         <button class="btn bp" onclick="guardarMetasMes()">💾 Guardar metas</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- TRACKER DE CITAS POR CANAL — módulo nuevo                -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="tab-tracker-citas" class="tab">
+  <div class="ph">
+    <div><div class="pt">📅 Tracker de Citas por Canal</div><div class="psb" id="tracker-sub">Citas diarias por canal AP · HT · AC · KING</div></div>
+    <div class="ha">
+      <select id="tracker-mes-sel" class="fc" style="max-width:160px;font-size:12px" onchange="renderTracker()">
+        <option value="">— Mes —</option>
+      </select>
+      <select id="tracker-ano-sel" class="fc" style="max-width:110px;font-size:12px" onchange="renderTracker()">
+        <option value="2026">2026</option>
+        <option value="2025">2025</option>
+      </select>
+      <button class="btn bo bsm" onclick="trackerExportXLSX()">⬇ Excel</button>
+    </div>
+  </div>
+
+  <!-- Bloque AP -->
+  <div class="card" style="margin-bottom:.7rem" id="tracker-card-AP">
+    <div class="ch" style="background:#4CAF50;border-bottom-color:#388E3C">
+      <span class="ct" style="color:#fff">CITAS ENVIADAS AP</span>
+      <span id="tracker-total-AP" style="font-size:13px;font-weight:700;color:#fff">Total: 0</span>
+    </div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <table id="tracker-tbl-AP" style="min-width:900px;border-collapse:collapse;font-size:11px"></table>
+    </div>
+  </div>
+
+  <!-- Bloque HT -->
+  <div class="card" style="margin-bottom:.7rem" id="tracker-card-HT">
+    <div class="ch" style="background:#9C27B0;border-bottom-color:#7B1FA2">
+      <span class="ct" style="color:#fff">CITAS ENVIADAS HT</span>
+      <span id="tracker-total-HT" style="font-size:13px;font-weight:700;color:#fff">Total: 0</span>
+    </div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <table id="tracker-tbl-HT" style="min-width:900px;border-collapse:collapse;font-size:11px"></table>
+    </div>
+  </div>
+
+  <!-- Bloque AC -->
+  <div class="card" style="margin-bottom:.7rem" id="tracker-card-AC">
+    <div class="ch" style="background:#1976D2;border-bottom-color:#1565C0">
+      <span class="ct" style="color:#fff">CITAS ENVIADAS AC</span>
+      <span id="tracker-total-AC" style="font-size:13px;font-weight:700;color:#fff">Total: 0</span>
+    </div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <table id="tracker-tbl-AC" style="min-width:900px;border-collapse:collapse;font-size:11px"></table>
+    </div>
+  </div>
+
+  <!-- Bloque KING -->
+  <div class="card" style="margin-bottom:.7rem" id="tracker-card-KING">
+    <div class="ch" style="background:#E53935;border-bottom-color:#C62828">
+      <span class="ct" style="color:#fff">CITAS ENVIADAS KING</span>
+      <span id="tracker-total-KING" style="font-size:13px;font-weight:700;color:#fff">Total: 0</span>
+    </div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <table id="tracker-tbl-KING" style="min-width:900px;border-collapse:collapse;font-size:11px"></table>
+    </div>
+  </div>
+
+  <div style="font-size:10px;color:var(--mut);margin-top:.5rem;padding:.5rem">
+    💡 Los datos se calculan automáticamente desde los leads con estado <strong>CITA</strong> según la agencia del lead. Haz doble clic en cualquier celda de dato para corregirla manualmente.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- CITAS POR DÍA — por canal y asesor, módulo nuevo         -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="tab-citas-dia" class="tab">
+  <div class="ph">
+    <div>
+      <div class="pt">📋 Citas por Día</div>
+      <div class="psb" id="citasdia-sub">Registro diario de citas por canal y asesor</div>
+    </div>
+    <div class="ha">
+      <select id="citasdia-mes" class="fc" style="max-width:150px;font-size:12px" onchange="renderCitasDia()"></select>
+      <select id="citasdia-ano" class="fc" style="max-width:100px;font-size:12px" onchange="renderCitasDia()">
+        <option value="2026">2026</option><option value="2025">2025</option>
+      </select>
+      <button class="btn bo bsm" onclick="citasDiaExport()">⬇ Excel</button>
+    </div>
+  </div>
+  <div id="citasdia-body" style="overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
+  <div style="font-size:10px;color:var(--mut);margin-top:.75rem;padding:.4rem .5rem">
+    💡 Datos automáticos desde leads con estado <strong>CITA</strong>. Doble clic en cualquier celda para corregir manualmente (se guarda en el navegador).
   </div>
 </div>
 
@@ -5529,6 +5621,544 @@ const _origGoTab = typeof goTab === 'function' ? goTab : null;
 
 // ═══════════════════════════════════════════════════════════════════
 // FIN módulo KPIs
+// ═══════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════
+// TRACKER DE CITAS POR CANAL — código nuevo, no modifica nada existente
+// ═══════════════════════════════════════════════════════════════════
+
+const TRACKER_CANALES = [
+  { key: 'AP',   bg: '#4CAF50', fg: '#fff' },
+  { key: 'HT',   bg: '#9C27B0', fg: '#fff' },
+  { key: 'AC',   bg: '#1976D2', fg: '#fff' },
+  { key: 'KING', bg: '#E53935', fg: '#fff' },
+];
+
+const TRACKER_MESES_LABEL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+// Cache de correcciones manuales: clave "YYYY-MM-CANAL-DD" → valor
+let _trackerOverrides = {};
+let _trackerInitialized = false;
+
+// ─── Inicializar selector de meses ───
+function trackerInitSelectors() {
+  const mSel = document.getElementById('tracker-mes-sel');
+  if (!mSel || mSel.options.length > 1) return;
+  TRACKER_MESES_LABEL.forEach((lbl, i) => {
+    const opt = document.createElement('option');
+    opt.value = String(i + 1).padStart(2, '0');
+    opt.textContent = lbl;
+    mSel.appendChild(opt);
+  });
+  // Seleccionar mes actual por defecto
+  const now = new Date();
+  mSel.value = String(now.getMonth() + 1).padStart(2, '0');
+  const aSel = document.getElementById('tracker-ano-sel');
+  if (aSel) aSel.value = String(now.getFullYear());
+}
+
+// ─── Cargar overrides desde localStorage ───
+function trackerLoadOverrides() {
+  try {
+    const raw = localStorage.getItem('tvs_tracker_overrides');
+    if (raw) _trackerOverrides = JSON.parse(raw);
+  } catch(e) {}
+}
+
+function trackerSaveOverrides() {
+  try { localStorage.setItem('tvs_tracker_overrides', JSON.stringify(_trackerOverrides)); } catch(e) {}
+}
+
+// ─── Calcular citas automáticas desde leads ───
+function trackerCalcAuto(mes, ano) {
+  // mes: '04', ano: '2026'
+  const ym = `${ano}-${mes}`;
+  const daysInMonth = new Date(parseInt(ano), parseInt(mes), 0).getDate();
+  const result = {};
+  TRACKER_CANALES.forEach(c => { result[c.key] = new Array(daysInMonth).fill(0); });
+
+  leads.forEach(l => {
+    if (l.est !== 'CITA') return;
+    const fecha = (l.fcita || l.fa || '').substring(0, 10);
+    if (!fecha.startsWith(ym)) return;
+    const day = parseInt(fecha.substring(8, 10)) - 1;
+    if (day < 0 || day >= daysInMonth) return;
+    // Detectar canal por campo canal o prefijo de agencia
+    const canal = (l.canal || '').toUpperCase();
+    const agencia = (l.agencia || '').toUpperCase();
+    let canalKey = null;
+    if (canal === 'AP' || agencia.startsWith('AP ')) canalKey = 'AP';
+    else if (canal === 'HT' || agencia.startsWith('HT ')) canalKey = 'HT';
+    else if (canal === 'AC' || agencia.startsWith('AC ')) canalKey = 'AC';
+    else if (canal === 'KING' || agencia.startsWith('KING ')) canalKey = 'KING';
+    if (canalKey) result[canalKey][day]++;
+  });
+  return { result, daysInMonth };
+}
+
+// ─── Render principal ───
+function renderTracker() {
+  const mSel = document.getElementById('tracker-mes-sel');
+  const aSel = document.getElementById('tracker-ano-sel');
+  const mes = mSel?.value;
+  const ano = aSel?.value;
+  if (!mes || !ano) return;
+
+  const mesLabel = TRACKER_MESES_LABEL[parseInt(mes) - 1];
+  const sub = document.getElementById('tracker-sub');
+  if (sub) sub.textContent = `${mesLabel} ${ano} · Citas diarias por canal`;
+
+  const { result, daysInMonth } = trackerCalcAuto(mes, ano);
+  const ym = `${ano}-${mes}`;
+
+  TRACKER_CANALES.forEach(c => {
+    const tbl = document.getElementById(`tracker-tbl-${c.key}`);
+    const totalEl = document.getElementById(`tracker-total-${c.key}`);
+    if (!tbl) return;
+
+    // Fila de días (encabezados)
+    let headRow = '<tr>';
+    for (let d = 1; d <= daysInMonth; d++) {
+      headRow += `<th style="min-width:32px;padding:4px 2px;text-align:center;background:#f0f0f0;border:1px solid #ddd;font-weight:700;font-size:10px;color:#333">${d}-${mesLabel.substring(0,3).toLowerCase()}</th>`;
+    }
+    headRow += `<th style="min-width:48px;padding:4px 4px;text-align:center;background:#e0e0e0;border:1px solid #bbb;font-weight:700;font-size:10px">TOTAL</th></tr>`;
+
+    // Fila de datos
+    let dataRow = '<tr>';
+    let total = 0;
+    for (let d = 0; d < daysInMonth; d++) {
+      const overKey = `${ym}-${c.key}-${String(d+1).padStart(2,'0')}`;
+      const val = _trackerOverrides.hasOwnProperty(overKey) ? _trackerOverrides[overKey] : result[c.key][d];
+      const isOverridden = _trackerOverrides.hasOwnProperty(overKey);
+      total += val;
+      const cellBg = val > 0 ? '#E8F5E9' : '#fff';
+      const cellColor = isOverridden ? '#1565C0' : (val > 0 ? '#1B5E20' : '#999');
+      const fontW = val > 0 ? '700' : '400';
+      dataRow += `<td 
+        style="padding:5px 2px;text-align:center;border:1px solid #ddd;background:${cellBg};color:${cellColor};font-weight:${fontW};cursor:pointer;font-size:11px" 
+        title="Doble clic para editar"
+        ondblclick="trackerEditCell(this,'${overKey}',${val})"
+        data-okey="${overKey}"
+        data-auto="${result[c.key][d]}"
+      >${val}</td>`;
+    }
+    dataRow += `<td style="padding:5px 4px;text-align:center;border:1px solid #bbb;background:#E8F5E9;font-weight:700;font-size:11px;color:#1B5E20">${total}</td>`;
+    dataRow += '</tr>';
+
+    tbl.innerHTML = headRow + dataRow;
+    if (totalEl) totalEl.textContent = `Total: ${total}`;
+  });
+}
+
+// ─── Edición manual inline ───
+function trackerEditCell(td, overKey, currentVal) {
+  if (td.querySelector('input')) return; // ya está editando
+  const prev = td.textContent;
+  td.innerHTML = `<input type="number" min="0" value="${currentVal}" style="width:28px;font-size:11px;text-align:center;border:1px solid var(--navy);border-radius:3px;padding:1px 0;background:#fff">`;
+  const inp = td.querySelector('input');
+  inp.focus(); inp.select();
+  const commit = () => {
+    const newVal = parseInt(inp.value);
+    if (!isNaN(newVal) && newVal >= 0) {
+      _trackerOverrides[overKey] = newVal;
+      trackerSaveOverrides();
+      td.textContent = newVal;
+      td.style.color = '#1565C0';
+      td.style.fontWeight = '700';
+      td.style.background = '#E3F2FD';
+      // Actualizar total de la fila
+      const row = td.parentElement;
+      const cells = Array.from(row.querySelectorAll('td')).slice(0, -1);
+      const sum = cells.reduce((a, cell) => a + parseInt(cell.textContent || 0), 0);
+      const lastCell = row.querySelector('td:last-child');
+      if (lastCell) lastCell.textContent = sum;
+      // Actualizar total en header
+      const canal = overKey.split('-')[2];
+      const totalEl = document.getElementById(`tracker-total-${canal}`);
+      if (totalEl) totalEl.textContent = `Total: ${sum}`;
+    } else {
+      td.textContent = prev;
+    }
+  };
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { inp.removeEventListener('blur', commit); td.textContent = prev; } });
+}
+
+// ─── Exportar Excel ───
+function trackerExportXLSX() {
+  if (typeof XLSX === 'undefined') { toast('Librería XLSX no disponible'); return; }
+  const mSel = document.getElementById('tracker-mes-sel');
+  const aSel = document.getElementById('tracker-ano-sel');
+  const mes = mSel?.value; const ano = aSel?.value;
+  if (!mes || !ano) { toast('Selecciona mes y año'); return; }
+  const mesLabel = TRACKER_MESES_LABEL[parseInt(mes) - 1];
+  const ym = `${ano}-${mes}`;
+  const { result, daysInMonth } = trackerCalcAuto(mes, ano);
+
+  const wb = XLSX.utils.book_new();
+  const aoa = [[`${mesLabel.toUpperCase()} ${ano}.`]];
+  aoa.push([]); // espacio
+
+  TRACKER_CANALES.forEach(c => {
+    // Fila label
+    const labelRow = new Array(daysInMonth + 1).fill('');
+    labelRow[daysInMonth - 3] = `CITAS ENVIADAS ${c.key}`;
+    aoa.push(labelRow);
+    // Fila días
+    const dayRow = [];
+    for (let d = 1; d <= daysInMonth; d++) dayRow.push(`${d}-${mesLabel.substring(0,3).toLowerCase()}`);
+    dayRow.push('TOTAL');
+    aoa.push(dayRow);
+    // Fila datos
+    const dataRow = [];
+    let total = 0;
+    for (let d = 0; d < daysInMonth; d++) {
+      const overKey = `${ym}-${c.key}-${String(d+1).padStart(2,'0')}`;
+      const val = _trackerOverrides.hasOwnProperty(overKey) ? _trackerOverrides[overKey] : result[c.key][d];
+      dataRow.push(val); total += val;
+    }
+    dataRow.push(total);
+    aoa.push(dataRow);
+    aoa.push([]); // separador
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  // Ancho columnas
+  ws['!cols'] = Array(daysInMonth + 1).fill({ wch: 7 });
+  XLSX.utils.book_append_sheet(wb, ws, `${mesLabel} ${ano}`);
+  XLSX.writeFile(wb, `Tracker_Citas_${mesLabel}_${ano}.xlsx`);
+  toast('Excel exportado ✓');
+}
+
+// ─── Hook goTab ───
+(function() {
+  const _orig2 = window.goTab;
+  if (!_orig2) return;
+  window.goTab = function(tab, btn) {
+    _orig2(tab, btn);
+    if (tab === 'tracker-citas') {
+      if (!_trackerInitialized) {
+        _trackerInitialized = true;
+        trackerLoadOverrides();
+        trackerInitSelectors();
+      }
+      renderTracker();
+    }
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// FIN módulo Tracker de Citas
+// ═══════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════
+// CITAS POR DÍA — por canal y asesor — módulo nuevo
+// ═══════════════════════════════════════════════════════════════════
+
+const _CD_CANALES = [
+  { key:'AP',   bg:'#4CAF50', hdr:'#388E3C', fg:'#fff', rowBg:'#F1F8E9', altBg:'#E8F5E9' },
+  { key:'HT',   bg:'#9C27B0', hdr:'#7B1FA2', fg:'#fff', rowBg:'#F3E5F5', altBg:'#EDE7F6' },
+  { key:'AC',   bg:'#1976D2', hdr:'#1565C0', fg:'#fff', rowBg:'#E3F2FD', altBg:'#BBDEFB' },
+  { key:'KING', bg:'#E53935', hdr:'#C62828', fg:'#fff', rowBg:'#FFEBEE', altBg:'#FFCDD2' },
+];
+const _CD_MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+let _cdOverrides = {};   // key: "YYYY-MM|CANAL|uid|DD" → int
+let _cdReady = false;
+
+// ─── Helpers ───
+function _cdDays(ano, mes) { return new Date(parseInt(ano), parseInt(mes), 0).getDate(); }
+
+function _cdCanal(agencia, canal) {
+  const a = (agencia||'').toUpperCase(), c = (canal||'').toUpperCase();
+  if (c==='AP'||a.startsWith('AP ')) return 'AP';
+  if (c==='HT'||a.startsWith('HT ')) return 'HT';
+  if (c==='AC'||a.startsWith('AC ')) return 'AC';
+  if (c==='KING'||a.startsWith('KING')) return 'KING';
+  return null;
+}
+
+// Detectar canal de un asesor por sus leads históricos
+function _cdCanalDeAsesor(uid) {
+  const counts = {AP:0,HT:0,AC:0,KING:0};
+  leads.forEach(l => {
+    if (l.uid !== uid) return;
+    const k = _cdCanal(l.agencia, l.canal);
+    if (k) counts[k]++;
+  });
+  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  return top[0][1] > 0 ? top[0][0] : null;
+}
+
+// ─── Agrupar asesores por canal ───
+function _cdAgrupar() {
+  const grupos = {AP:[], HT:[], AC:[], KING:[], SIN:[]};
+  users.filter(u => u.rol !== 'admin').forEach(u => {
+    const k = _cdCanalDeAsesor(u.id);
+    if (k) grupos[k].push(u);
+    else grupos.SIN.push(u);
+  });
+  return grupos;
+}
+
+// ─── Calcular citas automáticas por asesor por día ───
+function _cdCalcAuto(ano, mes) {
+  const ym = `${ano}-${mes}`;
+  const days = _cdDays(ano, mes);
+  // result[uid][day0] = count
+  const result = {};
+  users.filter(u=>u.rol!=='admin').forEach(u => {
+    result[u.id] = new Array(days).fill(0);
+  });
+  leads.forEach(l => {
+    if (l.est !== 'CITA') return;
+    const fecha = (l.fcita || l.fa || '').substring(0,10);
+    if (!fecha.startsWith(ym)) return;
+    const day = parseInt(fecha.substring(8,10)) - 1;
+    if (day < 0 || day >= days) return;
+    if (result[l.uid] !== undefined) result[l.uid][day]++;
+  });
+  return result;
+}
+
+// ─── Guardar / cargar overrides ───
+function _cdLoad() {
+  try { const r = localStorage.getItem('tvs_citasdia_ov'); if(r) _cdOverrides = JSON.parse(r); } catch(e){}
+}
+function _cdSave() {
+  try { localStorage.setItem('tvs_citasdia_ov', JSON.stringify(_cdOverrides)); } catch(e){}
+}
+
+// ─── Inicializar selectores ───
+function _cdInitSel() {
+  const sel = document.getElementById('citasdia-mes');
+  if (!sel || sel.options.length > 0) return;
+  _CD_MESES.forEach((l,i) => {
+    const o = document.createElement('option');
+    o.value = String(i+1).padStart(2,'0');
+    o.textContent = l;
+    sel.appendChild(o);
+  });
+  const now = new Date();
+  sel.value = String(now.getMonth()+1).padStart(2,'0');
+  const asel = document.getElementById('citasdia-ano');
+  if (asel) asel.value = String(now.getFullYear());
+}
+
+// ─── Render principal ───
+function renderCitasDia() {
+  const mes = document.getElementById('citasdia-mes')?.value;
+  const ano = document.getElementById('citasdia-ano')?.value;
+  if (!mes || !ano) return;
+
+  const mesLabel = _CD_MESES[parseInt(mes)-1];
+  const sub = document.getElementById('citasdia-sub');
+  if (sub) sub.textContent = `${mesLabel} ${ano} · Citas por canal y asesor`;
+
+  const days = _cdDays(ano, mes);
+  const ym = `${ano}-${mes}`;
+  const autoData = _cdCalcAuto(ano, mes);
+  const grupos = _cdAgrupar();
+
+  // Construir encabezado de días (compartido)
+  let dayHead = `<th style="${_cdThStyle('left','#263238','#ECEFF1',true)}">Asesor</th>`;
+  for (let d=1; d<=days; d++) {
+    const dom = new Date(parseInt(ano), parseInt(mes)-1, d).getDay();
+    const isFin = dom===0||dom===6;
+    dayHead += `<th style="${_cdThStyle('center', isFin?'#546E7A':'#263238', isFin?'#CFD8DC':'#ECEFF1', true)}">${d}</th>`;
+  }
+  dayHead += `<th style="${_cdThStyle('center','#1B5E20','#C8E6C9',true)}">Total</th>`;
+
+  let html = `<table style="border-collapse:collapse;width:100%;min-width:${Math.max(700, days*34+180)}px;font-family:Arial,sans-serif;font-size:11px">`;
+
+  _CD_CANALES.forEach(canal => {
+    const asesores = grupos[canal.key] || [];
+
+    // ── Fila de encabezado del canal ──
+    html += `<tr>
+      <td colspan="${days+2}" style="padding:6px 12px;background:${canal.bg};color:${canal.fg};font-weight:700;font-size:12px;letter-spacing:.5px;border:1px solid ${canal.hdr}">
+        CITAS ENVIADAS ${canal.key}
+      </td>
+    </tr>`;
+
+    // ── Fila de días ──
+    html += `<tr>${dayHead}</tr>`;
+
+    if (asesores.length === 0) {
+      html += `<tr><td colspan="${days+2}" style="padding:8px 12px;color:#999;font-size:11px;border:1px solid #ddd;background:#fafafa">Sin asesores asignados a este canal</td></tr>`;
+    } else {
+      let canalTotals = new Array(days).fill(0);
+
+      asesores.forEach((u, ri) => {
+        const rowBg = ri%2===0 ? canal.rowBg : canal.altBg;
+        let rowHtml = `<tr>
+          <td style="padding:4px 8px;border:1px solid #ddd;background:${rowBg};font-weight:600;white-space:nowrap;color:#1a1a1a;min-width:130px">
+            <div style="display:flex;align-items:center;gap:5px">
+              <div style="width:22px;height:22px;border-radius:50%;background:${u.color||canal.bg}22;color:${u.color||canal.bg};font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${(u.nombre||'').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()}</div>
+              <span style="font-size:11px">${(u.nombre||'').split(' ')[0]}</span>
+            </div>
+          </td>`;
+
+        let rowTotal = 0;
+        for (let d=0; d<days; d++) {
+          const overKey = `${ym}|${canal.key}|${u.id}|${String(d+1).padStart(2,'0')}`;
+          const autoVal = (autoData[u.id]||[])[d] || 0;
+          const val = _cdOverrides.hasOwnProperty(overKey) ? _cdOverrides[overKey] : autoVal;
+          const isOv = _cdOverrides.hasOwnProperty(overKey);
+          canalTotals[d] += val;
+          rowTotal += val;
+          const dom = new Date(parseInt(ano), parseInt(mes)-1, d+1).getDay();
+          const isFin = dom===0||dom===6;
+          const cellBg = val>0 ? (isOv?'#E3F2FD':canal.rowBg) : (isFin?'#F5F5F5':'#fff');
+          const cellColor = val>0 ? (isOv?'#1565C0':'#1B5E20') : '#bbb';
+          rowHtml += `<td
+            style="padding:4px 2px;text-align:center;border:1px solid #ddd;background:${cellBg};color:${cellColor};font-weight:${val>0?'700':'400'};cursor:pointer"
+            title="${u.nombre} — día ${d+1} (doble clic para editar)"
+            ondblclick="citasDiaEdit(this,'${overKey}',${val},'${canal.rowBg}')"
+          >${val||''}</td>`;
+        }
+        rowHtml += `<td style="padding:4px 6px;text-align:center;border:1px solid #ccc;background:${canal.rowBg};font-weight:700;color:${canal.hdr}">${rowTotal||''}</td>`;
+        rowHtml += '</tr>';
+        html += rowHtml;
+      });
+
+      // ── Fila de totales del canal ──
+      let totalFila = `<tr>
+        <td style="padding:5px 8px;border:1px solid #bbb;background:${canal.hdr};color:${canal.fg};font-weight:700;font-size:11px">TOTAL ${canal.key}</td>`;
+      let grandTotal = 0;
+      canalTotals.forEach(v => {
+        grandTotal += v;
+        totalFila += `<td style="padding:5px 2px;text-align:center;border:1px solid #bbb;background:${canal.hdr};color:${canal.fg};font-weight:700">${v||''}</td>`;
+      });
+      totalFila += `<td style="padding:5px 6px;text-align:center;border:1px solid #bbb;background:${canal.hdr};color:${canal.fg};font-weight:700;font-size:12px">${grandTotal}</td></tr>`;
+      html += totalFila;
+    }
+
+    // Separador
+    html += `<tr><td colspan="${days+2}" style="height:10px;background:transparent;border:none"></td></tr>`;
+  });
+
+  html += '</table>';
+  const body = document.getElementById('citasdia-body');
+  if (body) body.innerHTML = html;
+}
+
+function _cdThStyle(align, color, bg, bold) {
+  return `padding:4px 3px;text-align:${align};border:1px solid #ccc;background:${bg};color:${color};font-weight:${bold?'700':'400'};font-size:10px;white-space:nowrap`;
+}
+
+// ─── Edición manual inline ───
+function citasDiaEdit(td, overKey, currentVal, rowBg) {
+  if (td.querySelector('input')) return;
+  const prev = td.textContent;
+  td.innerHTML = `<input type="number" min="0" value="${currentVal||0}" style="width:26px;font-size:11px;text-align:center;border:1px solid #1565C0;border-radius:3px;padding:1px 0;background:#fff">`;
+  const inp = td.querySelector('input');
+  inp.focus(); inp.select();
+  const commit = () => {
+    const v = parseInt(inp.value);
+    if (!isNaN(v) && v >= 0) {
+      _cdOverrides[overKey] = v;
+      _cdSave();
+      td.textContent = v || '';
+      td.style.background = '#E3F2FD';
+      td.style.color = '#1565C0';
+      td.style.fontWeight = '700';
+      // Recalcular totales de fila y columna
+      _cdRefreshTotals(td);
+    } else {
+      td.textContent = prev;
+    }
+  };
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e => {
+    if (e.key==='Enter') inp.blur();
+    if (e.key==='Escape') { inp.removeEventListener('blur', commit); td.textContent = prev; }
+  });
+}
+
+function _cdRefreshTotals(editedTd) {
+  const row = editedTd.parentElement;
+  const table = row.closest('table');
+  if (!table) return;
+  const cells = Array.from(row.querySelectorAll('td'));
+  // Row total (last cell)
+  const dataCells = cells.slice(1, -1);
+  const rowSum = dataCells.reduce((a,c) => a + (parseInt(c.textContent)||0), 0);
+  cells[cells.length-1].textContent = rowSum || '';
+}
+
+// ─── Exportar Excel ───
+function citasDiaExport() {
+  if (typeof XLSX === 'undefined') { toast('Librería XLSX no disponible'); return; }
+  const mes = document.getElementById('citasdia-mes')?.value;
+  const ano = document.getElementById('citasdia-ano')?.value;
+  if (!mes||!ano) { toast('Selecciona mes y año'); return; }
+  const mesLabel = _CD_MESES[parseInt(mes)-1];
+  const days = _cdDays(ano, mes);
+  const ym = `${ano}-${mes}`;
+  const autoData = _cdCalcAuto(ano, mes);
+  const grupos = _cdAgrupar();
+
+  const wb = XLSX.utils.book_new();
+  const aoa = [];
+
+  // Título
+  const titleRow = new Array(days+2).fill('');
+  titleRow[Math.floor((days+2)/2)] = `${mesLabel.toUpperCase()} ${ano}`;
+  aoa.push(titleRow);
+  aoa.push([]);
+
+  _CD_CANALES.forEach(canal => {
+    const asesores = grupos[canal.key]||[];
+    // Label canal
+    const canalRow = new Array(days+2).fill('');
+    canalRow[0] = `CITAS ENVIADAS ${canal.key}`;
+    aoa.push(canalRow);
+    // Días
+    const dayRow = ['Asesor'];
+    for (let d=1;d<=days;d++) dayRow.push(d);
+    dayRow.push('TOTAL');
+    aoa.push(dayRow);
+    // Asesores
+    let canalTotals = new Array(days).fill(0);
+    asesores.forEach(u => {
+      const row = [u.nombre];
+      let total = 0;
+      for (let d=0;d<days;d++) {
+        const overKey = `${ym}|${canal.key}|${u.id}|${String(d+1).padStart(2,'0')}`;
+        const v = _cdOverrides.hasOwnProperty(overKey)?_cdOverrides[overKey]:(autoData[u.id]||[])[d]||0;
+        row.push(v||0); total+=v; canalTotals[d]+=v;
+      }
+      row.push(total);
+      aoa.push(row);
+    });
+    // Total canal
+    const totRow = [`TOTAL ${canal.key}`, ...canalTotals, canalTotals.reduce((a,b)=>a+b,0)];
+    aoa.push(totRow);
+    aoa.push([]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:20},...Array(days).fill({wch:5}),{wch:7}];
+  XLSX.utils.book_append_sheet(wb, ws, `${mesLabel} ${ano}`);
+  XLSX.writeFile(wb, `CitasDia_${mesLabel}_${ano}.xlsx`);
+  toast('Excel exportado ✓');
+}
+
+// ─── Hook goTab ───
+(function(){
+  const _origCD = window.goTab;
+  if (!_origCD) return;
+  window.goTab = function(tab, btn) {
+    _origCD(tab, btn);
+    if (tab === 'citas-dia') {
+      if (!_cdReady) { _cdReady=true; _cdLoad(); _cdInitSel(); }
+      renderCitasDia();
+    }
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// FIN módulo Citas por Día
 // ═══════════════════════════════════════════════════════════════════
 
 // AUTO-CONNECT
