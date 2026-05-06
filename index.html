@@ -512,6 +512,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <button class="ni admin-only" onclick="goTab('usuarios',this)"><span class="nco">🧑‍💼</span><span>Usuarios</span><span class="nc" id="nc-users">0</span></button>
     <button class="ni admin-only" onclick="goTab('importar',this)"><span class="nco">📥</span><span>Importar / Vincular</span></button>
     <button class="ni admin-only" onclick="goTab('storage',this)"><span class="nco">🗂</span><span>Gestión de datos</span></button>
+    <button class="ni admin-sup" onclick="goTab('kpis',this)"><span class="nco">🎯</span><span>KPIs Mensuales</span></button>
   </div>
   <div class="ns canal-nav" style="margin-top:.4rem;display:none">
     <div class="nl" id="canal-nav-label">Mi Canal</div>
@@ -1021,6 +1022,123 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     </div>
   </div>
 </div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- KPIs MENSUALES — módulo nuevo, no toca nada existente  -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="tab-kpis" class="tab">
+  <div class="ph">
+    <div><div class="pt">🎯 KPIs Mensuales</div><div class="psb" id="kpis-sub">Historial y metas por mes</div></div>
+    <div class="ha">
+      <button class="btn bo bsm" onclick="kpiExportCSV()">⬇ CSV</button>
+      <button class="btn bo bsm" onclick="kpiExportXLSX()">⬇ Excel</button>
+      <button class="btn bp" onclick="openKpiCierre()">📌 Cerrar mes</button>
+    </div>
+  </div>
+
+  <!-- Selector de mes + metas -->
+  <div class="card" style="margin-bottom:.9rem">
+    <div class="ch" style="flex-wrap:wrap;gap:8px">
+      <span class="ct">📅 Período</span>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="kpi-mes-sel" class="fc" style="max-width:180px;font-size:12px" onchange="renderKPIs()">
+          <option value="live">📡 Mes actual (en vivo)</option>
+        </select>
+        <button class="btn bo bsm" onclick="openKpiMetas()">⚙️ Metas del mes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs totales grupo -->
+  <div style="font-size:10px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem">Totales del grupo</div>
+  <div class="mets" id="kpi-mets-grupo" style="margin-bottom:1.2rem"></div>
+
+  <!-- Alcance vs meta -->
+  <div class="card" style="margin-bottom:.9rem">
+    <div class="ch"><span class="ct">📊 Alcance vs Meta</span></div>
+    <div class="cb" id="kpi-alcance"></div>
+  </div>
+
+  <!-- Por asesor -->
+  <div class="card" style="margin-bottom:.9rem">
+    <div class="ch"><span class="ct">👥 Detalle por asesor</span></div>
+    <div class="tw"><table>
+      <thead><tr>
+        <th>Asesor</th>
+        <th>Leads</th>
+        <th>Contactados</th>
+        <th>% Contacto</th>
+        <th>Citas</th>
+        <th>% Cita</th>
+        <th>Ventas</th>
+        <th>% Cierre</th>
+        <th>Perdidos</th>
+      </tr></thead>
+      <tbody id="kpi-ase-body"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Alcances semanales -->
+  <div class="card" style="margin-bottom:.9rem">
+    <div class="ch"><span class="ct">📆 Desglose semanal</span></div>
+    <div class="tw"><table>
+      <thead><tr>
+        <th>Semana</th><th>Leads nuevos</th><th>Contactados</th><th>Citas</th><th>Ventas</th><th>Conv. %</th>
+      </tr></thead>
+      <tbody id="kpi-sem-body"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Historial de meses cerrados -->
+  <div class="card" style="margin-bottom:.9rem">
+    <div class="ch"><span class="ct">🗂 Historial de meses cerrados</span></div>
+    <div class="tw"><table>
+      <thead><tr>
+        <th>Mes</th><th>Leads</th><th>Contactados</th><th>Citas</th><th>Ventas</th><th>% Cierre</th><th>Meta Leads</th><th>Meta Ventas</th><th>Cerrado por</th><th></th>
+      </tr></thead>
+      <tbody id="kpi-hist-body"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- Modal: Cerrar mes -->
+<div class="ov" id="m-kpi-cierre" style="display:none">
+  <div class="mo msm" style="max-width:420px">
+    <div class="mh"><span class="mt2">📌 Cerrar mes y guardar KPIs</span><button class="xb" onclick="closeM('m-kpi-cierre')">×</button></div>
+    <div class="mb2">
+      <div id="kpi-cierre-preview" style="margin-bottom:1rem"></div>
+      <div class="fg"><label class="fl">Mes que estás cerrando</label><input class="fc" type="month" id="kpi-cierre-mes"></div>
+      <div style="background:#FEF3E8;border:1px solid #F47920;border-radius:6px;padding:.6rem .8rem;font-size:11px;color:#7a3800;margin-bottom:.8rem">
+        ⚠️ Al cerrar el mes se guarda un snapshot permanente de los KPIs actuales en Firebase. Esta acción no se puede deshacer.
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn bo" onclick="closeM('m-kpi-cierre')">Cancelar</button>
+        <button class="btn bp" onclick="confirmarCierreMes()">✅ Confirmar cierre</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Metas del mes -->
+<div class="ov" id="m-kpi-metas" style="display:none">
+  <div class="mo msm" style="max-width:400px">
+    <div class="mh"><span class="mt2">⚙️ Metas del mes</span><button class="xb" onclick="closeM('m-kpi-metas')">×</button></div>
+    <div class="mb2">
+      <div class="fg"><label class="fl">Mes de referencia</label><input class="fc" type="month" id="meta-mes-ref"></div>
+      <div class="two" style="margin-top:.5rem">
+        <div class="fg"><label class="fl">Meta leads contactados</label><input class="fc" type="number" id="meta-leads" min="0" placeholder="ej. 300"></div>
+        <div class="fg"><label class="fl">Meta citas</label><input class="fc" type="number" id="meta-citas" min="0" placeholder="ej. 80"></div>
+        <div class="fg"><label class="fl">Meta ventas</label><input class="fc" type="number" id="meta-ventas" min="0" placeholder="ej. 50"></div>
+        <div class="fg"><label class="fl">Meta gestiones</label><input class="fc" type="number" id="meta-gestiones" min="0" placeholder="ej. 500"></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:.5rem">
+        <button class="btn bo" onclick="closeM('m-kpi-metas')">Cancelar</button>
+        <button class="btn bp" onclick="guardarMetasMes()">💾 Guardar metas</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </div></main>
 </div>
 </div>
@@ -1443,45 +1561,6 @@ window.diagSummary = function(){
   return {total:leads.length, byUser, todayByUser};
 };
 
-// Find leads that look like they got rolled back (state was advanced and now is
-// back to NUEVO with no clear reason). Useful when investigating the CITA→NUEVO
-// rollback bug. Looks at leads that:
-//   - are currently in NUEVO state
-//   - were updated/touched today (fu === today)
-//   - have an asesor assigned (suggesting they were being worked on)
-window.diagFindRollbacks = function(){
-  const today = new Date().toISOString().substring(0,10);
-  const suspects = leads.filter(l=>{
-    if(l.est!=='NUEVO')return false;
-    if(!l.uid)return false;
-    if((l.fu||'').substring(0,10)!==today)return false;
-    return true;
-  });
-  console.log(`Found ${suspects.length} suspect leads (NUEVO + assigned + touched today):`);
-  suspects.forEach(l=>{
-    console.log({id:l.id, nom:l.nom, tel:l.tel, asesor:l.anom, fa:l.fa, fu:l.fu, fcita:l.fcita, regest:l.regest});
-  });
-  return suspects;
-};
-
-// Manually set a lead's state to CITA (use after confirming via diagFindRollbacks
-// that the rollback was wrong). Usage: diagRestoreToCita(123456) where 123456 is the lead id.
-window.diagRestoreToCita = function(leadId){
-  const l = leads.find(x=>String(x.id)===String(leadId));
-  if(!l)return console.warn('Lead no encontrado:',leadId);
-  console.log('ANTES:',{id:l.id, nom:l.nom, est:l.est, fcita:l.fcita});
-  l.est = 'CITA';
-  if(!l.fcita) l.fcita = new Date().toISOString().substring(0,10);
-  l.fu = new Date().toISOString().substring(0,10);
-  l._ts_local = Date.now();
-  persist();
-  if(typeof cloudSaveLead==='function')cloudSaveLead(l);
-  console.log('DESPUÉS:',{id:l.id, nom:l.nom, est:l.est, fcita:l.fcita});
-  toast(`Lead ${l.nom} restaurado a CITA`);
-  if(typeof renderAll==='function')renderAll();
-  return l;
-};
-
 function isLocked(id){return saveLock.has(String(id));}
 // deletedRecently: set of lead IDs deleted in the last 30s.
 // The listener must NOT re-add these leads (prevents "zombie" resurrection
@@ -1515,46 +1594,13 @@ function initRealtimeSync(){
       // Index cloud leads by id for fast lookup
       const cloudById={};
       cloudLeads.forEach(cl=>{ cloudById[String(cl.id)]=cl; });
-      // 1) Update existing leads from cloud, EXCEPT:
-      //    - locked ones (recently saved locally)
-      //    - recently-deleted ones (prevent zombie resurrection)
-      //    - STALE snapshots (cloud version is older than what we have locally)
-      //
-      // The stale-snapshot check is the fix for the CITA→NUEVO rollback bug.
-      // Firebase can echo back delayed snapshots that contain an older state of
-      // a lead. Without this check, the listener overwrites our newer local
-      // change with the older cloud version. We use _ts_local (our own local
-      // millisecond timestamp set in cloudSaveLead) to compare versions.
+      // 1) Update existing leads from cloud, EXCEPT locked ones (recently saved locally)
+      //    AND skip any lead we just deleted (prevent zombie resurrection)
       cloudLeads.forEach(cl=>{
         if(isLocked(cl.id))return; // user just saved this — preserve local version
         if(isRecentlyDeleted(cl.id))return; // we just deleted this — don't bring it back
         const idx=leads.findIndex(l=>String(l.id)===String(cl.id));
-        if(idx>=0){
-          // Stale-snapshot guard: if our local version was saved more recently
-          // than this cloud version, the cloud version is a stale echo. Skip it.
-          const localTs = Number(leads[idx]._ts_local) || 0;
-          const cloudTs = Number(cl._ts_local) || 0;
-          if(localTs > 0 && cloudTs > 0 && cloudTs < localTs){
-            // cloud is older than local — it's a stale echo, ignore it
-            return;
-          }
-          // Also skip if local has _ts_local but cloud doesn't (means someone
-          // else is overwriting without the new field — most likely an old
-          // version of the app on another device — wait until they sync)
-          if(localTs > 0 && cloudTs === 0){
-            // 30 second grace: if our local change is still very recent,
-            // don't let an old-app-version snapshot wipe it out
-            if(Date.now() - localTs < 30000) return;
-          }
-          // If cloud doesn't have _ts_local yet, stamp it as we accept it.
-          // This way, future comparisons against this lead will work.
-          if(!cl._ts_local) cl._ts_local = Date.now();
-          leads[idx]=cl;
-        } else {
-          // New lead from cloud — stamp it too if missing
-          if(!cl._ts_local) cl._ts_local = Date.now();
-          leads.push(cl);
-        }
+        if(idx>=0){leads[idx]=cl;}else{leads.push(cl);}
       });
       // 2) Remove leads that no longer exist in the cloud,
       //    BUT keep:
@@ -1707,12 +1753,6 @@ async function cloudSaveLead(lead,silent=false){
   // Lock immediately — even if cloud is not ready, any pending snapshot in flight
   // must not overwrite this lead. Lock is keyed by id (string).
   lockLead(lead.id);
-  // CRITICAL: stamp the lead with our local time BEFORE we send it.
-  // The listener uses this to detect "stale snapshots" — if Firebase echoes
-  // back a snapshot whose _ts_local is OLDER than what's in our local array,
-  // we know it's a stale echo and we ignore it. This prevents the
-  // CITA → NUEVO rollback bug.
-  lead._ts_local = Date.now();
   if(useCloud&&window._fb.isReady()){
     if(!silent)setSyncStatus('syncing');
     // Retry up to 3 times on failure (network glitches, transient errors).
@@ -1737,10 +1777,9 @@ async function cloudSaveLead(lead,silent=false){
       lead._needsCloudSync=true;
       try{persist();}catch(e){}
     }
-    // Keep locked for 30 seconds (was 5) — Firebase can take longer than 5s
-    // to propagate writes back via the listener, especially on slow networks.
-    // 30s gives plenty of margin to absorb delayed echo snapshots.
-    setTimeout(()=>unlockLead(lead.id), 30000);
+    // Keep locked for 5 more seconds after Firebase confirms
+    // to absorb any delayed snapshots still in transit
+    setTimeout(()=>unlockLead(lead.id), 5000);
     if(!silent)setSyncStatus(lastErr?'err':'ok');
   } else {
     // Local-only mode — release lock after a short delay
@@ -2004,15 +2043,7 @@ function populateSel(){
     const label=code?code+' — '+a:a;
     return `<option value="${a.replace(/"/g,'&quot;')}" data-codigo="${code}">${label}</option>`;
   }).join('');
-  ['lf-agencia','ds-agencia','q-agencia'].forEach(id=>{const el=document.getElementById(id);if(el){el.innerHTML=(id==='q-agencia'?'<option value="">Todas agencias</option>':'<option value="">— Sin agencia —</option>')+agOpts;
-    // Track when user actually interacts with the dropdown (only for editing dropdowns,
-    // not the search filter q-agencia). Used by saveDet/saveLead to distinguish between
-    // "user explicitly chose no agencia" vs "dropdown couldn't display the lead's agencia".
-    if(id!=='q-agencia'&&!el.dataset.touchListenerAttached){
-      el.addEventListener('change',()=>{el.dataset.userTouched='1';});
-      el.dataset.touchListenerAttached='1';
-    }
-  }});
+  ['lf-agencia','ds-agencia','q-agencia'].forEach(id=>{const el=document.getElementById(id);if(el){el.innerHTML=(id==='q-agencia'?'<option value="">Todas agencias</option>':'<option value="">— Sin agencia —</option>')+agOpts;}});
   // Ubicaciones datalist
   const ubiSet=[...new Set(leads.map(l=>l.ubi).filter(Boolean))].sort();
   const ubiList=document.getElementById('ubi-list');if(ubiList)ubiList.innerHTML=ubiSet.map(u=>`<option value="${u}">`).join('');
@@ -2377,20 +2408,7 @@ function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas
     const label=code?code+' — '+a:a;
     return `<option value="${a.replace(/"/g,'&quot;')}" data-codigo="${code}" ${a===l.agencia?'selected':''}>${label}</option>`;
   }).join('');
-  const _dagEl=document.getElementById('ds-agencia');
-  if(_dagEl){
-    _dagEl.innerHTML='<option value="">— Sin agencia —</option>'+_dagOpts;
-    // Reset the userTouched flag — this dropdown was just freshly populated for
-    // this lead. Any "change" event from here on means the user actually picked
-    // something different from what we pre-selected.
-    _dagEl.dataset.userTouched='0';
-    // Attach the change listener if it isn't already there (innerHTML can reset
-    // listeners depending on browser, so we re-attach defensively each time).
-    if(!_dagEl.dataset.touchListenerAttached){
-      _dagEl.addEventListener('change',()=>{_dagEl.dataset.userTouched='1';});
-      _dagEl.dataset.touchListenerAttached='1';
-    }
-  }
+  const _dagEl=document.getElementById('ds-agencia');if(_dagEl)_dagEl.innerHTML='<option value="">— Sin agencia —</option>'+_dagOpts;
 }
 function renderNotas(l){if(!l.notas||l.notas.length===0)return `<div style="color:var(--mut);font-size:12px;text-align:center;padding:.75rem">Sin comentarios</div>`;return l.notas.map((n,i)=>`<div class="ni2"><div class="nt">${n.txt}</div><div class="nm"><span>✍️ ${n.by||'Asesor'}</span><span>${n.ts||''}</span></div><button class="nd" onclick="delNota(${l.id},${i})">✕</button></div>`).join('');}
 function addNota(lid){const txt=document.getElementById('new-nota')?.value?.trim();if(!txt){toast('Escribe algo');return;}const l=findLead(lid);if(!l.notas)l.notas=[];l.notas.push({txt,by:CU.nombre,ts:new Date().toLocaleString()});l.fu=today();if(l.fa&&l.fa<today())l.regest='Regestionado';document.getElementById('new-nota').value='';document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);renderAll();toast('Comentario agregado ✓');const gestUid=l.uid||CU.id;addGest(gestUid,1);}
@@ -2401,29 +2419,18 @@ function saveDet(id){
   const prevEst=l.est;
   l.est=document.getElementById('ds-est').value;
   l.tp=document.getElementById('ds-tp').value;
-  // CRITICAL DEFENSIVE LOGIC for agencia: this used to silently wipe out the lead's
-  // agencia when the dropdown wasn't properly populated/selected. The new rule is:
-  //
-  //   - If the dropdown has a non-empty selection: use it (user picked an agencia).
-  //   - If the dropdown has empty value AND user explicitly chose "— Sin agencia —"
-  //     (userTouched flag is set): clear the agencia.
-  //   - In ANY other case (no selection, dropdown not populated): KEEP the existing
-  //     agencia. This prevents data loss when the dropdown couldn't display the
-  //     lead's current agencia (e.g. due to whitespace/case mismatch or timing).
+  // Defensive: only update agencia if user actually interacted with the dropdown.
+  // Also extract the codigo from the selected option's data-codigo attr.
   const dagEl=document.getElementById('ds-agencia');
   if(dagEl){
     const newAg=dagEl.value||'';
-    const userTouched=dagEl.dataset.userTouched==='1';
-    if(newAg){
-      // User picked an actual agencia — use it
+    const userPicked=dagEl.selectedIndex>=0;
+    if(userPicked){
       l.agencia=newAg;
-      l.agencia_codigo=dagEl.options[dagEl.selectedIndex]?.dataset.codigo||'';
-    } else if(userTouched){
-      // User explicitly selected "— Sin agencia —" — clear it
-      l.agencia='';
-      l.agencia_codigo='';
+      // Save the codigo too — this is the key fix so the cuadro doesn't have to
+      // guess the code later from a name that may have multiple matches.
+      l.agencia_codigo=newAg?(dagEl.options[dagEl.selectedIndex].dataset.codigo||''):'';
     }
-    // else: dropdown is empty but user didn't touch it → KEEP existing l.agencia
   }
   l.interes=document.getElementById('ds-interes')?.value||'';
   const manualRegest=document.getElementById('ds-regest')?.value||'';
@@ -2470,10 +2477,6 @@ function setSelectVal(el, val, codigo){
 
 function openLM(id){
   editL=id;
-  // Reset the agencia "userTouched" flag so this edit session starts clean.
-  // Without this, a previous session's flag could carry over and cause unintended clears.
-  const _resetAgFlag=document.getElementById('lf-agencia');
-  if(_resetAgFlag)_resetAgFlag.dataset.userTouched='0';
   if(id){const l=findLead(id);document.getElementById('ml-title').textContent='Editar Lead';document.getElementById('lf-btn').textContent='Guardar cambios';document.getElementById('lf-nom').value=l.nom;document.getElementById('lf-tel').value=l.tel;document.getElementById('lf-ori').value=l.ori;document.getElementById('lf-tp').value=l.tp||'Contado';document.getElementById('lf-lin').value=l.linea;document.getElementById('lf-ubi').value=l.ubi;document.getElementById('lf-est').value=l.est;document.getElementById('lf-fa').value=l.fa||'';document.getElementById('lf-fu').value=l.fu||'';document.getElementById('lf-rd').value=l.reminder?.date||'';document.getElementById('lf-rt').value=l.reminder?.time||'09:00';document.getElementById('lf-rn').value=l.reminder?.note||'';document.getElementById('lf-com').value='';const af=document.getElementById('lf-ase');if(af)af.value=l.uid||'';const _cf=document.getElementById('lf-canal');if(_cf)_cf.value=l.canal||'';setSelectVal(document.getElementById('lf-agencia'),l.agencia||'',l.agencia_codigo||'');const _in=document.getElementById('lf-interes');if(_in)_in.value=l.interes||'';const _re=document.getElementById('lf-responde');if(_re)_re.value=l.responde||'';const _rg=document.getElementById('lf-regest');if(_rg)_rg.value=l.regest||'';toggleCanalField();}
   else{document.getElementById('ml-title').textContent='Nuevo Lead';document.getElementById('lf-btn').textContent='Guardar Lead';['lf-nom','lf-tel','lf-ubi','lf-com','lf-rd','lf-rn'].forEach(i=>document.getElementById(i).value='');document.getElementById('lf-fa').value=today();document.getElementById('lf-fu').value=today();document.getElementById('lf-rt').value='09:00';const af=document.getElementById('lf-ase');if(af)af.value=isPriv()?'':String(CU.id);const _cff=document.getElementById('lf-canal');if(_cff)_cff.value='';const _agn=document.getElementById('lf-agencia');if(_agn)_agn.value='';const _inn=document.getElementById('lf-interes');if(_inn)_inn.value='';const _ren=document.getElementById('lf-responde');if(_ren)_ren.value='';const _rgn=document.getElementById('lf-regest');if(_rgn)_rgn.value='';toggleCanalField();}
   openM('m-lead');
@@ -2489,10 +2492,6 @@ function saveLead(){
   const _agEl=document.getElementById('lf-agencia');
   const _agencia=_agEl?.value||'';
   const _agencia_codigo=_agEl&&_agEl.selectedIndex>=0?(_agEl.options[_agEl.selectedIndex].dataset.codigo||''):'';
-  // Track whether the user explicitly interacted with the agencia dropdown.
-  // If they did NOT and the dropdown is empty, we'll preserve the existing agencia
-  // when merging below, instead of overwriting it with empty.
-  const _agUserTouched=_agEl?.dataset.userTouched==='1';
   const _interes=document.getElementById('lf-interes')?.value||'';const _responde=document.getElementById('lf-responde')?.value||'';const _regest=document.getElementById('lf-regest')?.value||'';const data={nom,tel:document.getElementById('lf-tel').value,ori:document.getElementById('lf-ori').value,tp:_tp,canal:_canal,agencia:_agencia,agencia_codigo:_agencia_codigo,interes:_interes,responde:_responde,regest:_regest,linea:document.getElementById('lf-lin').value,ubi:document.getElementById('lf-ubi').value,est:document.getElementById('lf-est').value,fa:document.getElementById('lf-fa').value,fu:today(),uid,anom:u?u.nombre:'',reminder};
   let savedLead;
   if(editL){
@@ -2500,14 +2499,6 @@ function saveLead(){
     const ex=leads[i];
     const prevEst=ex.est;
     if(comTxt)ex.notas=[...(ex.notas||[]),{txt:comTxt,by:CU.nombre,ts:new Date().toLocaleString()}];
-    // DEFENSIVE: if the agencia dropdown came back empty AND the user did NOT
-    // explicitly touch it, preserve the existing value. This prevents "phantom
-    // wipes" when the dropdown couldn't find/select the lead's current agencia
-    // (e.g. due to whitespace/case mismatch or timing during render).
-    if(!_agencia&&!_agUserTouched&&ex.agencia){
-      data.agencia=ex.agencia;
-      data.agencia_codigo=ex.agencia_codigo||'';
-    }
     leads[i]={...ex,...data,notas:ex.notas};
     savedLead=leads[i];
     // Track transition to CITA: if state changed from non-CITA to CITA, record fcita
@@ -5037,6 +5028,508 @@ function shareCuadroWhatsApp(){
     }
   }, 8000);
 })();
+
+// ═══════════════════════════════════════════════════════════════════
+// KPIs MENSUALES — código completamente nuevo, no modifica nada existente
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── Estado ───
+let kpiHistorial = []; // meses cerrados cargados de Firebase
+let kpiMetasCache = {}; // metas por mes key "YYYY-MM"
+let _kpiInitialized = false;
+
+// ─── Utilidades de fecha ───
+function kpiMesActual() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+function kpiMesLabel(ym) {
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const [y, m] = ym.split('-');
+  return meses[parseInt(m) - 1] + ' ' + y;
+}
+
+// ─── Cargar historial desde Firebase ───
+async function kpiCargarHistorial() {
+  if (!window._fb || !window._fb.isReady()) return;
+  try {
+    const { getFirestore, collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const db = getFirestore();
+    const q = query(collection(db, 'kpi_meses'), orderBy('mes', 'desc'));
+    const snap = await getDocs(q);
+    kpiHistorial = [];
+    snap.forEach(d => kpiHistorial.push(d.data()));
+    kpiPoblarSelector();
+    renderKPIHistorial();
+  } catch(e) { console.warn('[KPIs] cargar historial:', e); }
+}
+
+// ─── Guardar mes cerrado en Firebase ───
+async function kpiGuardarMes(data) {
+  if (!window._fb || !window._fb.isReady()) {
+    // Fallback localStorage
+    const key = 'tvs_kpi_' + data.mes;
+    localStorage.setItem(key, JSON.stringify(data));
+    kpiHistorial.unshift(data);
+    kpiPoblarSelector();
+    renderKPIHistorial();
+    return;
+  }
+  try {
+    const { getFirestore, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const db = getFirestore();
+    await setDoc(doc(db, 'kpi_meses', data.mes), data);
+    if (!kpiHistorial.find(x => x.mes === data.mes)) kpiHistorial.unshift(data);
+    else { const i = kpiHistorial.findIndex(x => x.mes === data.mes); kpiHistorial[i] = data; }
+    kpiHistorial.sort((a, b) => b.mes.localeCompare(a.mes));
+    kpiPoblarSelector();
+    renderKPIHistorial();
+  } catch(e) { console.warn('[KPIs] guardar mes:', e); toast('Error guardando en Firebase'); }
+}
+
+// ─── Guardar / cargar metas de un mes ───
+async function kpiGuardarMetas(mes, metas) {
+  kpiMetasCache[mes] = metas;
+  const key = 'tvs_kpimeta_' + mes;
+  localStorage.setItem(key, JSON.stringify(metas));
+  if (!window._fb || !window._fb.isReady()) return;
+  try {
+    const { getFirestore, doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await setDoc(doc(getFirestore(), 'kpi_metas', mes), { mes, ...metas });
+  } catch(e) { console.warn('[KPIs] guardar metas:', e); }
+}
+
+async function kpiCargarMetas(mes) {
+  if (kpiMetasCache[mes]) return kpiMetasCache[mes];
+  // Intentar localStorage primero
+  const local = localStorage.getItem('tvs_kpimeta_' + mes);
+  if (local) { kpiMetasCache[mes] = JSON.parse(local); return kpiMetasCache[mes]; }
+  // Firebase
+  if (window._fb && window._fb.isReady()) {
+    try {
+      const { getFirestore, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const snap = await getDoc(doc(getFirestore(), 'kpi_metas', mes));
+      if (snap.exists()) { kpiMetasCache[mes] = snap.data(); return kpiMetasCache[mes]; }
+    } catch(e) {}
+  }
+  return { leads: 0, citas: 0, ventas: 0, gestiones: 0 };
+}
+
+// ─── Calcular KPIs desde los leads actuales para un mes ───
+function kpiCalcular(mes) {
+  // Si mes es null → usa todos los leads del mes calendario actual
+  const filtroMes = mes || kpiMesActual();
+  const arr = leads.filter(l => {
+    const f = (l.fa || l.fu || '').substring(0, 7);
+    return f === filtroMes;
+  });
+
+  const totalLeads = arr.length;
+  const contactados = arr.filter(l => l.est !== 'NUEVO' && l.est !== 'PROCESO').length;
+  const citas = arr.filter(l => l.est === 'CITA').length;
+  const ventas = arr.filter(l => l.est === 'VENTA').length;
+  const perdidos = arr.filter(l => l.est === 'PERDIDO').length;
+  const proceso = arr.filter(l => l.est === 'PROCESO' || l.est === 'NUEVO' || l.est === 'SEGUIMIENTO' || l.est === 'PENDIENTE').length;
+  const pctContacto = totalLeads > 0 ? Math.round(contactados / totalLeads * 100) : 0;
+  const pctCita = totalLeads > 0 ? Math.round(citas / totalLeads * 100) : 0;
+  const pctCierre = totalLeads > 0 ? Math.round(ventas / totalLeads * 100) : 0;
+
+  // Por asesor
+  const porAsesor = users.filter(u => u.rol !== 'admin').map(u => {
+    const ul = arr.filter(l => l.uid === u.id);
+    const uCont = ul.filter(l => l.est !== 'NUEVO' && l.est !== 'PROCESO').length;
+    const uCita = ul.filter(l => l.est === 'CITA').length;
+    const uVenta = ul.filter(l => l.est === 'VENTA').length;
+    const uPerd = ul.filter(l => l.est === 'PERDIDO').length;
+    return {
+      id: u.id, nombre: u.nombre, color: u.color,
+      leads: ul.length,
+      contactados: uCont,
+      pctContacto: ul.length > 0 ? Math.round(uCont / ul.length * 100) : 0,
+      citas: uCita,
+      pctCita: ul.length > 0 ? Math.round(uCita / ul.length * 100) : 0,
+      ventas: uVenta,
+      pctCierre: ul.length > 0 ? Math.round(uVenta / ul.length * 100) : 0,
+      perdidos: uPerd
+    };
+  }).filter(u => u.leads > 0).sort((a, b) => b.ventas - a.ventas);
+
+  // Desglose semanal
+  const semanas = {};
+  arr.forEach(l => {
+    const f = (l.fa || l.fu || '').substring(0, 10);
+    if (!f) return;
+    const d = new Date(f + 'T00:00:00');
+    if (isNaN(d)) return;
+    const day = d.getDay() || 7;
+    if (day !== 1) d.setDate(d.getDate() - (day - 1));
+    const semKey = d.toISOString().substring(0, 10);
+    if (!semanas[semKey]) semanas[semKey] = { leads: 0, contactados: 0, citas: 0, ventas: 0 };
+    semanas[semKey].leads++;
+    if (l.est !== 'NUEVO' && l.est !== 'PROCESO') semanas[semKey].contactados++;
+    if (l.est === 'CITA') semanas[semKey].citas++;
+    if (l.est === 'VENTA') semanas[semKey].ventas++;
+  });
+  const semanasArr = Object.entries(semanas).sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => ({ semKey: k, ...v }));
+
+  return { mes: filtroMes, totalLeads, contactados, pctContacto, citas, pctCita, ventas, pctCierre, perdidos, proceso, porAsesor, semanas: semanasArr };
+}
+
+// ─── Poblar selector de meses ───
+function kpiPoblarSelector() {
+  const sel = document.getElementById('kpi-mes-sel');
+  if (!sel) return;
+  const cur = sel.value;
+  // Limpiar opciones excepto la primera (live)
+  while (sel.options.length > 1) sel.remove(1);
+  kpiHistorial.forEach(h => {
+    const opt = document.createElement('option');
+    opt.value = h.mes;
+    opt.textContent = '📁 ' + kpiMesLabel(h.mes) + ' (cerrado)';
+    sel.appendChild(opt);
+  });
+  if (cur && cur !== 'live') sel.value = cur;
+}
+
+// ─── Render principal de KPIs ───
+async function renderKPIs() {
+  const sel = document.getElementById('kpi-mes-sel');
+  const mesVal = sel ? sel.value : 'live';
+  const sub = document.getElementById('kpis-sub');
+
+  let kpi, metas;
+  if (mesVal === 'live') {
+    kpi = kpiCalcular(null);
+    metas = await kpiCargarMetas(kpiMesActual());
+    if (sub) sub.textContent = kpiMesLabel(kpiMesActual()) + ' · En vivo';
+  } else {
+    // Mes cerrado — usar snapshot guardado
+    const hist = kpiHistorial.find(h => h.mes === mesVal);
+    if (!hist) return;
+    kpi = hist.snapshot || kpiCalcular(mesVal);
+    metas = hist.metas || { leads: 0, citas: 0, ventas: 0, gestiones: 0 };
+    if (sub) sub.textContent = kpiMesLabel(mesVal) + ' · Cerrado ✓';
+  }
+
+  renderKPIGrupo(kpi, metas);
+  renderKPIAlcance(kpi, metas);
+  renderKPIAsesores(kpi);
+  renderKPISemanas(kpi);
+  renderKPIHistorial();
+}
+
+// ─── Tarjetas grupo ───
+function renderKPIGrupo(kpi, metas) {
+  const el = document.getElementById('kpi-mets-grupo');
+  if (!el) return;
+  const pct = (v, m) => m > 0 ? Math.round(v / m * 100) : null;
+  const sub = (v, m) => m > 0 ? `${pct(v,m)}% de meta (${m})` : `${v} total`;
+  el.innerHTML = `
+    <div class="met"><div class="ml">Total Leads</div><div class="mv">${kpi.totalLeads}</div><div class="ms">${sub(kpi.totalLeads, metas.leads)}</div></div>
+    <div class="met org"><div class="ml">Contactados</div><div class="mv">${kpi.contactados}</div><div class="ms">${kpi.pctContacto}% de leads</div></div>
+    <div class="met" style="border-top-color:#3b82f6"><div class="ml">Citas</div><div class="mv">${kpi.citas}</div><div class="ms">${sub(kpi.citas, metas.citas)}</div></div>
+    <div class="met grn"><div class="ml">Ventas</div><div class="mv">${kpi.ventas}</div><div class="ms">${sub(kpi.ventas, metas.ventas)}</div></div>
+    <div class="met red"><div class="ml">Perdidos</div><div class="mv">${kpi.perdidos}</div><div class="ms">${kpi.totalLeads > 0 ? Math.round(kpi.perdidos/kpi.totalLeads*100) : 0}% del total</div></div>
+    <div class="met yel"><div class="ml">% Cierre</div><div class="mv">${kpi.pctCierre}%</div><div class="ms">ventas / leads</div></div>`;
+}
+
+// ─── Barras de alcance ───
+function renderKPIAlcance(kpi, metas) {
+  const el = document.getElementById('kpi-alcance');
+  if (!el) return;
+  const bar = (label, val, meta, color) => {
+    const pct = meta > 0 ? Math.min(100, Math.round(val / meta * 100)) : 0;
+    const txt = meta > 0 ? `${val} / ${meta} (${pct}%)` : `${val} (sin meta definida)`;
+    return `<div style="margin-bottom:.75rem">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span style="font-size:12px;font-weight:600;color:var(--navy)">${label}</span>
+        <span style="font-size:11px;color:var(--mut)">${txt}</span>
+      </div>
+      <div style="height:8px;background:var(--s2);border-radius:4px;overflow:hidden">
+        <div style="height:8px;width:${pct}%;background:${color};border-radius:4px;transition:width .4s"></div>
+      </div>
+    </div>`;
+  };
+  el.innerHTML =
+    bar('Leads contactados', kpi.contactados, metas.leads, 'var(--navy)') +
+    bar('Citas generadas', kpi.citas, metas.citas, '#3b82f6') +
+    bar('Ventas cerradas', kpi.ventas, metas.ventas, 'var(--green)') +
+    (metas.gestiones > 0 ? bar('Gestiones', kpi.contactados, metas.gestiones, 'var(--orange)') : '');
+}
+
+// ─── Tabla asesores ───
+function renderKPIAsesores(kpi) {
+  const tb = document.getElementById('kpi-ase-body');
+  if (!tb) return;
+  if (!kpi.porAsesor || kpi.porAsesor.length === 0) {
+    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:1.5rem;color:var(--mut)">Sin datos de asesores para este período</td></tr>';
+    return;
+  }
+  const pBadge = p => {
+    const c = p >= 80 ? '#1B5E20' : p >= 50 ? '#5a4200' : '#B71C1C';
+    const bg = p >= 80 ? 'var(--gbg)' : p >= 50 ? 'var(--ybg)' : 'var(--rbg)';
+    return `<span style="background:${bg};color:${c};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${p}%</span>`;
+  };
+  tb.innerHTML = kpi.porAsesor.map(u => `<tr>
+    <td><div style="display:flex;align-items:center;gap:7px">
+      <div class="av" style="background:${u.color}20;color:${u.color};width:26px;height:26px;font-size:9px">${u.nombre.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()}</div>
+      <span style="font-weight:600">${u.nombre.split(' ')[0]}</span>
+    </div></td>
+    <td style="font-weight:700">${u.leads}</td>
+    <td>${u.contactados}</td>
+    <td>${pBadge(u.pctContacto)}</td>
+    <td>${u.citas}</td>
+    <td>${pBadge(u.pctCita)}</td>
+    <td style="font-weight:700;color:#1B5E20">${u.ventas}</td>
+    <td>${pBadge(u.pctCierre)}</td>
+    <td style="color:var(--red)">${u.perdidos}</td>
+  </tr>`).join('');
+}
+
+// ─── Tabla semanas ───
+function renderKPISemanas(kpi) {
+  const tb = document.getElementById('kpi-sem-body');
+  if (!tb) return;
+  if (!kpi.semanas || kpi.semanas.length === 0) {
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--mut)">Sin datos semanales</td></tr>';
+    return;
+  }
+  const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  let totLeads = 0, totCont = 0, totCitas = 0, totVentas = 0;
+  const rows = kpi.semanas.map(s => {
+    totLeads += s.leads; totCont += s.contactados; totCitas += s.citas; totVentas += s.ventas;
+    const d = new Date(s.semKey + 'T00:00:00');
+    const de = new Date(d); de.setDate(de.getDate() + 6);
+    const label = `${d.getDate()}/${d.getMonth()+1} – ${de.getDate()}/${de.getMonth()+1}`;
+    const conv = s.leads > 0 ? Math.round(s.ventas / s.leads * 100) : 0;
+    const badgeC = conv >= 20 ? 'e-venta' : conv >= 10 ? 'e-seg' : 'e-proc';
+    return `<tr><td style="font-weight:600;white-space:nowrap">${label}</td><td>${s.leads}</td><td>${s.contactados}</td><td>${s.citas}</td><td style="font-weight:700;color:#1B5E20">${s.ventas}</td><td><span class="badge ${badgeC}">${conv}%</span></td></tr>`;
+  });
+  const convTot = totLeads > 0 ? Math.round(totVentas / totLeads * 100) : 0;
+  rows.push(`<tr style="background:var(--s2);font-weight:700"><td>TOTAL</td><td>${totLeads}</td><td>${totCont}</td><td>${totCitas}</td><td style="color:#1B5E20">${totVentas}</td><td><span class="badge e-seg">${convTot}%</span></td></tr>`);
+  tb.innerHTML = rows.join('');
+}
+
+// ─── Historial de meses cerrados ───
+function renderKPIHistorial() {
+  const tb = document.getElementById('kpi-hist-body');
+  if (!tb) return;
+  if (kpiHistorial.length === 0) {
+    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:1.5rem;color:var(--mut)">Aún no hay meses cerrados. Usa "Cerrar mes" al finalizar cada período.</td></tr>';
+    return;
+  }
+  tb.innerHTML = kpiHistorial.map(h => {
+    const s = h.snapshot || {};
+    const m = h.metas || {};
+    return `<tr>
+      <td style="font-weight:700;color:var(--navy);white-space:nowrap">${kpiMesLabel(h.mes)}</td>
+      <td>${s.totalLeads ?? '—'}</td>
+      <td>${s.contactados ?? '—'}</td>
+      <td>${s.citas ?? '—'}</td>
+      <td style="font-weight:700;color:#1B5E20">${s.ventas ?? '—'}</td>
+      <td>${s.pctCierre != null ? s.pctCierre + '%' : '—'}</td>
+      <td style="color:var(--mut)">${m.leads || '—'}</td>
+      <td style="color:var(--mut)">${m.ventas || '—'}</td>
+      <td style="font-size:11px;color:var(--mut)">${h.cerradoPor || '—'}</td>
+      <td><button class="btn bo bsm" style="font-size:10px" onclick="verMesCerrado('${h.mes}')">Ver</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── Ver mes cerrado (cambia selector) ───
+function verMesCerrado(mes) {
+  const sel = document.getElementById('kpi-mes-sel');
+  if (sel) { sel.value = mes; renderKPIs(); }
+}
+
+// ─── Modal: Cerrar mes ───
+function openKpiCierre() {
+  const kpi = kpiCalcular(null);
+  const mes = kpiMesActual();
+  const prev = document.getElementById('kpi-cierre-preview');
+  if (prev) prev.innerHTML = `
+    <div style="background:var(--s2);border-radius:8px;padding:.8rem;font-size:12px">
+      <div style="font-weight:700;color:var(--navy);margin-bottom:.5rem">Snapshot a guardar — ${kpiMesLabel(mes)}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+        <span style="color:var(--mut)">Leads:</span><span style="font-weight:600">${kpi.totalLeads}</span>
+        <span style="color:var(--mut)">Contactados:</span><span style="font-weight:600">${kpi.contactados}</span>
+        <span style="color:var(--mut)">Citas:</span><span style="font-weight:600">${kpi.citas}</span>
+        <span style="color:var(--mut)">Ventas:</span><span style="font-weight:600;color:#1B5E20">${kpi.ventas}</span>
+        <span style="color:var(--mut)">Perdidos:</span><span style="font-weight:600;color:var(--red)">${kpi.perdidos}</span>
+        <span style="color:var(--mut)">% Cierre:</span><span style="font-weight:600">${kpi.pctCierre}%</span>
+      </div>
+    </div>`;
+  const inp = document.getElementById('kpi-cierre-mes');
+  if (inp) inp.value = mes;
+  openM('m-kpi-cierre');
+}
+
+async function confirmarCierreMes() {
+  const mesInp = document.getElementById('kpi-cierre-mes');
+  const mes = mesInp ? mesInp.value : kpiMesActual();
+  if (!mes) { toast('Selecciona el mes'); return; }
+  const kpi = kpiCalcular(mes);
+  const metas = await kpiCargarMetas(mes);
+  const data = {
+    mes,
+    snapshot: kpi,
+    metas,
+    cerradoPor: CU ? CU.nombre : '—',
+    fechaCierre: new Date().toISOString().substring(0, 10),
+    _ts: Date.now()
+  };
+  await kpiGuardarMes(data);
+  closeM('m-kpi-cierre');
+  toast(`✅ Mes ${kpiMesLabel(mes)} cerrado y guardado`);
+  renderKPIs();
+}
+
+// ─── Modal: Metas del mes ───
+async function openKpiMetas() {
+  const mes = kpiMesActual();
+  const metas = await kpiCargarMetas(mes);
+  const ref = document.getElementById('meta-mes-ref');
+  if (ref) ref.value = mes;
+  document.getElementById('meta-leads').value = metas.leads || '';
+  document.getElementById('meta-citas').value = metas.citas || '';
+  document.getElementById('meta-ventas').value = metas.ventas || '';
+  document.getElementById('meta-gestiones').value = metas.gestiones || '';
+  openM('m-kpi-metas');
+}
+
+async function guardarMetasMes() {
+  const mes = document.getElementById('meta-mes-ref')?.value || kpiMesActual();
+  const metas = {
+    leads: parseInt(document.getElementById('meta-leads').value) || 0,
+    citas: parseInt(document.getElementById('meta-citas').value) || 0,
+    ventas: parseInt(document.getElementById('meta-ventas').value) || 0,
+    gestiones: parseInt(document.getElementById('meta-gestiones').value) || 0
+  };
+  await kpiGuardarMetas(mes, metas);
+  closeM('m-kpi-metas');
+  toast(`✅ Metas de ${kpiMesLabel(mes)} guardadas`);
+  renderKPIs();
+}
+
+// ─── Exportar CSV ───
+function kpiExportCSV() {
+  const sel = document.getElementById('kpi-mes-sel');
+  const mesVal = sel ? sel.value : 'live';
+  const mes = mesVal === 'live' ? kpiMesActual() : mesVal;
+  const kpi = mesVal === 'live' ? kpiCalcular(null) : (kpiHistorial.find(h=>h.mes===mesVal)?.snapshot || kpiCalcular(mes));
+  if (!kpi) { toast('Sin datos'); return; }
+  const rows = [
+    ['KPIs Grupo — ' + kpiMesLabel(mes)],
+    ['Métrica','Valor'],
+    ['Total Leads', kpi.totalLeads],
+    ['Contactados', kpi.contactados],
+    ['% Contacto', kpi.pctContacto + '%'],
+    ['Citas', kpi.citas],
+    ['% Cita', kpi.pctCita + '%'],
+    ['Ventas', kpi.ventas],
+    ['% Cierre', kpi.pctCierre + '%'],
+    ['Perdidos', kpi.perdidos],
+    [],
+    ['Detalle por asesor'],
+    ['Asesor','Leads','Contactados','% Contacto','Citas','% Cita','Ventas','% Cierre','Perdidos'],
+    ...(kpi.porAsesor||[]).map(u => [u.nombre, u.leads, u.contactados, u.pctContacto+'%', u.citas, u.pctCita+'%', u.ventas, u.pctCierre+'%', u.perdidos]),
+    [],
+    ['Desglose semanal'],
+    ['Semana','Leads','Contactados','Citas','Ventas','% Conv'],
+    ...(kpi.semanas||[]).map(s => {
+      const d = new Date(s.semKey+'T00:00:00');
+      const de = new Date(d); de.setDate(de.getDate()+6);
+      const lbl = `${d.getDate()}/${d.getMonth()+1} – ${de.getDate()}/${de.getMonth()+1}`;
+      const conv = s.leads > 0 ? Math.round(s.ventas/s.leads*100) : 0;
+      return [lbl, s.leads, s.contactados, s.citas, s.ventas, conv+'%'];
+    })
+  ];
+  const csv = rows.map(r => r.map(c => `"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent('\uFEFF' + csv);
+  a.download = `KPIs_${mes}.csv`;
+  a.click();
+  toast('CSV exportado ✓');
+}
+
+// ─── Exportar XLSX ───
+function kpiExportXLSX() {
+  if (typeof XLSX === 'undefined') { toast('Librería XLSX no disponible'); return; }
+  const sel = document.getElementById('kpi-mes-sel');
+  const mesVal = sel ? sel.value : 'live';
+  const mes = mesVal === 'live' ? kpiMesActual() : mesVal;
+  const kpi = mesVal === 'live' ? kpiCalcular(null) : (kpiHistorial.find(h=>h.mes===mesVal)?.snapshot || kpiCalcular(mes));
+  if (!kpi) { toast('Sin datos'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // Hoja resumen grupo
+  const grupoRows = [
+    ['KPIs Grupo — ' + kpiMesLabel(mes)],
+    ['Métrica','Valor'],
+    ['Total Leads', kpi.totalLeads],['Contactados', kpi.contactados],['% Contacto', kpi.pctContacto+'%'],
+    ['Citas', kpi.citas],['% Cita', kpi.pctCita+'%'],['Ventas', kpi.ventas],
+    ['% Cierre', kpi.pctCierre+'%'],['Perdidos', kpi.perdidos]
+  ];
+  const wsGrupo = XLSX.utils.aoa_to_sheet(grupoRows);
+  wsGrupo['!cols'] = [{wch:28},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, wsGrupo, 'Resumen Grupo');
+
+  // Hoja por asesor
+  const aseRows = [['Asesor','Leads','Contactados','% Contacto','Citas','% Cita','Ventas','% Cierre','Perdidos']];
+  (kpi.porAsesor||[]).forEach(u => aseRows.push([u.nombre, u.leads, u.contactados, u.pctContacto+'%', u.citas, u.pctCita+'%', u.ventas, u.pctCierre+'%', u.perdidos]));
+  const wsAse = XLSX.utils.aoa_to_sheet(aseRows);
+  wsAse['!cols'] = [{wch:24},{wch:8},{wch:12},{wch:12},{wch:8},{wch:8},{wch:8},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, wsAse, 'Por Asesor');
+
+  // Hoja semanal
+  const semRows = [['Semana','Leads','Contactados','Citas','Ventas','% Conv']];
+  (kpi.semanas||[]).forEach(s => {
+    const d = new Date(s.semKey+'T00:00:00');
+    const de = new Date(d); de.setDate(de.getDate()+6);
+    semRows.push([`${d.getDate()}/${d.getMonth()+1} – ${de.getDate()}/${de.getMonth()+1}`, s.leads, s.contactados, s.citas, s.ventas, s.leads > 0 ? Math.round(s.ventas/s.leads*100)+'%' : '0%']);
+  });
+  const wsSem = XLSX.utils.aoa_to_sheet(semRows);
+  XLSX.utils.book_append_sheet(wb, wsSem, 'Semanal');
+
+  // Hoja historial
+  if (kpiHistorial.length > 0) {
+    const histRows = [['Mes','Leads','Contactados','Citas','Ventas','% Cierre','Meta Leads','Meta Ventas','Cerrado por','Fecha cierre']];
+    kpiHistorial.forEach(h => {
+      const s = h.snapshot || {}; const m = h.metas || {};
+      histRows.push([kpiMesLabel(h.mes), s.totalLeads||0, s.contactados||0, s.citas||0, s.ventas||0, s.pctCierre!=null?s.pctCierre+'%':'—', m.leads||0, m.ventas||0, h.cerradoPor||'—', h.fechaCierre||'—']);
+    });
+    const wsHist = XLSX.utils.aoa_to_sheet(histRows);
+    wsHist['!cols'] = [{wch:18},{wch:8},{wch:12},{wch:8},{wch:8},{wch:10},{wch:12},{wch:12},{wch:20},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, wsHist, 'Historial');
+  }
+
+  XLSX.writeFile(wb, `KPIs_${mes}.xlsx`);
+  toast('Excel exportado ✓');
+}
+
+// ─── Hook: inicializar cuando se abre el tab ───
+const _origGoTab = typeof goTab === 'function' ? goTab : null;
+// Sobreescribimos goTab para interceptar la apertura del tab kpis
+(function() {
+  const _orig = window.goTab;
+  if (!_orig) return;
+  window.goTab = function(tab, btn) {
+    _orig(tab, btn);
+    if (tab === 'kpis') {
+      if (!_kpiInitialized) {
+        _kpiInitialized = true;
+        kpiCargarHistorial().then(() => renderKPIs());
+      } else {
+        renderKPIs();
+      }
+    }
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// FIN módulo KPIs
+// ═══════════════════════════════════════════════════════════════════
 
 // AUTO-CONNECT
 function doAutoConnect(){
