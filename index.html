@@ -5908,8 +5908,13 @@ function _cdCanal(agencia, canal) {
   return null;
 }
 
-// Detectar canal de un asesor por sus leads históricos
+// Detectar canal de un asesor por su rol directamente
 function _cdCanalDeAsesor(uid) {
+  const u = users.find(x => x.id === uid);
+  if (!u) return null;
+  const rolMap = { ap_gerencia:'AP', ht_gerencia:'HT', ac_gerencia:'AC', king_gerencia:'KING' };
+  if (rolMap[u.rol]) return rolMap[u.rol];
+  // Fallback: inferir por leads si el rol es genérico (asesor/supervisor)
   const counts = {AP:0,HT:0,AC:0,KING:0};
   leads.forEach(l => {
     if (l.uid !== uid) return;
