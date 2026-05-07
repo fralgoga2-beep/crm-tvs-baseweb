@@ -2567,6 +2567,21 @@ function saveDet(id){
     l.fcita_uid=CU.id;
     l.fcita_anom=CU.nombre;
   }
+  // Si ya estaba en CITA y cambia agencia o linea → nueva cita (recita)
+  if(l.est==='CITA'&&prevEst==='CITA'){
+    const prevAg=l._prevAgencia||'';
+    const prevLin=l._prevLinea||'';
+    const newAg=l.agencia||'';
+    const newLin=document.getElementById('ds-linea')?.value||l.linea||'';
+    if((prevAg&&newAg&&prevAg!==newAg)||(prevLin&&newLin&&prevLin!==newLin)){
+      l.fcita=today();
+      l.fcita_ts=new Date().toISOString();
+      l.fcita_uid=CU.id;
+      l.fcita_anom=CU.nombre;
+    }
+  }
+  // Guardar snapshot de agencia y linea actuales para detectar cambios futuros
+  if(l.est==='CITA'){l._prevAgencia=l.agencia||'';l._prevLinea=l.linea||'';}
   if(isPriv()){
     const v=document.getElementById('ds-ase')?.value;
     l.uid=v?parseInt(v):null;
@@ -2631,6 +2646,19 @@ function saveLead(){
       savedLead.fcita_uid=CU.id;
       savedLead.fcita_anom=CU.nombre;
     }
+    // Si ya estaba en CITA y cambia agencia o linea → nueva cita (recita)
+    if(data.est==='CITA'&&prevEst==='CITA'){
+      const prevAg=ex._prevAgencia||ex.agencia||'';
+      const prevLin=ex._prevLinea||ex.linea||'';
+      if((prevAg&&data.agencia&&prevAg!==data.agencia)||(prevLin&&data.linea&&prevLin!==data.linea)){
+        savedLead.fcita=today();
+        savedLead.fcita_ts=new Date().toISOString();
+        savedLead.fcita_uid=CU.id;
+        savedLead.fcita_anom=CU.nombre;
+      }
+    }
+    // Guardar snapshot de agencia y linea para detectar cambios futuros
+    if(data.est==='CITA'){savedLead._prevAgencia=data.agencia||'';savedLead._prevLinea=data.linea||'';}
     toast('Lead actualizado ✓');
   }
   else{
@@ -6242,10 +6270,21 @@ function _igSemanas(ano, mes) {
 function _igLeadsDia(ano, mes, start, end) {
   const ym = `${ano}-${mes}`;
   return leads.filter(l => {
+    // Incluir si el lead fue creado en el período (fa)
     const f = (l.fa || '').substring(0,10);
-    if (!f.startsWith(ym)) return false;
-    const d = parseInt(f.substring(8,10));
-    return d >= start && d <= end;
+    if (f.startsWith(ym)) {
+      const d = parseInt(f.substring(8,10));
+      if (d >= start && d <= end) return true;
+    }
+    // También incluir si la fcita cae en el período (cita real registrada ese día)
+    if (l.est === 'CITA' && l.fcita) {
+      const fc = l.fcita.substring(0,10);
+      if (fc.startsWith(ym)) {
+        const d = parseInt(fc.substring(8,10));
+        if (d >= start && d <= end) return true;
+      }
+    }
+    return false;
   });
 }
 
@@ -6258,10 +6297,11 @@ function _igMetrics(arr) {
   const regest      = arr.filter(l => l.regest === 'Regestionado').length;
   const noCumple    = arr.filter(l => l.interes === 'No Cumple PANT').length;
   const noInter     = arr.filter(l => l.interes === 'No Interesado').length;
-  const citas       = arr.filter(l => l.est === 'CITA').length;
-  const citasVerif  = arr.filter(l => l.est === 'CITA' && l.est_cita === 'Verificada').length;
-  const citasProceso= arr.filter(l => l.est === 'CITA' && (l.est_cita === 'En Proceso' || !l.est_cita)).length;
-  const citasPerd   = arr.filter(l => l.est === 'CITA' && l.est_cita === 'Perdida').length;
+  // Citas: contar por fcita (fecha real en que se puso como cita), no por fa
+  const citas       = arr.filter(l => l.est === 'CITA' && l.fcita).length;
+  const citasVerif  = arr.filter(l => l.est === 'CITA' && l.fcita && l.est_cita === 'Verificada').length;
+  const citasProceso= arr.filter(l => l.est === 'CITA' && l.fcita && (l.est_cita === 'En Proceso' || !l.est_cita)).length;
+  const citasPerd   = arr.filter(l => l.est === 'CITA' && l.fcita && l.est_cita === 'Perdida').length;
   // Ventas KING = 3 ruedas, resto = 2 ruedas
   const ventasKING  = arr.filter(l => l.est === 'VENTA' && _cdCanal(l.agencia, l.canal) === 'KING').length;
   const ventas2r    = arr.filter(l => l.est === 'VENTA' && _cdCanal(l.agencia, l.canal) !== 'KING').length;
