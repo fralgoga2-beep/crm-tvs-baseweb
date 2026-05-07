@@ -516,6 +516,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <button class="ni admin-sup" onclick="goTab('tracker-citas',this)"><span class="nco">📅</span><span>Tracker de Citas</span></button>
     <button class="ni admin-sup" onclick="goTab('citas-dia',this)"><span class="nco">📋</span><span>Citas por Día</span></button>
     <button class="ni admin-sup" onclick="goTab('inf-gerencial',this)"><span class="nco">📊</span><span>Informe Gerencial</span></button>
+    <button class="ni admin-sup" onclick="goTab('dash-canal',this)"><span class="nco">🏷️</span><span>Citas por Canal</span></button>
   </div>
   <div class="ns canal-nav" style="margin-top:.4rem;display:none">
     <div class="nl" id="canal-nav-label">Mi Canal</div>
@@ -1252,6 +1253,86 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   <div id="ig-body" style="overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
 </div>
 
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- DASHBOARD CITAS POR CANAL — módulo nuevo                  -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="tab-dash-canal" class="tab">
+  <div class="ph">
+    <div><div class="pt">🏷️ Citas por Canal</div><div class="psb" id="dc-sub">Dashboard de citas filtrado por canal, agencia y estado</div></div>
+    <div class="ha" style="flex-wrap:wrap;gap:6px">
+      <input type="date" class="fc" id="dc-fd" style="max-width:140px;font-size:12px" onchange="renderDashCanal()">
+      <span style="font-size:11px;color:var(--mut)">a</span>
+      <input type="date" class="fc" id="dc-fh" style="max-width:140px;font-size:12px" onchange="renderDashCanal()">
+      <button class="btn bo bsm" onclick="dcQuick(7)">7 días</button>
+      <button class="btn bo bsm" onclick="dcQuick(15)">15 días</button>
+      <button class="btn bo bsm" onclick="dcQuick(30)">30 días</button>
+      <button class="btn bo bsm" onclick="dcQuick(90)">3 meses</button>
+      <button class="btn bo bsm" onclick="dcQuick('mes')">Este mes</button>
+      <button class="btn bo bsm" onclick="dcQuick('mesant')">Mes anterior</button>
+      <button class="btn bo bsm" onclick="dcQuick('semana')">Esta semana</button>
+      <button class="btn bo bsm" onclick="dcQuick('semant')">Sem. anterior</button>
+      <button class="btn bo bsm" onclick="dcQuick('all')">Todo</button>
+      <button class="btn bo bsm" onclick="dcExportXLSX()">⬇ Excel</button>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card" style="margin-bottom:.75rem">
+    <div class="cb" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:.5rem 0">
+      <select class="fc" id="dc-canal" style="max-width:130px;font-size:12px" onchange="renderDashCanal()">
+        <option value="">Todos los canales</option>
+        <option value="AP">AP</option>
+        <option value="HT">HT</option>
+        <option value="AC">AC</option>
+        <option value="KING">KING</option>
+      </select>
+      <select class="fc" id="dc-agencia" style="max-width:200px;font-size:12px" onchange="renderDashCanal()">
+        <option value="">Todas las agencias</option>
+      </select>
+      <select class="fc" id="dc-estado" style="max-width:160px;font-size:12px" onchange="renderDashCanal()">
+        <option value="">Todos los estados</option>
+        <option value="En Proceso">🔵 En Proceso</option>
+        <option value="Verificada">✅ Verificada</option>
+        <option value="Perdida">❌ Perdida</option>
+      </select>
+      <select class="fc" id="dc-asesor" style="max-width:170px;font-size:12px" onchange="renderDashCanal()">
+        <option value="">Todos los asesores</option>
+      </select>
+      <button class="btn bo bsm" onclick="dcLimpiarFiltros()">✕ Limpiar</button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="mets" id="dc-kpis" style="margin-bottom:.75rem"></div>
+
+  <!-- Gráfico por canal -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:.75rem" id="dc-canal-cards"></div>
+
+  <!-- Tabla detalle -->
+  <div class="card">
+    <div class="ch">
+      <span class="ct">Detalle de citas</span>
+      <span id="dc-count" style="margin-left:auto;font-size:11px;color:var(--mut);font-weight:600"></span>
+    </div>
+    <div class="tw" style="max-height:500px;overflow:auto">
+      <table>
+        <thead><tr>
+          <th>📅 Fecha</th>
+          <th>Canal</th>
+          <th>Asesor</th>
+          <th>Cliente</th>
+          <th>Teléfono</th>
+          <th>🏍 Línea</th>
+          <th>💳 Pago</th>
+          <th>🏢 Agencia</th>
+          <th>Estado Cita</th>
+        </tr></thead>
+        <tbody id="dc-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 </div></main>
 </div>
 </div>
@@ -1289,7 +1370,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <div class="fr"><div class="fg"><label class="fl">Línea de Interés</label>
         <select class="fc" id="lf-lin"><option>APACHE RTR 160 2V REF</option><option>APACHE RTR 160 4V</option><option>APACHE RTR 160 4V RM</option><option>APACHE RTR 180</option><option>APACHE RTR 200 4V</option><option>APACHE RTR 200 FI</option><option>APACHE RR310</option><option>APACHE RTR 310</option><option>APACHE RTR 310 E5</option><option>RAIDER 125</option><option>RAIDER 125 FI</option><option>RONIN 225</option><option>NEO 110 NX</option><option>DAZZ CW</option><option>NTORQ 125</option><option>NTORQ 125 RACE</option><option>JUPITER 125 FI (NUEVO MODELO)</option><option>STRYKER 125</option><option>HLX 150</option><option>HLX 125</option><option>ZT 125</option><option>SPORT 100 ELS</option><option>KING DELUXE (BLUETOOTH)</option><option>KING DELUXE PLUS</option><option>KING DURAMAX</option><option>KING KARGO</option></select>
       </div></div>
-      <div class="fr"><div class="fg"><label class="fl">Agencia</label><select class="fc" id="lf-agencia"><option value="">— Sin agencia —</option></select></div><div class="fg"><label class="fl">Ubicación</label><input class="fc" id="lf-ubi" list="ubi-list" placeholder="Ciudad o zona..."><datalist id="ubi-list"></datalist></div></div>
+      <div class="fr"><div class="fg"><label class="fl">Agencia</label><input class="fc" id="lf-agencia-search" placeholder="🔍 Buscar agencia..." style="font-size:12px;margin-bottom:3px" oninput="filterAgSel('lf-agencia',this.value)"><select class="fc" id="lf-agencia"><option value="">— Sin agencia —</option></select></div><div class="fg"><label class="fl">Ubicación</label><input class="fc" id="lf-ubi" list="ubi-list" placeholder="Ciudad o zona..."><datalist id="ubi-list"></datalist></div></div>
       <div class="fr"><div class="fg"><label class="fl">Fecha Actividad</label><input class="fc" type="date" id="lf-fa"></div><div class="fg"><label class="fl">Fecha Actualización</label><input class="fc" type="date" id="lf-fu"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Estado</label><select class="fc" id="lf-est" onchange="toggleCanalField()"><option>NUEVO</option><option>PROCESO</option><option>CITA</option><option>PRECALIFICADO</option><option>SEGUIMIENTO</option><option>VENTA</option><option>PERDIDO</option><option>PENDIENTE</option></select></div><div class="fg admin-sup"><label class="fl">Asesor</label><select class="fc" id="lf-ase"><option value="">— Sin asignar</option></select></div></div>
       <div class="fr" id="canal-field" style="display:none"><div class="fg"><label class="fl">Canal de Cita</label><select class="fc" id="lf-canal"><option value="">— Seleccionar —</option><option value="AP">AP</option><option value="HT">HT</option><option value="AC">AC</option><option value="KING">KING</option></select></div></div>
@@ -2167,6 +2248,21 @@ function populateSel(){
   const cl=document.getElementById('col-list');if(cl)cl.innerHTML=COL_NAMES.map((c,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--bd);font-size:11px"><span style="width:20px;text-align:center;font-weight:700;color:var(--navy)">${i+1}</span><span>${c}</span></div>`).join('');
 }
 function today(){return new Date().toISOString().split('T')[0];}
+
+// ─── Filtrar opciones del select de agencia por texto ───
+// No modifica nada del guardado, solo oculta opciones visualmente
+function filterAgSel(selId, query) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  const q = query.toLowerCase().trim();
+  Array.from(sel.options).forEach(opt => {
+    if (!opt.value) { opt.style.display = ''; return; } // siempre mostrar "— Sin agencia —"
+    opt.style.display = !q || opt.text.toLowerCase().includes(q) ? '' : 'none';
+  });
+  // Si hay match único, seleccionarlo automáticamente
+  const visible = Array.from(sel.options).filter(o => o.value && o.style.display !== 'none');
+  if (visible.length === 1) sel.value = visible[0].value;
+}
 function remSt(r){if(!r||!r.date)return null;const t=today();if(r.date<t)return 'overdue';if(r.date===t)return 'today';return 'upcoming';}
 function updRemBadge(){const mine=myLeads(),t=today(),due=mine.filter(l=>l.reminder&&l.reminder.date&&l.reminder.date<=t);const dot=document.getElementById('rdot'),cnt=document.getElementById('nc-rem');if(due.length>0){if(dot)dot.style.display='block';if(cnt){cnt.style.display='block';cnt.textContent=due.length;}}else{if(dot)dot.style.display='none';if(cnt)cnt.style.display='none';}document.getElementById('nc-leads').textContent=myLeads().length;}
 
@@ -2448,7 +2544,7 @@ function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas
         <div class="dr"><span class="dl">Teléfono</span><span class="dv">${l.tel}</span></div>
         <div class="dr"><span class="dl">Ubicación</span><span class="dv" style="font-weight:600;color:var(--navy)">${l.ubi||'—'}</span></div>
         <div class="dr"><span class="dl">Asesor</span><span class="dv">${aseSel}</span></div>
-        <div class="dr"><span class="dl">Agencia</span><span class="dv"><select class="fc" id="ds-agencia" style="font-size:12px"><option value="">— Sin agencia —</option></select></span></div>
+        <div class="dr"><span class="dl">Agencia</span><span class="dv"><input class="fc" id="ds-agencia-search" placeholder="🔍 Buscar..." style="font-size:11px;margin-bottom:3px" oninput="filterAgSel('ds-agencia',this.value)"><select class="fc" id="ds-agencia" style="font-size:12px"><option value="">— Sin agencia —</option></select></span></div>
         <div class="dr"><span class="dl">Estado</span><span class="dv"><select class="fc" id="ds-est" style="font-size:12px">${ESTADOS.map(s=>`<option ${s===l.est?'selected':''}>${s}</option>`).join('')}</select></span></div>
         <div class="dr"><span class="dl">Tipo Pago</span><span class="dv"><select class="fc" id="ds-tp" style="font-size:12px">${TIPOS_PAGO.map(t=>`<option ${t===l.tp?'selected':''}>${t}</option>`).join('')}</select></span></div>
       </div>
@@ -6524,6 +6620,261 @@ function igExportExcel() {
 
 // ═══════════════════════════════════════════════════════════════════
 // FIN módulo Informe Gerencial
+// ═══════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD CITAS POR CANAL — módulo nuevo
+// ═══════════════════════════════════════════════════════════════════
+
+const _DC_CANALES = {
+  AP:   { bg:'#4CAF50', hdr:'#2E7D32', fg:'#fff', lbl:'AP' },
+  HT:   { bg:'#9C27B0', hdr:'#6A1B9A', fg:'#fff', lbl:'HT' },
+  AC:   { bg:'#1976D2', hdr:'#0D47A1', fg:'#fff', lbl:'AC' },
+  KING: { bg:'#E53935', hdr:'#B71C1C', fg:'#fff', lbl:'KING' },
+};
+let _dcReady = false;
+
+function _dcInitSels() {
+  // Fechas: este mes por defecto
+  const now = new Date();
+  const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0');
+  const fd = document.getElementById('dc-fd'); if(fd&&!fd.value) fd.value = `${y}-${m}-01`;
+  const fh = document.getElementById('dc-fh'); if(fh&&!fh.value) fh.value = today();
+
+  // Poblar selector agencia
+  const agSel = document.getElementById('dc-agencia');
+  if (agSel && agSel.options.length <= 1) {
+    agencias.sort().forEach(a => {
+      const o = document.createElement('option'); o.value = a; o.textContent = a; agSel.appendChild(o);
+    });
+  }
+  // Poblar selector asesor
+  const aseSel = document.getElementById('dc-asesor');
+  if (aseSel && aseSel.options.length <= 1) {
+    users.filter(u=>u.rol!=='admin').forEach(u => {
+      const o = document.createElement('option'); o.value = u.id; o.textContent = u.nombre; aseSel.appendChild(o);
+    });
+  }
+}
+
+function dcQuick(range) {
+  const fd = document.getElementById('dc-fd'), fh = document.getElementById('dc-fh');
+  if (!fd||!fh) return;
+  const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+
+  if (range === 'mes') {
+    fd.value = `${y}-${String(m+1).padStart(2,'0')}-01`;
+    fh.value = today();
+  } else if (range === 'mesant') {
+    const pm = m === 0 ? 11 : m-1, py = m === 0 ? y-1 : y;
+    const lastDay = new Date(py, pm+1, 0).getDate();
+    fd.value = `${py}-${String(pm+1).padStart(2,'0')}-01`;
+    fh.value = `${py}-${String(pm+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  } else if (range === 'semana') {
+    const d = new Date(now);
+    const day = d.getDay()||7;
+    d.setDate(d.getDate() - (day-1));
+    fd.value = d.toISOString().substring(0,10);
+    fh.value = today();
+  } else if (range === 'semant') {
+    const d = new Date(now);
+    const day = d.getDay()||7;
+    d.setDate(d.getDate() - (day-1) - 7); // lunes semana anterior
+    const ini = d.toISOString().substring(0,10);
+    d.setDate(d.getDate()+6); // domingo semana anterior
+    fd.value = ini;
+    fh.value = d.toISOString().substring(0,10);
+  } else if (range === 'all') {
+    fd.value = '2020-01-01'; fh.value = today();
+  } else {
+    // Número de días hacia atrás
+    const d = new Date(); d.setDate(d.getDate() - range);
+    fd.value = d.toISOString().substring(0,10); fh.value = today();
+  }
+  renderDashCanal();
+}
+
+function dcLimpiarFiltros() {
+  ['dc-canal','dc-agencia','dc-estado','dc-asesor'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  dcQuick('mes');
+}
+
+// ─── Filtrar leads según filtros activos ───
+function _dcFiltrar() {
+  const fd    = document.getElementById('dc-fd')?.value || '';
+  const fh    = document.getElementById('dc-fh')?.value || '';
+  const canal = document.getElementById('dc-canal')?.value || '';
+  const agencia= document.getElementById('dc-agencia')?.value || '';
+  const estado = document.getElementById('dc-estado')?.value || '';
+  const asesor = document.getElementById('dc-asesor')?.value || '';
+
+  return leads.filter(l => {
+    if (l.est !== 'CITA') return false;
+    const fecha = (l.fcita || l.fa || '').substring(0,10);
+    if (fd && fecha < fd) return false;
+    if (fh && fecha > fh) return false;
+    const lCanal = (l.canal||'').toUpperCase();
+    if (canal && lCanal !== canal) return false;
+    if (agencia && l.agencia !== agencia) return false;
+    if (estado) {
+      const le = l.est_cita || 'En Proceso';
+      if (le !== estado) return false;
+    }
+    if (asesor && String(l.uid) !== String(asesor)) return false;
+    return true;
+  });
+}
+
+// ─── Render principal ───
+function renderDashCanal() {
+  const arr = _dcFiltrar();
+  const fd = document.getElementById('dc-fd')?.value || '';
+  const fh = document.getElementById('dc-fh')?.value || '';
+  const sub = document.getElementById('dc-sub');
+  if (sub) sub.textContent = fd && fh ? `Del ${fd} al ${fh} · ${arr.length} citas` : `${arr.length} citas`;
+
+  // ── KPIs ──
+  const byEstado = { 'En Proceso': 0, 'Verificada': 0, 'Perdida': 0 };
+  arr.forEach(l => { const e = l.est_cita||'En Proceso'; if(byEstado[e]!==undefined) byEstado[e]++; });
+  const asesActivos = new Set(arr.map(l=>l.uid)).size;
+  const agenciasArr = new Set(arr.map(l=>l.agencia).filter(Boolean)).size;
+
+  const kpisEl = document.getElementById('dc-kpis');
+  if (kpisEl) kpisEl.innerHTML = `
+    <div class="met"><div class="ml">Total Citas</div><div class="mv">${arr.length}</div></div>
+    <div class="met org"><div class="ml">En Proceso</div><div class="mv">${byEstado['En Proceso']}</div><div class="ms">${arr.length>0?Math.round(byEstado['En Proceso']/arr.length*100):0}%</div></div>
+    <div class="met grn"><div class="ml">Verificadas</div><div class="mv">${byEstado['Verificada']}</div><div class="ms">${arr.length>0?Math.round(byEstado['Verificada']/arr.length*100):0}%</div></div>
+    <div class="met red"><div class="ml">Perdidas</div><div class="mv">${byEstado['Perdida']}</div><div class="ms">${arr.length>0?Math.round(byEstado['Perdida']/arr.length*100):0}%</div></div>
+    <div class="met"><div class="ml">Asesores</div><div class="mv">${asesActivos}</div></div>
+    <div class="met yel"><div class="ml">Agencias</div><div class="mv">${agenciasArr}</div></div>`;
+
+  // ── Cards por canal ──
+  const cardsEl = document.getElementById('dc-canal-cards');
+  if (cardsEl) {
+    cardsEl.innerHTML = Object.entries(_DC_CANALES).map(([key, cfg]) => {
+      const citasCanal = arr.filter(l => (l.canal||'').toUpperCase() === key);
+      const verif = citasCanal.filter(l => l.est_cita === 'Verificada').length;
+      const proc  = citasCanal.filter(l => (l.est_cita||'En Proceso') === 'En Proceso').length;
+      const perd  = citasCanal.filter(l => l.est_cita === 'Perdida').length;
+      const pct   = arr.length > 0 ? Math.round(citasCanal.length/arr.length*100) : 0;
+      return `<div style="background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden">
+        <div style="background:${cfg.bg};padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
+          <span style="color:${cfg.fg};font-weight:700;font-size:13px">Canal ${key}</span>
+          <span style="color:${cfg.fg};font-weight:700;font-size:18px">${citasCanal.length}</span>
+        </div>
+        <div style="padding:8px 12px;font-size:11px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:#555">En Proceso</span><span style="font-weight:600;color:#1565C0">${proc}</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:#555">Verificadas</span><span style="font-weight:600;color:#2E7D32">${verif}</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#555">Perdidas</span><span style="font-weight:600;color:#C62828">${perd}</span></div>
+          <div style="height:5px;background:#f0f0f0;border-radius:3px"><div style="height:5px;width:${pct}%;background:${cfg.bg};border-radius:3px"></div></div>
+          <div style="text-align:right;font-size:10px;color:#999;margin-top:2px">${pct}% del total</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Tabla detalle ──
+  const tbody = document.getElementById('dc-tbody');
+  const countEl = document.getElementById('dc-count');
+  if (countEl) countEl.textContent = `${arr.length} registros`;
+  if (!tbody) return;
+
+  if (arr.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:1.5rem;color:var(--mut)">Sin citas para los filtros seleccionados</td></tr>';
+    return;
+  }
+
+  const sorted = [...arr].sort((a,b) => {
+    const fa = (a.fcita||a.fa||''), fb = (b.fcita||b.fa||'');
+    return fb.localeCompare(fa);
+  });
+
+  const estadoBadge = e => {
+    if (e==='Verificada') return `<span class="badge e-venta">✅ Verificada</span>`;
+    if (e==='Perdida') return `<span class="badge e-perd">❌ Perdida</span>`;
+    return `<span class="badge e-proc">🔵 En Proceso</span>`;
+  };
+  const canalBadge = c => {
+    const cfg = _DC_CANALES[c]; if(!cfg) return c||'—';
+    return `<span style="background:${cfg.bg};color:${cfg.fg};padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700">${c}</span>`;
+  };
+
+  tbody.innerHTML = sorted.map(l => `<tr>
+    <td style="white-space:nowrap">${(l.fcita||l.fa||'').substring(0,10)}</td>
+    <td>${canalBadge((l.canal||'').toUpperCase())}</td>
+    <td>${l.anom||'—'}</td>
+    <td style="font-weight:600">${l.nom||'—'}</td>
+    <td>${l.tel||'—'}</td>
+    <td>${l.linea||'—'}</td>
+    <td>${l.tp||'—'}</td>
+    <td style="font-size:11px">${l.agencia||'—'}</td>
+    <td>${estadoBadge(l.est_cita||'En Proceso')}</td>
+  </tr>`).join('');
+}
+
+// ─── Exportar Excel ───
+function dcExportXLSX() {
+  if (typeof XLSX === 'undefined') { toast('Librería XLSX no disponible'); return; }
+  const arr = _dcFiltrar();
+  if (arr.length === 0) { toast('Sin datos para exportar'); return; }
+
+  const fd = document.getElementById('dc-fd')?.value||'';
+  const fh = document.getElementById('dc-fh')?.value||'';
+
+  const aoa = [
+    [`Reporte Citas por Canal — ${fd} a ${fh}`],
+    [],
+    ['Fecha','Canal','Asesor','Cliente','Teléfono','Línea','Tipo Pago','Agencia','Estado Cita'],
+    ...[...arr].sort((a,b)=>(b.fcita||b.fa||'').localeCompare(a.fcita||a.fa||'')).map(l => [
+      (l.fcita||l.fa||'').substring(0,10),
+      (l.canal||'').toUpperCase()||'—',
+      l.anom||'—',
+      l.nom||'—',
+      l.tel||'—',
+      l.linea||'—',
+      l.tp||'—',
+      l.agencia||'—',
+      l.est_cita||'En Proceso',
+    ])
+  ];
+
+  // Resumen por canal al final
+  aoa.push([], ['Resumen por canal'], ['Canal','Total','En Proceso','Verificadas','Perdidas']);
+  Object.keys(_DC_CANALES).forEach(key => {
+    const c = arr.filter(l=>(l.canal||'').toUpperCase()===key);
+    aoa.push([key, c.length,
+      c.filter(l=>(l.est_cita||'En Proceso')==='En Proceso').length,
+      c.filter(l=>l.est_cita==='Verificada').length,
+      c.filter(l=>l.est_cita==='Perdida').length,
+    ]);
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:12},{wch:8},{wch:18},{wch:22},{wch:13},{wch:18},{wch:14},{wch:28},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Citas por Canal');
+  XLSX.writeFile(wb, `CitasCanal_${fd}_${fh}.xlsx`);
+  toast('Excel exportado ✓');
+}
+
+// ─── Hook goTab ───
+(function(){
+  const _origDC = window.goTab;
+  if (!_origDC) return;
+  window.goTab = function(tab, btn) {
+    _origDC(tab, btn);
+    if (tab === 'dash-canal') {
+      if (!_dcReady) { _dcReady=true; _dcInitSels(); }
+      else { _dcInitSels(); } // refresh selects in case agencias changed
+      renderDashCanal();
+    }
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// FIN Dashboard Citas por Canal
 // ═══════════════════════════════════════════════════════════════════
 
 // AUTO-CONNECT
