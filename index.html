@@ -2254,7 +2254,17 @@ function populateSel(){
   document.getElementById('nc-users').textContent=users.length;
   const cl=document.getElementById('col-list');if(cl)cl.innerHTML=COL_NAMES.map((c,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--bd);font-size:11px"><span style="width:20px;text-align:center;font-weight:700;color:var(--navy)">${i+1}</span><span>${c}</span></div>`).join('');
 }
-function today(){return new Date().toISOString().split('T')[0];}
+function localISOString(){
+  // Returns ISO string using LOCAL time (Guatemala UTC-6), not UTC
+  const d=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+}
+function today(){
+  // Use local date (Guatemala UTC-6) instead of UTC to avoid day-ahead bug
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 
 // ─── Filtrar opciones del select de agencia por texto ───
 // No modifica nada del guardado, solo oculta opciones visualmente
@@ -2687,17 +2697,33 @@ function saveDet(id){
   // Defensive: only update agencia if user actually interacted with the dropdown.
   // Also extract the codigo from the selected option's data-codigo attr.
   const dagEl=document.getElementById('ds-agencia');
+  const dagSearch=document.getElementById('ds-agencia-search');
   if(dagEl){
-    const newAg=dagEl.value||'';
-    // Solo actualizar agencia si el nuevo valor no está vacío,
-    // O si el usuario explícitamente eligió "Sin agencia" (newAg='' Y el lead ya tenía agencia vacía).
-    // Esto evita borrar la agencia cuando el select no se ha poblado todavía.
+    let newAg=dagEl.value||'';
+    let newCodigo=dagEl.options[dagEl.selectedIndex]?.dataset?.codigo||'';
+    // Si el select oculto está vacío pero el campo de búsqueda tiene texto,
+    // intentar encontrar la agencia por nombre en AGENCIA_DATA
+    if(!newAg&&dagSearch&&dagSearch.value.trim()){
+      const searchVal=dagSearch.value.trim();
+      // Buscar en AGENCIA_DATA por nombre (exact o normalizado)
+      const norm=s=>s.trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+      const normSearch=norm(searchVal);
+      for(const[code,d]of Object.entries(AGENCIA_DATA)){
+        if(norm(d.nom)===normSearch||(code+'—'+d.nom).toUpperCase().includes(normSearch)){
+          newAg=d.nom;newCodigo=code;break;
+        }
+      }
+      // Si no encontró en AGENCIA_DATA, usar el texto tal cual (puede ser la agencia misma)
+      if(!newAg)newAg=searchVal;
+    }
     if(newAg){
       l.agencia=newAg;
-      l.agencia_codigo=dagEl.options[dagEl.selectedIndex]?.dataset?.codigo||'';
+      l.agencia_codigo=newCodigo||l.agencia_codigo||'';
     }
-    // Si el usuario eligió "— Sin agencia —" y el lead ya tenía agencia, NO se borra.
-    // Para borrarla intencionalmente debe haber otra opción seleccionada primero.
+    // Si newAg sigue vacío y el lead ya tenía agencia, preservarla
+    if(!newAg&&l.agencia){
+      // No borrar — mantener agencia existente
+    }
   }
   l.interes=document.getElementById('ds-interes')?.value||'';
   const manualRegest=document.getElementById('ds-regest')?.value||'';
@@ -2717,7 +2743,7 @@ function saveDet(id){
   // Track transition to CITA: register fcita with timestamp and user info
   if(l.est==='CITA'&&prevEst!=='CITA'){
     l.fcita=today();
-    l.fcita_ts=new Date().toISOString();
+    l.fcita_ts=localISOString();
     l.fcita_uid=CU.id;
     l.fcita_anom=CU.nombre;
   }
@@ -2729,7 +2755,7 @@ function saveDet(id){
     const newLin=document.getElementById('ds-linea')?.value||l.linea||'';
     if((prevAg&&newAg&&prevAg!==newAg)||(prevLin&&newLin&&prevLin!==newLin)){
       l.fcita=today();
-      l.fcita_ts=new Date().toISOString();
+      l.fcita_ts=localISOString();
       l.fcita_uid=CU.id;
       l.fcita_anom=CU.nombre;
     }
@@ -2741,7 +2767,7 @@ function saveDet(id){
     l.uid=v?parseInt(v):null;
     if(l.uid){const u=users.find(x=>x.id===l.uid);if(u)l.anom=u.nombre;}
   }
-  persist();cloudSaveLead(l);closeM('m-det');renderAll();toast('Lead actualizado ✓');
+  persist();cloudSaveLead(l);closeM('m-det');renderAll();if(document.getElementById('tab-rep-citas')?.classList.contains('active-tab')||document.getElementById('tab-rep-citas')?.style.display!=='none')renderRepCitas();toast('Lead actualizado ✓');
 }
 
 // ═══════════════════════════════════════
@@ -2798,7 +2824,7 @@ function saveLead(){
     // Track transition to CITA: if state changed from non-CITA to CITA, record fcita
     if(data.est==='CITA'&&prevEst!=='CITA'){
       savedLead.fcita=today();
-      savedLead.fcita_ts=new Date().toISOString();
+      savedLead.fcita_ts=localISOString();
       savedLead.fcita_uid=CU.id;
       savedLead.fcita_anom=CU.nombre;
     }
@@ -2808,7 +2834,7 @@ function saveLead(){
       const prevLin=ex._prevLinea||ex.linea||'';
       if((prevAg&&data.agencia&&prevAg!==data.agencia)||(prevLin&&data.linea&&prevLin!==data.linea)){
         savedLead.fcita=today();
-        savedLead.fcita_ts=new Date().toISOString();
+        savedLead.fcita_ts=localISOString();
         savedLead.fcita_uid=CU.id;
         savedLead.fcita_anom=CU.nombre;
       }
@@ -2826,7 +2852,7 @@ function saveLead(){
     // If new lead is created already in CITA, register fcita right away
     if(data.est==='CITA'){
       savedLead.fcita=today();
-      savedLead.fcita_ts=new Date().toISOString();
+      savedLead.fcita_ts=localISOString();
       savedLead.fcita_uid=CU.id;
       savedLead.fcita_anom=CU.nombre;
     }
