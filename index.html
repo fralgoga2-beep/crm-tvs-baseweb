@@ -1971,9 +1971,9 @@ async function cloudSaveLead(lead,silent=false){
       lead._needsCloudSync=true;
       try{persist();}catch(e){}
     }
-    // Keep locked for 5 more seconds after Firebase confirms
+    // Keep locked for 20 more seconds after Firebase confirms
     // to absorb any delayed snapshots still in transit
-    setTimeout(()=>unlockLead(lead.id), 5000);
+    setTimeout(()=>unlockLead(lead.id), 20000);
     if(!silent)setSyncStatus(lastErr?'err':'ok');
   } else {
     // Local-only mode — release lock after a short delay
@@ -6891,17 +6891,25 @@ function dcExportXLSX() {
 
   const fd = document.getElementById('dc-fd')?.value||'';
   const fh = document.getElementById('dc-fh')?.value||'';
+  const sorted = [...arr].sort((a,b)=>(b.fcita||b.fa||'').localeCompare(a.fcita||a.fa||''));
 
-  const aoa = [
-    [`Reporte Citas por Canal — ${fd} a ${fh}`],
+  const wb = XLSX.utils.book_new();
+
+  // ── Hoja 1: Detalle como en la imagen ──
+  const wsData = [
+    // Fila 1: título
+    ['REPORTE CITAS POR CANAL', '', '', '', '', '', '', '', ''],
+    [`Del ${fd} al ${fh} · ${arr.length} citas`, '', '', '', '', '', '', '', ''],
     [],
-    ['Fecha','Canal','Asesor','Cliente','Teléfono','Línea','Tipo Pago','Agencia','Estado Cita'],
-    ...[...arr].sort((a,b)=>(b.fcita||b.fa||'').localeCompare(a.fcita||a.fa||'')).map(l => [
+    // Encabezados como en imagen
+    ['FECHA', 'CANAL', 'ASESOR', 'CLIENTE', 'TELÉFONO', 'LÍNEA', 'PAGO', 'AGENCIA', 'ESTADO CITA'],
+    // Datos
+    ...sorted.map(l => [
       (l.fcita||l.fa||'').substring(0,10),
       (l.canal||'').toUpperCase()||'—',
       l.anom||'—',
       l.nom||'—',
-      l.tel||'—',
+      String(l.tel||'—'),
       l.linea||'—',
       l.tp||'—',
       l.agencia||'—',
@@ -6909,21 +6917,88 @@ function dcExportXLSX() {
     ])
   ];
 
-  // Resumen por canal al final
-  aoa.push([], ['Resumen por canal'], ['Canal','Total','En Proceso','Verificadas','Perdidas']);
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Anchos de columna similares a imagen
+  ws['!cols'] = [
+    {wch:13}, // FECHA
+    {wch:8},  // CANAL
+    {wch:18}, // ASESOR
+    {wch:28}, // CLIENTE
+    {wch:14}, // TELÉFONO
+    {wch:20}, // LÍNEA
+    {wch:14}, // PAGO
+    {wch:26}, // AGENCIA
+    {wch:14}, // ESTADO CITA
+  ];
+
+  // Combinar celdas del título
+  ws['!merges'] = [
+    {s:{r:0,c:0}, e:{r:0,c:8}},
+    {s:{r:1,c:0}, e:{r:1,c:8}},
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Detalle de Citas');
+
+  // ── Hoja 2: Resumen por canal ──
+  const resData = [
+    ['RESUMEN POR CANAL', '', '', '', ''],
+    [`Del ${fd} al ${fh}`, '', '', '', ''],
+    [],
+    ['CANAL', 'TOTAL CITAS', 'EN PROCESO', 'VERIFICADAS', 'PERDIDAS'],
+  ];
   Object.keys(_DC_CANALES).forEach(key => {
     const c = arr.filter(l=>(l.canal||'').toUpperCase()===key);
-    aoa.push([key, c.length,
+    resData.push([
+      `Canal ${key}`,
+      c.length,
       c.filter(l=>(l.est_cita||'En Proceso')==='En Proceso').length,
       c.filter(l=>l.est_cita==='Verificada').length,
       c.filter(l=>l.est_cita==='Perdida').length,
     ]);
   });
+  // Total general
+  resData.push([
+    'TOTAL GENERAL',
+    arr.length,
+    arr.filter(l=>(l.est_cita||'En Proceso')==='En Proceso').length,
+    arr.filter(l=>l.est_cita==='Verificada').length,
+    arr.filter(l=>l.est_cita==='Perdida').length,
+  ]);
 
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:12},{wch:8},{wch:18},{wch:22},{wch:13},{wch:18},{wch:14},{wch:28},{wch:14}];
-  XLSX.utils.book_append_sheet(wb, ws, 'Citas por Canal');
+  const wsRes = XLSX.utils.aoa_to_sheet(resData);
+  wsRes['!cols'] = [{wch:18},{wch:14},{wch:14},{wch:14},{wch:12}];
+  wsRes['!merges'] = [
+    {s:{r:0,c:0}, e:{r:0,c:4}},
+    {s:{r:1,c:0}, e:{r:1,c:4}},
+  ];
+  XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen por Canal');
+
+  // ── Hoja 3: Por asesor ──
+  const aseData = [
+    ['DETALLE POR ASESOR', '', '', '', ''],
+    [`Del ${fd} al ${fh}`, '', '', '', ''],
+    [],
+    ['ASESOR', 'CANAL', 'TOTAL CITAS', 'EN PROCESO', 'VERIFICADAS', 'PERDIDAS'],
+  ];
+  const asesores = [...new Set(arr.map(l=>l.uid))];
+  asesores.forEach(uid => {
+    const ua = arr.filter(l=>l.uid===uid);
+    const nombre = ua[0]?.anom||'—';
+    const canal = ua[0]?.canal||'—';
+    aseData.push([
+      nombre, canal.toUpperCase(),
+      ua.length,
+      ua.filter(l=>(l.est_cita||'En Proceso')==='En Proceso').length,
+      ua.filter(l=>l.est_cita==='Verificada').length,
+      ua.filter(l=>l.est_cita==='Perdida').length,
+    ]);
+  });
+  const wsAse = XLSX.utils.aoa_to_sheet(aseData);
+  wsAse['!cols'] = [{wch:20},{wch:8},{wch:14},{wch:14},{wch:14},{wch:12}];
+  wsAse['!merges'] = [{s:{r:0,c:0},e:{r:0,c:5}},{s:{r:1,c:0},e:{r:1,c:5}}];
+  XLSX.utils.book_append_sheet(wb, wsAse, 'Por Asesor');
+
   XLSX.writeFile(wb, `CitasCanal_${fd}_${fh}.xlsx`);
   toast('Excel exportado ✓');
 }
