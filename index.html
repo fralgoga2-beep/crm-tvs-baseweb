@@ -2255,13 +2255,16 @@ function filterAgSel(selId, query) {
   const sel = document.getElementById(selId);
   if (!sel) return;
   const q = query.toLowerCase().trim();
-  Array.from(sel.options).forEach(opt => {
-    if (!opt.value) { opt.style.display = ''; return; } // siempre mostrar "— Sin agencia —"
-    opt.style.display = !q || opt.text.toLowerCase().includes(q) ? '' : 'none';
-  });
-  // Si hay match único, seleccionarlo automáticamente
-  const visible = Array.from(sel.options).filter(o => o.value && o.style.display !== 'none');
-  if (visible.length === 1) sel.value = visible[0].value;
+  const curVal = sel.value;
+  const matches = agencias.filter(a => !q || a.toLowerCase().includes(q));
+  sel.innerHTML = '<option value="">— Sin agencia —</option>' +
+    matches.map(a => {
+      let code = '';
+      for (const [c,d] of Object.entries(AGENCIA_DATA)) { if (d.nom===a){code=c;break;} }
+      const label = code ? code+' — '+a : a;
+      return `<option value="${a.replace(/"/g,'&quot;')}" data-codigo="${code}" ${a===curVal?'selected':''}>${label}</option>`;
+    }).join('');
+  if (matches.length === 1) sel.value = matches[0];
 }
 function remSt(r){if(!r||!r.date)return null;const t=today();if(r.date<t)return 'overdue';if(r.date===t)return 'today';return 'upcoming';}
 function updRemBadge(){const mine=myLeads(),t=today(),due=mine.filter(l=>l.reminder&&l.reminder.date&&l.reminder.date<=t);const dot=document.getElementById('rdot'),cnt=document.getElementById('nc-rem');if(due.length>0){if(dot)dot.style.display='block';if(cnt){cnt.style.display='block';cnt.textContent=due.length;}}else{if(dot)dot.style.display='none';if(cnt)cnt.style.display='none';}document.getElementById('nc-leads').textContent=myLeads().length;}
