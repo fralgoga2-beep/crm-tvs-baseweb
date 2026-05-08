@@ -2701,29 +2701,23 @@ function saveDet(id){
   if(dagEl){
     let newAg=dagEl.value||'';
     let newCodigo=dagEl.options[dagEl.selectedIndex]?.dataset?.codigo||'';
-    // Si el select oculto está vacío pero el campo de búsqueda tiene texto,
-    // intentar encontrar la agencia por nombre en AGENCIA_DATA
+    // Si el select oculto está vacío, intentar resolver desde el campo de búsqueda
     if(!newAg&&dagSearch&&dagSearch.value.trim()){
       const searchVal=dagSearch.value.trim();
-      // Buscar en AGENCIA_DATA por nombre (exact o normalizado)
-      const norm=s=>s.trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+      const norm=s=>s.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
       const normSearch=norm(searchVal);
       for(const[code,d]of Object.entries(AGENCIA_DATA)){
-        if(norm(d.nom)===normSearch||(code+'—'+d.nom).toUpperCase().includes(normSearch)){
-          newAg=d.nom;newCodigo=code;break;
-        }
+        if(norm(d.nom)===normSearch){newAg=d.nom;newCodigo=code;break;}
       }
-      // Si no encontró en AGENCIA_DATA, usar el texto tal cual (puede ser la agencia misma)
       if(!newAg)newAg=searchVal;
     }
+    // REGLA CRÍTICA: solo actualizar si hay un valor nuevo válido.
+    // Si no hay valor nuevo, SIEMPRE preservar la agencia existente del lead.
     if(newAg){
       l.agencia=newAg;
       l.agencia_codigo=newCodigo||l.agencia_codigo||'';
     }
-    // Si newAg sigue vacío y el lead ya tenía agencia, preservarla
-    if(!newAg&&l.agencia){
-      // No borrar — mantener agencia existente
-    }
+    // Si newAg está vacío → no tocar l.agencia bajo ninguna circunstancia
   }
   l.interes=document.getElementById('ds-interes')?.value||'';
   const manualRegest=document.getElementById('ds-regest')?.value||'';
