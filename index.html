@@ -2650,13 +2650,15 @@ function saveDet(id){
   const dagEl=document.getElementById('ds-agencia');
   if(dagEl){
     const newAg=dagEl.value||'';
-    const userPicked=dagEl.selectedIndex>=0;
-    if(userPicked){
+    // Solo actualizar agencia si el nuevo valor no está vacío,
+    // O si el usuario explícitamente eligió "Sin agencia" (newAg='' Y el lead ya tenía agencia vacía).
+    // Esto evita borrar la agencia cuando el select no se ha poblado todavía.
+    if(newAg){
       l.agencia=newAg;
-      // Save the codigo too — this is the key fix so the cuadro doesn't have to
-      // guess the code later from a name that may have multiple matches.
-      l.agencia_codigo=newAg?(dagEl.options[dagEl.selectedIndex].dataset.codigo||''):'';
+      l.agencia_codigo=dagEl.options[dagEl.selectedIndex]?.dataset?.codigo||'';
     }
+    // Si el usuario eligió "— Sin agencia —" y el lead ya tenía agencia, NO se borra.
+    // Para borrarla intencionalmente debe haber otra opción seleccionada primero.
   }
   l.interes=document.getElementById('ds-interes')?.value||'';
   const manualRegest=document.getElementById('ds-regest')?.value||'';
@@ -2750,6 +2752,8 @@ function saveLead(){
     const ex=leads[i];
     const prevEst=ex.est;
     if(comTxt)ex.notas=[...(ex.notas||[]),{txt:comTxt,by:CU.nombre,ts:new Date().toLocaleString()}];
+    // Preservar agencia existente si el nuevo valor está vacío (select no poblado o no tocado)
+    if(!data.agencia && ex.agencia) { data.agencia = ex.agencia; data.agencia_codigo = ex.agencia_codigo||''; }
     leads[i]={...ex,...data,notas:ex.notas};
     savedLead=leads[i];
     // Track transition to CITA: if state changed from non-CITA to CITA, record fcita
