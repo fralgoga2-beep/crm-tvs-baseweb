@@ -1370,7 +1370,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <div class="fr"><div class="fg"><label class="fl">Línea de Interés</label>
         <select class="fc" id="lf-lin"><option>APACHE RTR 160 2V REF</option><option>APACHE RTR 160 4V</option><option>APACHE RTR 160 4V RM</option><option>APACHE RTR 180</option><option>APACHE RTR 200 4V</option><option>APACHE RTR 200 FI</option><option>APACHE RR310</option><option>APACHE RTR 310</option><option>APACHE RTR 310 E5</option><option>RAIDER 125</option><option>RAIDER 125 FI</option><option>RONIN 225</option><option>NEO 110 NX</option><option>DAZZ CW</option><option>NTORQ 125</option><option>NTORQ 125 RACE</option><option>JUPITER 125 FI (NUEVO MODELO)</option><option>STRYKER 125</option><option>HLX 150</option><option>HLX 125</option><option>ZT 125</option><option>SPORT 100 ELS</option><option>KING DELUXE (BLUETOOTH)</option><option>KING DELUXE PLUS</option><option>KING DURAMAX</option><option>KING KARGO</option></select>
       </div></div>
-      <div class="fr"><div class="fg"><label class="fl">Agencia</label><input class="fc" id="lf-agencia-search" placeholder="🔍 Buscar agencia..." style="font-size:12px;margin-bottom:3px" oninput="filterAgSel('lf-agencia',this.value)"><select class="fc" id="lf-agencia"><option value="">— Sin agencia —</option></select></div><div class="fg"><label class="fl">Ubicación</label><input class="fc" id="lf-ubi" list="ubi-list" placeholder="Ciudad o zona..."><datalist id="ubi-list"></datalist></div></div>
+      <div class="fr"><div class="fg"><label class="fl">Agencia</label><input class="fc" id="lf-agencia-search" placeholder="🔍 Buscar agencia..." style="font-size:12px;margin-bottom:3px" oninput="filterAgSel('lf-agencia',this.value)" autocomplete="off" list="lf-agencia-list"><datalist id="lf-agencia-list"></datalist><select class="fc" id="lf-agencia" style="display:none"><option value="">— Sin agencia —</option></select></div><div class="fg"><label class="fl">Ubicación</label><input class="fc" id="lf-ubi" list="ubi-list" placeholder="Ciudad o zona..."><datalist id="ubi-list"></datalist></div></div>
       <div class="fr"><div class="fg"><label class="fl">Fecha Actividad</label><input class="fc" type="date" id="lf-fa"></div><div class="fg"><label class="fl">Fecha Actualización</label><input class="fc" type="date" id="lf-fu"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Estado</label><select class="fc" id="lf-est" onchange="toggleCanalField()"><option>NUEVO</option><option>PROCESO</option><option>CITA</option><option>PRECALIFICADO</option><option>SEGUIMIENTO</option><option>VENTA</option><option>PERDIDO</option><option>PENDIENTE</option></select></div><div class="fg admin-sup"><label class="fl">Asesor</label><select class="fc" id="lf-ase"><option value="">— Sin asignar</option></select></div></div>
       <div class="fr" id="canal-field" style="display:none"><div class="fg"><label class="fl">Canal de Cita</label><select class="fc" id="lf-canal"><option value="">— Seleccionar —</option><option value="AP">AP</option><option value="HT">HT</option><option value="AC">AC</option><option value="KING">KING</option></select></div></div>
@@ -2238,6 +2238,13 @@ function populateSel(){
     return `<option value="${a.replace(/"/g,'&quot;')}" data-codigo="${code}">${label}</option>`;
   }).join('');
   ['lf-agencia','ds-agencia','q-agencia'].forEach(id=>{const el=document.getElementById(id);if(el){el.innerHTML=(id==='q-agencia'?'<option value="">Todas agencias</option>':'<option value="">— Sin agencia —</option>')+agOpts;}});
+  // Poblar datalists de búsqueda de agencia
+  populateAgDatalist('lf-agencia-list');
+  populateAgDatalist('ds-agencia-list');
+  // Mostrar agencia actual en el input de búsqueda del detalle
+  const dsSearch = document.getElementById('ds-agencia-search');
+  const dsSel = document.getElementById('ds-agencia');
+  if (dsSearch && dsSel && dsSel.value) dsSearch.value = dsSel.value;
   // Ubicaciones datalist
   const ubiSet=[...new Set(leads.map(l=>l.ubi).filter(Boolean))].sort();
   const ubiList=document.getElementById('ubi-list');if(ubiList)ubiList.innerHTML=ubiSet.map(u=>`<option value="${u}">`).join('');
@@ -2252,19 +2259,43 @@ function today(){return new Date().toISOString().split('T')[0];}
 // ─── Filtrar opciones del select de agencia por texto ───
 // No modifica nada del guardado, solo oculta opciones visualmente
 function filterAgSel(selId, query) {
+  const isDs = selId === 'ds-agencia';
+  const inp = document.getElementById(isDs ? 'ds-agencia-search' : 'lf-agencia-search');
   const sel = document.getElementById(selId);
-  if (!sel) return;
-  const q = query.toLowerCase().trim();
-  const curVal = sel.value;
-  const matches = agencias.filter(a => !q || a.toLowerCase().includes(q));
-  sel.innerHTML = '<option value="">— Sin agencia —</option>' +
-    matches.map(a => {
+  if (!inp || !sel) return;
+  const val = inp.value.trim();
+  // Buscar coincidencia exacta o parcial única
+  const exact = agencias.find(a => a.toLowerCase() === val.toLowerCase());
+  if (exact) {
+    // Asegurar que la opción exista en el select oculto y seleccionarla
+    if (!Array.from(sel.options).find(o => o.value === exact)) {
       let code = '';
-      for (const [c,d] of Object.entries(AGENCIA_DATA)) { if (d.nom===a){code=c;break;} }
-      const label = code ? code+' — '+a : a;
-      return `<option value="${a.replace(/"/g,'&quot;')}" data-codigo="${code}" ${a===curVal?'selected':''}>${label}</option>`;
-    }).join('');
-  if (matches.length === 1) sel.value = matches[0];
+      if (typeof AGENCIA_DATA !== 'undefined') {
+        for (const [c,d] of Object.entries(AGENCIA_DATA)) { if(d.nom===exact){code=c;break;} }
+      }
+      const opt = document.createElement('option');
+      opt.value = exact; opt.dataset.codigo = code;
+      opt.textContent = code ? code+' — '+exact : exact;
+      sel.appendChild(opt);
+    }
+    sel.value = exact;
+  } else if (!val) {
+    sel.value = '';
+  }
+}
+
+// Poblar datalist de agencias
+function populateAgDatalist(listId) {
+  const dl = document.getElementById(listId);
+  if (!dl) return;
+  dl.innerHTML = agencias.map(a => {
+    let code = '';
+    if (typeof AGENCIA_DATA !== 'undefined') {
+      for (const [c,d] of Object.entries(AGENCIA_DATA)) { if(d.nom===a){code=c;break;} }
+    }
+    const label = code ? code+' — '+a : a;
+    return `<option value="${a.replace(/"/g,'&quot;')}">${label}</option>`;
+  }).join('');
 }
 function remSt(r){if(!r||!r.date)return null;const t=today();if(r.date<t)return 'overdue';if(r.date===t)return 'today';return 'upcoming';}
 function updRemBadge(){const mine=myLeads(),t=today(),due=mine.filter(l=>l.reminder&&l.reminder.date&&l.reminder.date<=t);const dot=document.getElementById('rdot'),cnt=document.getElementById('nc-rem');if(due.length>0){if(dot)dot.style.display='block';if(cnt){cnt.style.display='block';cnt.textContent=due.length;}}else{if(dot)dot.style.display='none';if(cnt)cnt.style.display='none';}document.getElementById('nc-leads').textContent=myLeads().length;}
@@ -2547,7 +2578,7 @@ function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas
         <div class="dr"><span class="dl">Teléfono</span><span class="dv">${l.tel}</span></div>
         <div class="dr"><span class="dl">Ubicación</span><span class="dv" style="font-weight:600;color:var(--navy)">${l.ubi||'—'}</span></div>
         <div class="dr"><span class="dl">Asesor</span><span class="dv">${aseSel}</span></div>
-        <div class="dr"><span class="dl">Agencia</span><span class="dv"><input class="fc" id="ds-agencia-search" placeholder="🔍 Buscar..." style="font-size:11px;margin-bottom:3px" oninput="filterAgSel('ds-agencia',this.value)"><select class="fc" id="ds-agencia" style="font-size:12px"><option value="">— Sin agencia —</option></select></span></div>
+        <div class="dr"><span class="dl">Agencia</span><span class="dv"><input class="fc" id="ds-agencia-search" placeholder="🔍 Buscar agencia..." style="font-size:12px;margin-bottom:3px" autocomplete="off" list="ds-agencia-list" oninput="filterAgSel('ds-agencia',this.value)"><datalist id="ds-agencia-list"></datalist><select class="fc" id="ds-agencia" style="font-size:12px;display:none"><option value="">— Sin agencia —</option></select></span></div>
         <div class="dr"><span class="dl">Estado</span><span class="dv"><select class="fc" id="ds-est" style="font-size:12px">${ESTADOS.map(s=>`<option ${s===l.est?'selected':''}>${s}</option>`).join('')}</select></span></div>
         <div class="dr"><span class="dl">Tipo Pago</span><span class="dv"><select class="fc" id="ds-tp" style="font-size:12px">${TIPOS_PAGO.map(t=>`<option ${t===l.tp?'selected':''}>${t}</option>`).join('')}</select></span></div>
       </div>
@@ -2638,6 +2669,11 @@ function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas
     return `<option value="${a.replace(/"/g,'&quot;')}" data-codigo="${code}" ${a===l.agencia?'selected':''}>${label}</option>`;
   }).join('');
   const _dagEl=document.getElementById('ds-agencia');if(_dagEl)_dagEl.innerHTML='<option value="">— Sin agencia —</option>'+_dagOpts;
+  // Pre-llenar el input de búsqueda con la agencia actual del lead
+  const _dsSearch=document.getElementById('ds-agencia-search');
+  if(_dsSearch)_dsSearch.value=l.agencia||'';
+  // Poblar el datalist para autocompletar mientras escribe
+  populateAgDatalist('ds-agencia-list');
 }
 function renderNotas(l){if(!l.notas||l.notas.length===0)return `<div style="color:var(--mut);font-size:12px;text-align:center;padding:.75rem">Sin comentarios</div>`;return l.notas.map((n,i)=>`<div class="ni2"><div class="nt">${n.txt}</div><div class="nm"><span>✍️ ${n.by||'Asesor'}</span><span>${n.ts||''}</span></div><button class="nd" onclick="delNota(${l.id},${i})">✕</button></div>`).join('');}
 function addNota(lid){const txt=document.getElementById('new-nota')?.value?.trim();if(!txt){toast('Escribe algo');return;}const l=findLead(lid);if(!l.notas)l.notas=[];l.notas.push({txt,by:CU.nombre,ts:new Date().toLocaleString()});l.fu=today();if(l.fa&&l.fa<today())l.regest='Regestionado';document.getElementById('new-nota').value='';document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);renderAll();toast('Comentario agregado ✓');const gestUid=l.uid||CU.id;addGest(gestUid,1);}
