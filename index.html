@@ -6878,124 +6878,91 @@ function renderDashCanal() {
 }
 
 // ─── Exportar Excel ───
-function dcExportXLSX() {
-  if (typeof XLSX === 'undefined') { toast('Librería XLSX no disponible'); return; }
+async function dcExportXLSX() {
   const arr = _dcFiltrar();
   if (arr.length === 0) { toast('Sin datos para exportar'); return; }
-
   const fd = document.getElementById('dc-fd')?.value||'';
   const fh = document.getElementById('dc-fh')?.value||'';
-  const sorted = [...arr].sort((a,b)=>(b.fcita||b.fa||'').localeCompare(a.fcita||a.fa||''));
-
-  const wb = XLSX.utils.book_new();
-
-  // ── Hoja 1: Detalle como en la imagen ──
-  const wsData = [
-    // Fila 1: título
-    ['REPORTE CITAS POR CANAL', '', '', '', '', '', '', '', ''],
-    [`Del ${fd} al ${fh} · ${arr.length} citas`, '', '', '', '', '', '', '', ''],
-    [],
-    // Encabezados como en imagen
-    ['FECHA', 'CANAL', 'ASESOR', 'CLIENTE', 'TELÉFONO', 'LÍNEA', 'PAGO', 'AGENCIA', 'ESTADO CITA'],
-    // Datos
-    ...sorted.map(l => [
-      (l.fcita||l.fa||'').substring(0,10),
-      (l.canal||'').toUpperCase()||'—',
-      l.anom||'—',
-      l.nom||'—',
-      String(l.tel||'—'),
-      l.linea||'—',
-      l.tp||'—',
-      l.agencia||'—',
-      l.est_cita||'En Proceso',
-    ])
-  ];
-
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-  // Anchos de columna similares a imagen
-  ws['!cols'] = [
-    {wch:13}, // FECHA
-    {wch:8},  // CANAL
-    {wch:18}, // ASESOR
-    {wch:28}, // CLIENTE
-    {wch:14}, // TELÉFONO
-    {wch:20}, // LÍNEA
-    {wch:14}, // PAGO
-    {wch:26}, // AGENCIA
-    {wch:14}, // ESTADO CITA
-  ];
-
-  // Combinar celdas del título
-  ws['!merges'] = [
-    {s:{r:0,c:0}, e:{r:0,c:8}},
-    {s:{r:1,c:0}, e:{r:1,c:8}},
-  ];
-
-  XLSX.utils.book_append_sheet(wb, ws, 'Detalle de Citas');
-
-  // ── Hoja 2: Resumen por canal ──
-  const resData = [
-    ['RESUMEN POR CANAL', '', '', '', ''],
-    [`Del ${fd} al ${fh}`, '', '', '', ''],
-    [],
-    ['CANAL', 'TOTAL CITAS', 'EN PROCESO', 'VERIFICADAS', 'PERDIDAS'],
-  ];
-  Object.keys(_DC_CANALES).forEach(key => {
-    const c = arr.filter(l=>(l.canal||'').toUpperCase()===key);
-    resData.push([
-      `Canal ${key}`,
-      c.length,
-      c.filter(l=>(l.est_cita||'En Proceso')==='En Proceso').length,
-      c.filter(l=>l.est_cita==='Verificada').length,
-      c.filter(l=>l.est_cita==='Perdida').length,
-    ]);
+  toast('Generando Excel...');
+  if (!window.ExcelJS) {
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+      s.onload=res;s.onerror=rej;document.head.appendChild(s);
+    });
+  }
+  const EJ=window.ExcelJS;
+  const wb=new EJ.Workbook();
+  wb.creator='TVS CRM';wb.created=new Date();
+  const fg=hex=>({type:'pattern',pattern:'solid',fgColor:{argb:'FF'+hex}});
+  const fw=(hex,bold,sz=10)=>({name:'Calibri',color:{argb:'FF'+hex},bold:!!bold,size:sz});
+  const aC={horizontal:'center',vertical:'middle',wrapText:true};
+  const aL={horizontal:'left',vertical:'middle',wrapText:false};
+  const bd={top:{style:'thin',color:{argb:'FFCCCCCC'}},left:{style:'thin',color:{argb:'FFCCCCCC'}},bottom:{style:'thin',color:{argb:'FFCCCCCC'}},right:{style:'thin',color:{argb:'FFCCCCCC'}}};
+  const CH={AP:'4CAF50',HT:'9C27B0',AC:'1976D2',KING:'E53935'};
+  const NV='1B2F6E';
+  // Hoja 1
+  const w1=wb.addWorksheet('Detalle de Citas');
+  w1.columns=[{key:'a',width:13},{key:'b',width:9},{key:'c',width:20},{key:'d',width:30},{key:'e',width:15},{key:'f',width:22},{key:'g',width:13},{key:'h',width:26},{key:'i',width:14}];
+  w1.mergeCells('A1:I1');const c1=w1.getCell('A1');c1.value='REPORTE CITAS POR CANAL';c1.font=fw('FFFFFF',true,14);c1.fill=fg(NV);c1.alignment=aC;w1.getRow(1).height=28;
+  w1.mergeCells('A2:I2');const c2=w1.getCell('A2');c2.value=`Del ${fd} al ${fh} · ${arr.length} citas`;c2.font=fw('555555',false,10);c2.alignment=aL;w1.getRow(2).height=16;
+  w1.getRow(3).height=6;
+  const hr1=w1.addRow(['FECHA','CANAL','ASESOR','CLIENTE','TELÉFONO','LÍNEA','PAGO','AGENCIA','ESTADO CITA']);
+  hr1.height=20;hr1.eachCell(c=>{c.font=fw('FFFFFF',true,10);c.fill=fg('2D2D2D');c.alignment=aC;c.border=bd;});
+  const sorted=[...arr].sort((a,b)=>(b.fcita||b.fa||'').localeCompare(a.fcita||a.fa||''));
+  sorted.forEach((l,i)=>{
+    const canal=(l.canal||'').toUpperCase();
+    const estado=l.est_cita||'En Proceso';
+    const row=w1.addRow([(l.fcita||l.fa||'').substring(0,10),canal||'—',l.anom||'—',l.nom||'—',String(l.tel||'—'),l.linea||'—',l.tp||'—',l.agencia||'—',estado]);
+    row.height=17;
+    const bg=i%2===0?'FFFFFF':'F5F5F5';
+    row.eachCell((c,ci)=>{c.fill=fg(bg);c.font=fw('1a1a1a',false,10);c.alignment=ci===4?aL:aC;c.border=bd;});
+    const cc=row.getCell(2);cc.fill=fg(CH[canal]||'888888');cc.font=fw('FFFFFF',true,10);
+    const ec=row.getCell(9);
+    if(estado==='Verificada'){ec.fill=fg('DCFCE7');ec.font=fw('1B5E20',true,10);}
+    else if(estado==='Perdida'){ec.fill=fg('FEE2E2');ec.font=fw('B91C1C',true,10);}
+    else{ec.fill=fg('DBEAFE');ec.font=fw('1565C0',true,10);}
   });
-  // Total general
-  resData.push([
-    'TOTAL GENERAL',
-    arr.length,
-    arr.filter(l=>(l.est_cita||'En Proceso')==='En Proceso').length,
-    arr.filter(l=>l.est_cita==='Verificada').length,
-    arr.filter(l=>l.est_cita==='Perdida').length,
-  ]);
-
-  const wsRes = XLSX.utils.aoa_to_sheet(resData);
-  wsRes['!cols'] = [{wch:18},{wch:14},{wch:14},{wch:14},{wch:12}];
-  wsRes['!merges'] = [
-    {s:{r:0,c:0}, e:{r:0,c:4}},
-    {s:{r:1,c:0}, e:{r:1,c:4}},
-  ];
-  XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen por Canal');
-
-  // ── Hoja 3: Por asesor ──
-  const aseData = [
-    ['DETALLE POR ASESOR', '', '', '', ''],
-    [`Del ${fd} al ${fh}`, '', '', '', ''],
-    [],
-    ['ASESOR', 'CANAL', 'TOTAL CITAS', 'EN PROCESO', 'VERIFICADAS', 'PERDIDAS'],
-  ];
-  const asesores = [...new Set(arr.map(l=>l.uid))];
-  asesores.forEach(uid => {
-    const ua = arr.filter(l=>l.uid===uid);
-    const nombre = ua[0]?.anom||'—';
-    const canal = ua[0]?.canal||'—';
-    aseData.push([
-      nombre, canal.toUpperCase(),
-      ua.length,
-      ua.filter(l=>(l.est_cita||'En Proceso')==='En Proceso').length,
-      ua.filter(l=>l.est_cita==='Verificada').length,
-      ua.filter(l=>l.est_cita==='Perdida').length,
-    ]);
+  w1.views=[{state:'frozen',ySplit:4}];
+  // Hoja 2
+  const w2=wb.addWorksheet('Resumen por Canal');
+  w2.columns=[{width:18},{width:14},{width:14},{width:14},{width:12}];
+  w2.mergeCells('A1:E1');const r1=w2.getCell('A1');r1.value='RESUMEN POR CANAL';r1.font=fw('FFFFFF',true,13);r1.fill=fg(NV);r1.alignment=aC;w2.getRow(1).height=26;
+  w2.mergeCells('A2:E2');const r2=w2.getCell('A2');r2.value=`Del ${fd} al ${fh}`;r2.font=fw('555555',false,10);r2.alignment=aL;w2.getRow(2).height=16;w2.getRow(3).height=8;
+  const hr2=w2.addRow(['CANAL','TOTAL CITAS','EN PROCESO','VERIFICADAS','PERDIDAS']);
+  hr2.height=20;hr2.eachCell(c=>{c.font=fw('FFFFFF',true,10);c.fill=fg('2D2D2D');c.alignment=aC;c.border=bd;});
+  Object.keys(CH).forEach(key=>{
+    const ca=arr.filter(l=>(l.canal||'').toUpperCase()===key);
+    const rr=w2.addRow([`Canal ${key}`,ca.length,ca.filter(l=>(l.est_cita||'En Proceso')==='En Proceso').length,ca.filter(l=>l.est_cita==='Verificada').length,ca.filter(l=>l.est_cita==='Perdida').length]);
+    rr.height=18;rr.eachCell((c,ci)=>{c.alignment=aC;c.border=bd;if(ci===1){c.fill=fg(CH[key]);c.font=fw('FFFFFF',true,10);}else{c.fill=fg('F9FAFB');c.font=fw('1a1a1a',false,10);}});
   });
-  const wsAse = XLSX.utils.aoa_to_sheet(aseData);
-  wsAse['!cols'] = [{wch:20},{wch:8},{wch:14},{wch:14},{wch:14},{wch:12}];
-  wsAse['!merges'] = [{s:{r:0,c:0},e:{r:0,c:5}},{s:{r:1,c:0},e:{r:1,c:5}}];
-  XLSX.utils.book_append_sheet(wb, wsAse, 'Por Asesor');
-
-  XLSX.writeFile(wb, `CitasCanal_${fd}_${fh}.xlsx`);
+  const rt=w2.addRow(['TOTAL GENERAL',arr.length,arr.filter(l=>(l.est_cita||'En Proceso')==='En Proceso').length,arr.filter(l=>l.est_cita==='Verificada').length,arr.filter(l=>l.est_cita==='Perdida').length]);
+  rt.height=20;rt.eachCell(c=>{c.font=fw('FFFFFF',true,10);c.fill=fg(NV);c.alignment=aC;c.border=bd;});
+  // Hoja 3
+  const w3=wb.addWorksheet('Por Asesor');
+  w3.columns=[{width:22},{width:9},{width:14},{width:14},{width:14},{width:12}];
+  w3.mergeCells('A1:F1');const a1=w3.getCell('A1');a1.value='DETALLE POR ASESOR';a1.font=fw('FFFFFF',true,13);a1.fill=fg(NV);a1.alignment=aC;w3.getRow(1).height=26;
+  w3.mergeCells('A2:F2');const a2=w3.getCell('A2');a2.value=`Del ${fd} al ${fh}`;a2.font=fw('555555',false,10);a2.alignment=aL;w3.getRow(2).height=16;w3.getRow(3).height=8;
+  const hr3=w3.addRow(['ASESOR','CANAL','TOTAL CITAS','EN PROCESO','VERIFICADAS','PERDIDAS']);
+  hr3.height=20;hr3.eachCell(c=>{c.font=fw('FFFFFF',true,10);c.fill=fg('2D2D2D');c.alignment=aC;c.border=bd;});
+  [...new Set(arr.map(l=>l.uid))].forEach((uid,i)=>{
+    const ua=arr.filter(l=>l.uid===uid);
+    const canal=(ua[0]?.canal||'').toUpperCase();
+    const ar=w3.addRow([ua[0]?.anom||'—',canal||'—',ua.length,ua.filter(l=>(l.est_cita||'En Proceso')==='En Proceso').length,ua.filter(l=>l.est_cita==='Verificada').length,ua.filter(l=>l.est_cita==='Perdida').length]);
+    ar.height=18;
+    const bg=i%2===0?'FFFFFF':'F5F5F5';
+    ar.eachCell((c,ci)=>{c.fill=fg(bg);c.font=fw('1a1a1a',ci===1,10);c.alignment=ci===1?aL:aC;c.border=bd;});
+    const cc2=ar.getCell(2);cc2.fill=fg(CH[canal]||'888888');cc2.font=fw('FFFFFF',true,10);
+  });
+  // Descargar
+  const buf=await wb.xlsx.writeBuffer();
+  const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`CitasCanal_${fd}_${fh}.xlsx`;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
   toast('Excel exportado ✓');
 }
+
 
 // ─── Hook goTab ───
 (function(){
