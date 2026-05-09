@@ -517,6 +517,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <button class="ni admin-sup" onclick="goTab('citas-dia',this)"><span class="nco">📋</span><span>Citas por Día</span></button>
     <button class="ni admin-sup" onclick="goTab('inf-gerencial',this)"><span class="nco">📊</span><span>Informe Gerencial</span></button>
     <button class="ni admin-sup" onclick="goTab('dash-canal',this)"><span class="nco">🏷️</span><span>Citas por Canal</span></button>
+    <button class="ni admin-sup" onclick="goTab('dash-ventas',this)"><span class="nco">💰</span><span>Dashboard Ventas</span></button>
   </div>
   <div class="ns canal-nav" style="margin-top:.4rem;display:none">
     <div class="nl" id="canal-nav-label">Mi Canal</div>
@@ -1333,6 +1334,71 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   </div>
 </div>
 
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- DASHBOARD VENTAS — módulo nuevo                           -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="tab-dash-ventas" class="tab">
+  <div class="ph">
+    <div><div class="pt">💰 Dashboard de Ventas</div><div class="psb" id="dv-sub">Reporte de ventas con chasis, factura e importe</div></div>
+    <div class="ha" style="flex-wrap:wrap;gap:6px">
+      <input type="date" class="fc" id="dv-fd" style="max-width:140px;font-size:12px" onchange="renderDashVentas()">
+      <span style="font-size:11px;color:var(--mut)">a</span>
+      <input type="date" class="fc" id="dv-fh" style="max-width:140px;font-size:12px" onchange="renderDashVentas()">
+      <button class="btn bo bsm" onclick="dvQuick(7)">7 días</button>
+      <button class="btn bo bsm" onclick="dvQuick(15)">15 días</button>
+      <button class="btn bo bsm" onclick="dvQuick(30)">30 días</button>
+      <button class="btn bo bsm" onclick="dvQuick('mes')">Este mes</button>
+      <button class="btn bo bsm" onclick="dvQuick('mesant')">Mes anterior</button>
+      <button class="btn bo bsm" onclick="dvQuick('all')">Todo</button>
+      <button class="btn bo bsm" onclick="dvExportXLSX()">⬇ Excel</button>
+    </div>
+  </div>
+  <!-- Filtros -->
+  <div class="card" style="margin-bottom:.75rem">
+    <div class="cb" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:.5rem 0">
+      <select class="fc" id="dv-canal" style="max-width:130px;font-size:12px" onchange="renderDashVentas()">
+        <option value="">Todos los canales</option>
+        <option value="AP">AP</option><option value="HT">HT</option>
+        <option value="AC">AC</option><option value="KING">KING</option>
+      </select>
+      <select class="fc" id="dv-agencia" style="max-width:200px;font-size:12px" onchange="renderDashVentas()">
+        <option value="">Todas las agencias</option>
+      </select>
+      <select class="fc" id="dv-tp" style="max-width:150px;font-size:12px" onchange="renderDashVentas()">
+        <option value="">Todos los pagos</option>
+        <option value="Contado">Contado</option>
+        <option value="Crédito">Crédito</option>
+        <option value="Visa Cuotas">Visa Cuotas</option>
+      </select>
+      <select class="fc" id="dv-asesor" style="max-width:170px;font-size:12px" onchange="renderDashVentas()">
+        <option value="">Todos los asesores</option>
+      </select>
+      <button class="btn bo bsm" onclick="dvLimpiar()">✕ Limpiar</button>
+    </div>
+  </div>
+  <!-- KPIs -->
+  <div class="mets" id="dv-kpis" style="margin-bottom:.75rem"></div>
+  <!-- Cards por canal -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:.75rem" id="dv-canal-cards"></div>
+  <!-- Tabla -->
+  <div class="card">
+    <div class="ch">
+      <span class="ct">Detalle de Ventas</span>
+      <span id="dv-count" style="margin-left:auto;font-size:11px;color:var(--mut);font-weight:600"></span>
+    </div>
+    <div class="tw" style="max-height:500px;overflow:auto">
+      <table>
+        <thead><tr>
+          <th>CLIENTE</th><th>TELÉFONO</th><th>LÍNEA</th><th>TIPO PAGO</th>
+          <th>AGENCIA</th><th>CHASIS</th><th>NO. FACTURA</th><th>F. FACTURA</th>
+          <th>IMPORTE (Q)</th><th>ASESOR</th>
+        </tr></thead>
+        <tbody id="dv-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 </div></main>
 </div>
 </div>
@@ -1374,6 +1440,17 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <div class="fr"><div class="fg"><label class="fl">Fecha Actividad</label><input class="fc" type="date" id="lf-fa"></div><div class="fg"><label class="fl">Fecha Actualización</label><input class="fc" type="date" id="lf-fu"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Estado</label><select class="fc" id="lf-est" onchange="toggleCanalField()"><option>NUEVO</option><option>PROCESO</option><option>CITA</option><option>PRECALIFICADO</option><option>SEGUIMIENTO</option><option>VENTA</option><option>PERDIDO</option><option>PENDIENTE</option></select></div><div class="fg admin-sup"><label class="fl">Asesor</label><select class="fc" id="lf-ase"><option value="">— Sin asignar</option></select></div></div>
       <div class="fr" id="canal-field" style="display:none"><div class="fg"><label class="fl">Canal de Cita</label><select class="fc" id="lf-canal"><option value="">— Seleccionar —</option><option value="AP">AP</option><option value="HT">HT</option><option value="AC">AC</option><option value="KING">KING</option></select></div></div>
+      <div id="venta-fields" style="display:none;background:var(--gbg);border:1px solid var(--green);border-radius:var(--r);padding:.9rem;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:700;color:#1B5E20;margin-bottom:8px">🏍 Datos de Venta</div>
+        <div class="fr">
+          <div class="fg" style="margin-bottom:0"><label class="fl">No. Chasis</label><input class="fc" id="lf-chasis" placeholder="Ej: MD637BR15T2AN0803"></div>
+          <div class="fg" style="margin-bottom:0"><label class="fl">No. Factura</label><input class="fc" id="lf-factura" placeholder="Ej: 3492037069"></div>
+        </div>
+        <div class="fr" style="margin-top:8px">
+          <div class="fg" style="margin-bottom:0"><label class="fl">Fecha Factura</label><input class="fc" type="date" id="lf-ffactura"></div>
+          <div class="fg" style="margin-bottom:0"><label class="fl">Importe (Q)</label><input class="fc" type="number" id="lf-importe" placeholder="Ej: 22499.00" min="0" step="0.01"></div>
+        </div>
+      </div>
       <div class="fr" style="gap:.75rem;margin-bottom:12px">
         <div class="fg" style="margin-bottom:0">
           <label class="fl">📊 Interés</label>
@@ -2638,6 +2715,17 @@ function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas
           <option value="KING" ${l.canal==='KING'?'selected':''}>KING</option>
         </select>
       </div>`:''}
+      ${l.est==='VENTA'?`<div style="background:var(--gbg);border:1px solid var(--green);border-radius:var(--r);padding:10px">
+        <div style="font-size:10px;font-weight:700;color:#1B5E20;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">🏍 Datos de Venta</div>
+        <div style="font-size:10px;font-weight:700;color:#1B5E20;margin-bottom:3px">No. Chasis</div>
+        <input class="fc" id="ds-chasis" value="${l.chasis||''}" placeholder="Ej: MD637BR15T2AN0803" style="font-size:12px;margin-bottom:8px">
+        <div style="font-size:10px;font-weight:700;color:#1B5E20;margin-bottom:3px">No. Factura</div>
+        <input class="fc" id="ds-factura" value="${l.factura||''}" placeholder="Ej: 3492037069" style="font-size:12px;margin-bottom:8px">
+        <div style="font-size:10px;font-weight:700;color:#1B5E20;margin-bottom:3px">Fecha Factura</div>
+        <input class="fc" type="date" id="ds-ffactura" value="${l.ffactura||''}" style="font-size:12px;margin-bottom:8px">
+        <div style="font-size:10px;font-weight:700;color:#1B5E20;margin-bottom:3px">Importe (Q)</div>
+        <input class="fc" type="number" id="ds-importe" value="${l.importe||''}" placeholder="Ej: 22499.00" min="0" step="0.01" style="font-size:12px">
+      </div>`:''}
     </div>
     <div style="border:2px solid ${rs==='overdue'?'var(--red)':rs==='today'?'#EAB308':rs?'#4CAF50':'#EAB308'};border-radius:var(--r);padding:.9rem;margin-bottom:1rem">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px">
@@ -2724,6 +2812,13 @@ function saveDet(id){
   l.regest=manualRegest||(l.fa&&l.fa<today()?'Regestionado':'');
   l.responde=document.getElementById('ds-responde')?.value||'';
   if(l.est==='CITA'){const ec=document.getElementById('ds-est-cita');if(ec)l.est_cita=ec.value||'';}
+  // Guardar datos de venta si el lead está en VENTA
+  if(l.est==='VENTA'){
+    const _dch=document.getElementById('ds-chasis');if(_dch)l.chasis=_dch.value.trim()||l.chasis||'';
+    const _dfa=document.getElementById('ds-factura');if(_dfa)l.factura=_dfa.value.trim()||l.factura||'';
+    const _dff=document.getElementById('ds-ffactura');if(_dff&&_dff.value)l.ffactura=_dff.value;
+    const _dim=document.getElementById('ds-importe');if(_dim&&_dim.value)l.importe=_dim.value;
+  }
   // Auto-guardar canal desde agencia si es CITA y canal está vacío
   if(l.est==='CITA'){
     if(!l.canal){
@@ -2789,7 +2884,14 @@ function setSelectVal(el, val, codigo){
 
 function openLM(id){
   editL=id;
-  if(id){const l=findLead(id);document.getElementById('ml-title').textContent='Editar Lead';document.getElementById('lf-btn').textContent='Guardar cambios';document.getElementById('lf-nom').value=l.nom;document.getElementById('lf-tel').value=l.tel;document.getElementById('lf-ori').value=l.ori;document.getElementById('lf-tp').value=l.tp||'Contado';document.getElementById('lf-lin').value=l.linea;document.getElementById('lf-ubi').value=l.ubi;document.getElementById('lf-est').value=l.est;document.getElementById('lf-fa').value=l.fa||'';document.getElementById('lf-fu').value=l.fu||'';document.getElementById('lf-rd').value=l.reminder?.date||'';document.getElementById('lf-rt').value=l.reminder?.time||'09:00';document.getElementById('lf-rn').value=l.reminder?.note||'';document.getElementById('lf-com').value='';const af=document.getElementById('lf-ase');if(af)af.value=l.uid||'';const _cf=document.getElementById('lf-canal');if(_cf)_cf.value=l.canal||'';setSelectVal(document.getElementById('lf-agencia'),l.agencia||'',l.agencia_codigo||'');const _in=document.getElementById('lf-interes');if(_in)_in.value=l.interes||'';const _re=document.getElementById('lf-responde');if(_re)_re.value=l.responde||'';const _rg=document.getElementById('lf-regest');if(_rg)_rg.value=l.regest||'';toggleCanalField();}
+  if(id){const l=findLead(id);document.getElementById('ml-title').textContent='Editar Lead';document.getElementById('lf-btn').textContent='Guardar cambios';document.getElementById('lf-nom').value=l.nom;document.getElementById('lf-tel').value=l.tel;document.getElementById('lf-ori').value=l.ori;document.getElementById('lf-tp').value=l.tp||'Contado';document.getElementById('lf-lin').value=l.linea;document.getElementById('lf-ubi').value=l.ubi;document.getElementById('lf-est').value=l.est;document.getElementById('lf-fa').value=l.fa||'';document.getElementById('lf-fu').value=l.fu||'';document.getElementById('lf-rd').value=l.reminder?.date||'';document.getElementById('lf-rt').value=l.reminder?.time||'09:00';document.getElementById('lf-rn').value=l.reminder?.note||'';document.getElementById('lf-com').value='';const af=document.getElementById('lf-ase');if(af)af.value=l.uid||'';const _cf=document.getElementById('lf-canal');if(_cf)_cf.value=l.canal||'';setSelectVal(document.getElementById('lf-agencia'),l.agencia||'',l.agencia_codigo||'');const _in=document.getElementById('lf-interes');if(_in)_in.value=l.interes||'';const _re=document.getElementById('lf-responde');if(_re)_re.value=l.responde||'';const _rg=document.getElementById('lf-regest');if(_rg)_rg.value=l.regest||'';
+  // Campos de venta
+  const _lch=document.getElementById('lf-chasis');if(_lch)_lch.value=l.chasis||'';
+  const _lfa=document.getElementById('lf-factura');if(_lfa)_lfa.value=l.factura||'';
+  const _lff=document.getElementById('lf-ffactura');if(_lff)_lff.value=l.ffactura||'';
+  const _lim=document.getElementById('lf-importe');if(_lim)_lim.value=l.importe||'';
+  const _lss=document.getElementById('lf-agencia-search');if(_lss)_lss.value=l.agencia||'';
+  toggleCanalField();}
   else{document.getElementById('ml-title').textContent='Nuevo Lead';document.getElementById('lf-btn').textContent='Guardar Lead';['lf-nom','lf-tel','lf-ubi','lf-com','lf-rd','lf-rn'].forEach(i=>document.getElementById(i).value='');document.getElementById('lf-fa').value=today();document.getElementById('lf-fu').value=today();document.getElementById('lf-rt').value='09:00';const af=document.getElementById('lf-ase');if(af)af.value=isPriv()?'':String(CU.id);const _cff=document.getElementById('lf-canal');if(_cff)_cff.value='';const _agn=document.getElementById('lf-agencia');if(_agn)_agn.value='';const _inn=document.getElementById('lf-interes');if(_inn)_inn.value='';const _ren=document.getElementById('lf-responde');if(_ren)_ren.value='';const _rgn=document.getElementById('lf-regest');if(_rgn)_rgn.value='';toggleCanalField();}
   openM('m-lead');
 }
@@ -2804,7 +2906,13 @@ function saveLead(){
   const _agEl=document.getElementById('lf-agencia');
   const _agencia=_agEl?.value||'';
   const _agencia_codigo=_agEl&&_agEl.selectedIndex>=0?(_agEl.options[_agEl.selectedIndex].dataset.codigo||''):'';
-  const _interes=document.getElementById('lf-interes')?.value||'';const _responde=document.getElementById('lf-responde')?.value||'';const _regest=document.getElementById('lf-regest')?.value||'';const data={nom,tel:document.getElementById('lf-tel').value,ori:document.getElementById('lf-ori').value,tp:_tp,canal:_canal,agencia:_agencia,agencia_codigo:_agencia_codigo,interes:_interes,responde:_responde,regest:_regest,linea:document.getElementById('lf-lin').value,ubi:document.getElementById('lf-ubi').value,est:document.getElementById('lf-est').value,fa:document.getElementById('lf-fa').value,fu:today(),uid,anom:u?u.nombre:'',reminder};
+  const _interes=document.getElementById('lf-interes')?.value||'';const _responde=document.getElementById('lf-responde')?.value||'';const _regest=document.getElementById('lf-regest')?.value||'';
+  const _est=document.getElementById('lf-est').value;
+  const _chasis=_est==='VENTA'?(document.getElementById('lf-chasis')?.value.trim()||''):'';
+  const _factura=_est==='VENTA'?(document.getElementById('lf-factura')?.value.trim()||''):'';
+  const _ffactura=_est==='VENTA'?(document.getElementById('lf-ffactura')?.value||''):'';
+  const _importe=_est==='VENTA'?(document.getElementById('lf-importe')?.value||''):'';
+  const data={nom,tel:document.getElementById('lf-tel').value,ori:document.getElementById('lf-ori').value,tp:_tp,canal:_canal,agencia:_agencia,agencia_codigo:_agencia_codigo,interes:_interes,responde:_responde,regest:_regest,linea:document.getElementById('lf-lin').value,ubi:document.getElementById('lf-ubi').value,est:_est,fa:document.getElementById('lf-fa').value,fu:today(),uid,anom:u?u.nombre:'',reminder,chasis:_chasis,factura:_factura,ffactura:_ffactura,importe:_importe};
   let savedLead;
   if(editL){
     const i=findLeadIndex(editL);
@@ -3978,6 +4086,8 @@ function toggleCanalField(){
   const est=document.getElementById('lf-est')?.value;
   const cf=document.getElementById('canal-field');
   if(cf)cf.style.display=(est==='CITA')?'flex':'none';
+  const vf=document.getElementById('venta-fields');
+  if(vf)vf.style.display=(est==='VENTA')?'block':'none';
 }
 function downloadImpHist(idx){
   const h=impHist[idx];if(!h){toast('Error');return;}
@@ -6980,6 +7090,227 @@ async function dcExportXLSX() {
 
 // ═══════════════════════════════════════════════════════════════════
 // FIN Dashboard Citas por Canal
+// ═══════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD VENTAS — módulo nuevo
+// ═══════════════════════════════════════════════════════════════════
+let _dvReady=false;
+
+function _dvInitSels(){
+  const now=new Date(),y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0');
+  const fd=document.getElementById('dv-fd');if(fd&&!fd.value)fd.value=`${y}-${m}-01`;
+  const fh=document.getElementById('dv-fh');if(fh&&!fh.value)fh.value=today();
+  const agSel=document.getElementById('dv-agencia');
+  if(agSel&&agSel.options.length<=1)agencias.sort().forEach(a=>{const o=document.createElement('option');o.value=a;o.textContent=a;agSel.appendChild(o);});
+  const aseSel=document.getElementById('dv-asesor');
+  if(aseSel&&aseSel.options.length<=1)users.filter(u=>u.rol!=='admin').forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.nombre;aseSel.appendChild(o);});
+}
+
+function dvQuick(range){
+  const fd=document.getElementById('dv-fd'),fh=document.getElementById('dv-fh');
+  if(!fd||!fh)return;
+  const now=new Date(),y=now.getFullYear(),m=now.getMonth();
+  if(range==='mes'){fd.value=`${y}-${String(m+1).padStart(2,'0')}-01`;fh.value=today();}
+  else if(range==='mesant'){const pm=m===0?11:m-1,py=m===0?y-1:y,ld=new Date(py,pm+1,0).getDate();fd.value=`${py}-${String(pm+1).padStart(2,'0')}-01`;fh.value=`${py}-${String(pm+1).padStart(2,'0')}-${String(ld).padStart(2,'0')}`;}
+  else if(range==='all'){fd.value='2020-01-01';fh.value=today();}
+  else{const d=new Date();d.setDate(d.getDate()-range);fd.value=d.toISOString().substring(0,10);fh.value=today();}
+  renderDashVentas();
+}
+
+function dvLimpiar(){
+  ['dv-canal','dv-agencia','dv-tp','dv-asesor'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  dvQuick('mes');
+}
+
+function _dvFiltrar(){
+  const fd=document.getElementById('dv-fd')?.value||'';
+  const fh=document.getElementById('dv-fh')?.value||'';
+  const canal=document.getElementById('dv-canal')?.value||'';
+  const agencia=document.getElementById('dv-agencia')?.value||'';
+  const tp=document.getElementById('dv-tp')?.value||'';
+  const asesor=document.getElementById('dv-asesor')?.value||'';
+  return leads.filter(l=>{
+    if(l.est!=='VENTA')return false;
+    const fecha=(l.ffactura||l.fa||'').substring(0,10);
+    if(fd&&fecha<fd)return false;
+    if(fh&&fecha>fh)return false;
+    if(canal&&(l.canal||'').toUpperCase()!==canal)return false;
+    if(agencia&&l.agencia!==agencia)return false;
+    if(tp&&l.tp!==tp)return false;
+    if(asesor&&String(l.uid)!==String(asesor))return false;
+    return true;
+  });
+}
+
+function renderDashVentas(){
+  const arr=_dvFiltrar();
+  const fd=document.getElementById('dv-fd')?.value||'';
+  const fh=document.getElementById('dv-fh')?.value||'';
+  const sub=document.getElementById('dv-sub');
+  if(sub)sub.textContent=`Del ${fd} al ${fh} · ${arr.length} ventas`;
+
+  const totalImporte=arr.reduce((s,l)=>s+(parseFloat(l.importe)||0),0);
+  const conChasis=arr.filter(l=>l.chasis).length;
+  const conFactura=arr.filter(l=>l.factura).length;
+  const asesActivos=new Set(arr.map(l=>l.uid)).size;
+
+  const kpisEl=document.getElementById('dv-kpis');
+  if(kpisEl)kpisEl.innerHTML=`
+    <div class="met grn"><div class="ml">Total Ventas</div><div class="mv">${arr.length}</div></div>
+    <div class="met grn"><div class="ml">Importe Total</div><div class="mv" style="font-size:18px">Q ${totalImporte.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
+    <div class="met"><div class="ml">Con Chasis</div><div class="mv">${conChasis}</div><div class="ms">${arr.length>0?Math.round(conChasis/arr.length*100):0}%</div></div>
+    <div class="met org"><div class="ml">Con Factura</div><div class="mv">${conFactura}</div><div class="ms">${arr.length>0?Math.round(conFactura/arr.length*100):0}%</div></div>
+    <div class="met"><div class="ml">Asesores</div><div class="mv">${asesActivos}</div></div>
+    <div class="met yel"><div class="ml">Prom. Importe</div><div class="mv" style="font-size:16px">Q ${arr.length>0?(totalImporte/arr.length).toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2}):'0.00'}</div></div>`;
+
+  // Cards por canal
+  const CH={AP:'4CAF50',HT:'9C27B0',AC:'1976D2',KING:'E53935'};
+  const cardsEl=document.getElementById('dv-canal-cards');
+  if(cardsEl)cardsEl.innerHTML=Object.entries(CH).map(([key,hex])=>{
+    const ca=arr.filter(l=>(l.canal||'').toUpperCase()===key);
+    const imp=ca.reduce((s,l)=>s+(parseFloat(l.importe)||0),0);
+    const pct=arr.length>0?Math.round(ca.length/arr.length*100):0;
+    return `<div style="background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden">
+      <div style="background:#${hex};padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="color:#fff;font-weight:700;font-size:13px">Canal ${key}</span>
+        <span style="color:#fff;font-weight:700;font-size:18px">${ca.length}</span>
+      </div>
+      <div style="padding:8px 12px;font-size:11px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:#555">Importe</span><span style="font-weight:700;color:#1B5E20">Q ${imp.toLocaleString('es-GT',{minimumFractionDigits:2})}</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#555">Con chasis</span><span style="font-weight:600">${ca.filter(l=>l.chasis).length}</span></div>
+        <div style="height:5px;background:#f0f0f0;border-radius:3px"><div style="height:5px;width:${pct}%;background:#${hex};border-radius:3px"></div></div>
+        <div style="text-align:right;font-size:10px;color:#999;margin-top:2px">${pct}% del total</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Tabla
+  const tbody=document.getElementById('dv-tbody');
+  const countEl=document.getElementById('dv-count');
+  if(countEl)countEl.textContent=`${arr.length} registros`;
+  if(!tbody)return;
+  if(arr.length===0){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:1.5rem;color:var(--mut)">Sin ventas para los filtros seleccionados</td></tr>';return;}
+
+  const sorted=[...arr].sort((a,b)=>(b.ffactura||b.fa||'').localeCompare(a.ffactura||a.fa||''));
+  tbody.innerHTML=sorted.map(l=>{
+    const imp=parseFloat(l.importe)||0;
+    const canal=(l.canal||'').toUpperCase();
+    const cHex=CH[canal]||'888888';
+    return `<tr>
+      <td style="font-weight:600">${l.nom||'—'}</td>
+      <td>${l.tel||'—'}</td>
+      <td>${l.linea||'—'}</td>
+      <td><span class="badge ${l.tp==='Contado'?'e-venta':l.tp==='Crédito'?'e-cita':'e-seg'}">${l.tp||'—'}</span></td>
+      <td style="font-size:11px;color:var(--navy);font-weight:600">${l.agencia||'—'}</td>
+      <td style="font-size:11px;color:var(--mut)">${l.chasis||'—'}</td>
+      <td style="font-size:11px">${l.factura||'—'}</td>
+      <td style="font-size:11px">${l.ffactura||'—'}</td>
+      <td style="font-weight:700;color:#1B5E20">${imp>0?'Q '+imp.toLocaleString('es-GT',{minimumFractionDigits:2}):'—'}</td>
+      <td style="font-size:11px">${l.anom||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── Exportar Excel con colores (ExcelJS) ───
+async function dvExportXLSX(){
+  const arr=_dvFiltrar();
+  if(arr.length===0){toast('Sin datos para exportar');return;}
+  const fd=document.getElementById('dv-fd')?.value||'';
+  const fh=document.getElementById('dv-fh')?.value||'';
+  toast('Generando Excel...');
+  if(!window.ExcelJS){
+    await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+  }
+  const wb=new ExcelJS.Workbook();wb.creator='TVS CRM';
+  const fg=hex=>({type:'pattern',pattern:'solid',fgColor:{argb:'FF'+hex}});
+  const fw=(hex,bold,sz=10)=>({name:'Calibri',color:{argb:'FF'+hex},bold:!!bold,size:sz});
+  const aC={horizontal:'center',vertical:'middle'};
+  const aL={horizontal:'left',vertical:'middle'};
+  const bd={top:{style:'thin',color:{argb:'FFCCCCCC'}},left:{style:'thin',color:{argb:'FFCCCCCC'}},bottom:{style:'thin',color:{argb:'FFCCCCCC'}},right:{style:'thin',color:{argb:'FFCCCCCC'}}};
+  const CH={AP:'4CAF50',HT:'9C27B0',AC:'1976D2',KING:'E53935'};
+  const NV='1B2F6E';
+
+  // Hoja 1: Detalle
+  const w1=wb.addWorksheet('Detalle de Ventas');
+  w1.columns=[{width:26},{width:14},{width:20},{width:13},{width:24},{width:20},{width:14},{width:13},{width:14},{width:18}];
+  w1.mergeCells('A1:J1');const t1=w1.getCell('A1');t1.value='REPORTE DE VENTAS';t1.font=fw('FFFFFF',true,14);t1.fill=fg(NV);t1.alignment=aC;w1.getRow(1).height=28;
+  w1.mergeCells('A2:J2');const t2=w1.getCell('A2');t2.value=`Del ${fd} al ${fh} · ${arr.length} ventas`;t2.font=fw('555555',false,10);t2.alignment=aL;w1.getRow(2).height=16;
+  w1.getRow(3).height=6;
+  const hr=w1.addRow(['CLIENTE','TELÉFONO','LÍNEA','TIPO PAGO','AGENCIA','CHASIS','NO. FACTURA','F. FACTURA','IMPORTE (Q)','ASESOR']);
+  hr.height=20;hr.eachCell(c=>{c.font=fw('FFFFFF',true,10);c.fill=fg('2D2D2D');c.alignment=aC;c.border=bd;});
+  const sorted=[...arr].sort((a,b)=>(b.ffactura||b.fa||'').localeCompare(a.ffactura||a.fa||''));
+  sorted.forEach((l,i)=>{
+    const imp=parseFloat(l.importe)||0;
+    const row=w1.addRow([l.nom||'—',String(l.tel||'—'),l.linea||'—',l.tp||'—',l.agencia||'—',l.chasis||'—',l.factura||'—',l.ffactura||'—',imp>0?imp:'—',l.anom||'—']);
+    row.height=17;
+    const bg=i%2===0?'FFFFFF':'F5F5F5';
+    row.eachCell((c,ci)=>{c.fill=fg(bg);c.font=fw('1a1a1a',false,10);c.alignment=ci===1||ci===5?aL:aC;c.border=bd;});
+    if(imp>0){const ic=row.getCell(9);ic.font=fw('1B5E20',true,10);ic.numFmt='"Q "#,##0.00';}
+  });
+  // Fila total
+  const totalImp=arr.reduce((s,l)=>s+(parseFloat(l.importe)||0),0);
+  const totRow=w1.addRow(['TOTAL','','','','','','','',totalImp,'']);
+  totRow.height=20;totRow.eachCell(c=>{c.font=fw('FFFFFF',true,10);c.fill=fg(NV);c.alignment=aC;c.border=bd;});
+  const tc=totRow.getCell(9);tc.numFmt='"Q "#,##0.00';
+  w1.views=[{state:'frozen',ySplit:4}];
+
+  // Hoja 2: Resumen por canal
+  const w2=wb.addWorksheet('Por Canal');
+  w2.columns=[{width:18},{width:12},{width:18},{width:12}];
+  w2.mergeCells('A1:D1');const r1=w2.getCell('A1');r1.value='RESUMEN POR CANAL';r1.font=fw('FFFFFF',true,13);r1.fill=fg(NV);r1.alignment=aC;w2.getRow(1).height=26;
+  w2.mergeCells('A2:D2');const r2=w2.getCell('A2');r2.value=`Del ${fd} al ${fh}`;r2.font=fw('555555',false,10);r2.alignment=aL;w2.getRow(2).height=16;w2.getRow(3).height=8;
+  const rh=w2.addRow(['CANAL','VENTAS','IMPORTE TOTAL','CON CHASIS']);
+  rh.height=20;rh.eachCell(c=>{c.font=fw('FFFFFF',true,10);c.fill=fg('2D2D2D');c.alignment=aC;c.border=bd;});
+  Object.entries(CH).forEach(([key,hex])=>{
+    const ca=arr.filter(l=>(l.canal||'').toUpperCase()===key);
+    const imp=ca.reduce((s,l)=>s+(parseFloat(l.importe)||0),0);
+    const rr=w2.addRow([`Canal ${key}`,ca.length,imp>0?imp:'—',ca.filter(l=>l.chasis).length]);
+    rr.height=18;rr.eachCell((c,ci)=>{c.alignment=aC;c.border=bd;if(ci===1){c.fill=fg(hex);c.font=fw('FFFFFF',true,10);}else{c.fill=fg('F9FAFB');c.font=fw('1a1a1a',false,10);}});
+    if(imp>0){const ic=rr.getCell(3);ic.numFmt='"Q "#,##0.00';}
+  });
+
+  // Hoja 3: Por asesor
+  const w3=wb.addWorksheet('Por Asesor');
+  w3.columns=[{width:22},{width:10},{width:12},{width:18}];
+  w3.mergeCells('A1:D1');const a1=w3.getCell('A1');a1.value='VENTAS POR ASESOR';a1.font=fw('FFFFFF',true,13);a1.fill=fg(NV);a1.alignment=aC;w3.getRow(1).height=26;
+  w3.mergeCells('A2:D2');const a2=w3.getCell('A2');a2.value=`Del ${fd} al ${fh}`;a2.font=fw('555555',false,10);a2.alignment=aL;w3.getRow(2).height=16;w3.getRow(3).height=8;
+  const ah=w3.addRow(['ASESOR','VENTAS','CON CHASIS','IMPORTE TOTAL']);
+  ah.height=20;ah.eachCell(c=>{c.font=fw('FFFFFF',true,10);c.fill=fg('2D2D2D');c.alignment=aC;c.border=bd;});
+  [...new Set(arr.map(l=>l.uid))].forEach((uid,i)=>{
+    const ua=arr.filter(l=>l.uid===uid);
+    const imp=ua.reduce((s,l)=>s+(parseFloat(l.importe)||0),0);
+    const ar=w3.addRow([ua[0]?.anom||'—',ua.length,ua.filter(l=>l.chasis).length,imp>0?imp:'—']);
+    ar.height=18;
+    const bg=i%2===0?'FFFFFF':'F5F5F5';
+    ar.eachCell((c,ci)=>{c.fill=fg(bg);c.font=fw('1a1a1a',ci===1,10);c.alignment=ci===1?aL:aC;c.border=bd;});
+    if(imp>0){const ic=ar.getCell(4);ic.numFmt='"Q "#,##0.00';}
+  });
+
+  const buf=await wb.xlsx.writeBuffer();
+  const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`Ventas_${fd}_${fh}.xlsx`;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast('Excel exportado ✓');
+}
+
+// ─── Hook goTab ───
+(function(){
+  const _origDV=window.goTab;
+  if(!_origDV)return;
+  window.goTab=function(tab,btn){
+    _origDV(tab,btn);
+    if(tab==='dash-ventas'){
+      if(!_dvReady){_dvReady=true;_dvInitSels();}
+      else{_dvInitSels();}
+      renderDashVentas();
+    }
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// FIN Dashboard Ventas
 // ═══════════════════════════════════════════════════════════════════
 
 // AUTO-CONNECT
