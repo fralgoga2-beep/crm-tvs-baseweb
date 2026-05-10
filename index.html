@@ -6254,34 +6254,28 @@ function _cdAgrupar() {
   const grupos = {AP:[], HT:[], AC:[], KING:[]};
   const rolMap = { ap_gerencia:'AP', ht_gerencia:'HT', ac_gerencia:'AC', king_gerencia:'KING' };
 
-  // Detectar en qué canales ha enviado citas cada asesor
-  const canalsPorAsesor = {}; // uid → Set de canales
+  // Contar cuántas citas tiene cada asesor por canal (solo leads CITA)
+  const canalsPorAsesor = {}; // uid → {AP:n, HT:n, AC:n, KING:n}
   leads.forEach(l => {
+    if (l.est !== 'CITA') return;
     if (!l.uid) return;
     const c = _resolverCanal(l.canal, l.agencia);
     if (!['AP','HT','AC','KING'].includes(c)) return;
-    if (!canalsPorAsesor[l.uid]) canalsPorAsesor[l.uid] = new Set();
-    canalsPorAsesor[l.uid].add(c);
+    if (!canalsPorAsesor[l.uid]) canalsPorAsesor[l.uid] = {AP:0,HT:0,AC:0,KING:0};
+    canalsPorAsesor[l.uid][c]++;
   });
 
   users.filter(u => u.rol !== 'admin').forEach(u => {
-    const canalesAsignados = new Set();
-    // Por rol directo
-    if (rolMap[u.rol]) canalesAsignados.add(rolMap[u.rol]);
-    // Por citas enviadas
-    if (canalsPorAsesor[u.id]) canalsPorAsesor[u.id].forEach(c => canalesAsignados.add(c));
-    // Si no tiene ningún canal detectado, intentar fallback por agencia
-    if (canalesAsignados.size === 0) {
-      const counts = {AP:0,HT:0,AC:0,KING:0};
-      leads.forEach(l => {
-        if (l.uid !== u.id) return;
-        const k = _cdCanal(l.agencia, l.canal);
-        if (k) counts[k]++;
-      });
-      const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-      if (top[0][1] > 0) canalesAsignados.add(top[0][0]);
+    // Si tiene rol de canal, usarlo directamente
+    if (rolMap[u.rol]) {
+      grupos[rolMap[u.rol]].push(u);
+      return;
     }
-    canalesAsignados.forEach(c => { if (grupos[c]) grupos[c].push(u); });
+    // Si tiene citas, asignarlo al canal donde tiene MÁS citas
+    if (canalsPorAsesor[u.id]) {
+      const top = Object.entries(canalsPorAsesor[u.id]).sort((a,b)=>b[1]-a[1]);
+      if (top[0][1] > 0) grupos[top[0][0]].push(u);
+    }
   });
   return grupos;
 }
