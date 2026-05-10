@@ -6028,15 +6028,9 @@ function trackerCalcAuto(mes, ano) {
     if (!fecha.startsWith(ym)) return;
     const day = parseInt(fecha.substring(8, 10)) - 1;
     if (day < 0 || day >= daysInMonth) return;
-    // Detectar canal por campo canal o prefijo de agencia
-    const canal = (l.canal || '').toUpperCase();
-    const agencia = (l.agencia || '').toUpperCase();
-    let canalKey = null;
-    if (canal === 'AP' || agencia.startsWith('AP ')) canalKey = 'AP';
-    else if (canal === 'HT' || agencia.startsWith('HT ')) canalKey = 'HT';
-    else if (canal === 'AC' || agencia.startsWith('AC ')) canalKey = 'AC';
-    else if (canal === 'KING' || agencia.startsWith('KING ')) canalKey = 'KING';
-    if (canalKey) result[canalKey][day]++;
+    // Usar solo l.canal para ser consistente con Citas por Día
+    const canalKey = (l.canal || '').toUpperCase();
+    if (['AP','HT','AC','KING'].includes(canalKey)) result[canalKey][day]++;
   });
   return { result, daysInMonth };
 }
