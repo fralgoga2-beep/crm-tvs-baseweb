@@ -6015,6 +6015,19 @@ function trackerSaveOverrides() {
 }
 
 // ─── Calcular citas automáticas desde leads ───
+// ─── Resolver canal de un lead (compartido por Tracker y Citas por Día) ───
+// Usa l.canal si está definido, si no infiere del prefijo de l.agencia
+function _resolverCanal(canal, agencia) {
+  const c = (canal||'').toUpperCase().trim();
+  if (['AP','HT','AC','KING'].includes(c)) return c;
+  const a = (agencia||'').toUpperCase().trim();
+  if (a.startsWith('AP ') || a === 'AP') return 'AP';
+  if (a.startsWith('HT ') || a === 'HT') return 'HT';
+  if (a.startsWith('AC ') || a === 'AC') return 'AC';
+  if (a.startsWith('KING ') || a === 'KING') return 'KING';
+  return '';
+}
+
 function trackerCalcAuto(mes, ano) {
   // mes: '04', ano: '2026'
   const ym = `${ano}-${mes}`;
@@ -6028,8 +6041,8 @@ function trackerCalcAuto(mes, ano) {
     if (!fecha.startsWith(ym)) return;
     const day = parseInt(fecha.substring(8, 10)) - 1;
     if (day < 0 || day >= daysInMonth) return;
-    // Usar solo l.canal para ser consistente con Citas por Día
-    const canalKey = (l.canal || '').toUpperCase();
+    // Usar _resolverCanal para detectar canal por l.canal o prefijo de agencia
+    const canalKey = _resolverCanal(l.canal, l.agencia);
     if (['AP','HT','AC','KING'].includes(canalKey)) result[canalKey][day]++;
   });
   return { result, daysInMonth };
@@ -6245,7 +6258,7 @@ function _cdAgrupar() {
   const canalsPorAsesor = {}; // uid → Set de canales
   leads.forEach(l => {
     if (!l.uid) return;
-    const c = (l.canal||'').toUpperCase();
+    const c = _resolverCanal(l.canal, l.agencia);
     if (!['AP','HT','AC','KING'].includes(c)) return;
     if (!canalsPorAsesor[l.uid]) canalsPorAsesor[l.uid] = new Set();
     canalsPorAsesor[l.uid].add(c);
@@ -6288,7 +6301,7 @@ function _cdCalcAuto(ano, mes) {
     if (!fecha.startsWith(ym)) return;
     const day = parseInt(fecha.substring(8,10)) - 1;
     if (day < 0 || day >= days) return;
-    const canalKey = (l.canal||'').toUpperCase();
+    const canalKey = _resolverCanal(l.canal, l.agencia);
     if (!result[canalKey]) return;
     if (result[canalKey][l.uid] !== undefined) result[canalKey][l.uid][day]++;
   });
