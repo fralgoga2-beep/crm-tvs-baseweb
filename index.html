@@ -6283,10 +6283,10 @@ function _cdAgrupar() {
 function _cdCalcAuto(ano, mes) {
   const ym = `${ano}-${mes}`;
   const days = _cdDays(ano, mes);
-  // result[uid][day0] = count
-  const result = {};
+  // result[canalKey][uid][day0] = count
+  const result = {AP:{}, HT:{}, AC:{}, KING:{}};
   users.filter(u=>u.rol!=='admin').forEach(u => {
-    result[u.id] = new Array(days).fill(0);
+    Object.keys(result).forEach(k => { result[k][u.id] = new Array(days).fill(0); });
   });
   leads.forEach(l => {
     if (l.est !== 'CITA') return;
@@ -6294,7 +6294,9 @@ function _cdCalcAuto(ano, mes) {
     if (!fecha.startsWith(ym)) return;
     const day = parseInt(fecha.substring(8,10)) - 1;
     if (day < 0 || day >= days) return;
-    if (result[l.uid] !== undefined) result[l.uid][day]++;
+    const canalKey = (l.canal||'').toUpperCase();
+    if (!result[canalKey]) return;
+    if (result[canalKey][l.uid] !== undefined) result[canalKey][l.uid][day]++;
   });
   return result;
 }
@@ -6380,7 +6382,7 @@ function renderCitasDia() {
         let rowTotal = 0;
         for (let d=0; d<days; d++) {
           const overKey = `${ym}|${canal.key}|${u.id}|${String(d+1).padStart(2,'0')}`;
-          const autoVal = (autoData[u.id]||[])[d] || 0;
+          const autoVal = (autoData[canal.key]?.[u.id]||[])[d] || 0;
           const val = _cdOverrides.hasOwnProperty(overKey) ? _cdOverrides[overKey] : autoVal;
           const isOv = _cdOverrides.hasOwnProperty(overKey);
           canalTotals[d] += val;
@@ -6504,7 +6506,7 @@ function citasDiaExport() {
       let total = 0;
       for (let d=0;d<days;d++) {
         const overKey = `${ym}|${canal.key}|${u.id}|${String(d+1).padStart(2,'0')}`;
-        const v = _cdOverrides.hasOwnProperty(overKey)?_cdOverrides[overKey]:(autoData[u.id]||[])[d]||0;
+        const v = _cdOverrides.hasOwnProperty(overKey)?_cdOverrides[overKey]:(autoData[canal.key]?.[u.id]||[])[d]||0;
         row.push(v||0); total+=v; canalTotals[d]+=v;
       }
       row.push(total);
