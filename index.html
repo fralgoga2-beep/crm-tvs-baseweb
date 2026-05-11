@@ -1005,6 +1005,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   <div class="danger-zone">
     <div class="danger-hd">⚠️ Zona de peligro</div>
     <div class="dm-body">
+      <div class="dm-row"><div><div class="dm-label">🗓️ Depurar leads de Febrero</div><div class="dm-sub">Oculta leads de Feb del CRM. Quedan en Firebase (no se borran de la nube).</div></div><button class="btn bsm" style="background:#F47920;color:white" onclick="depurarLeadsFebrero()">🗓️ Depurar Febrero</button></div>
       <div class="dm-row"><div><div class="dm-label">Eliminar TODOS los leads</div><div class="dm-sub">Usuarios y config se mantienen.</div></div><button class="btn bd bsm" onclick="delAllLeads()">⚠️ Borrar todos</button></div>
       <div class="dm-row"><div><div class="dm-label">Reset total del CRM</div><div class="dm-sub">Borra TODO en la nube: leads, usuarios extra, config.</div></div><button class="btn bd bsm" onclick="fullReset()">💣 Reset total</button></div>
     </div>
@@ -2182,11 +2183,30 @@ function setupUI(){
   const pfx=getAgenciaPrefix();
   if(pfx){
     document.querySelectorAll('.canal-nav').forEach(el=>el.style.display='');
-    const cLabel={AP:'Canal AP',HT:'Canal HT',AC:'Canal AC'}[pfx]||'Mi Canal';
+    const cLabel={AP:'Canal AP',HT:'Canal HT',AC:'Canal AC',KING:'Canal KING'}[pfx]||'Mi Canal';
     const cnl=document.getElementById('canal-nav-label');if(cnl)cnl.textContent=cLabel;
     const cnb=document.getElementById('canal-nav-btn-label');if(cnb)cnb.textContent='Reportes '+cLabel;
     const ctitle=document.getElementById('canal-rep-title');if(ctitle)ctitle.textContent='Reportes '+cLabel;
     const csub=document.getElementById('canal-rep-sub');if(csub)csub.textContent='Agencias '+pfx+' · Solo tu canal';
+    // Ocultar tabs no permitidos para usuarios de canal
+    const tabsOcultos=['tab-kpis','tab-inf-gerencial','tab-dash-canal','tab-dash-ventas','tab-usuarios','tab-importar','tab-storage'];
+    tabsOcultos.forEach(tid=>{const el=document.getElementById(tid);if(el)el.style.display='none';});
+    // Ocultar botones de navegacion para tabs no permitidos para canal
+    const tabsPermitidos=['dashboard','leads','pipeline','recordatorios','rep-citas','rep-ventas','tracker-citas','citas-dia','perfil','canal-reportes'];
+    document.querySelectorAll('.ni').forEach(btn=>{
+      const oc=btn.getAttribute('onclick')||'';
+      const m=oc.match(/goTab\('([^']+)'/);
+      if(!m)return;
+      if(!tabsPermitidos.includes(m[1]))btn.style.display='none';
+    });
+    // Mostrar solo los admin-sup permitidos
+    document.querySelectorAll('.admin-sup').forEach(el=>{
+      const oc=(el.getAttribute('onclick')||'');
+      const m=oc.match(/goTab\('([^']+)'/);
+      if(!m){el.style.display='none';return;}
+      const tabsSupPermitidos=['rep-citas','rep-ventas','tracker-citas','citas-dia'];
+      if(!tabsSupPermitidos.includes(m[1])){el.style.display='none';}else{el.style.display='';}
+    });
     goTab('canal-reportes',null);return;
   }
   if(driveConn.url){document.getElementById('gs-url').value=driveConn.url;document.getElementById('btn-sync').style.display='inline-flex';document.getElementById('btn-autosync').style.display='inline-flex';document.getElementById('btn-disco').style.display='inline-flex';if(driveConn.lastSync)document.getElementById('sync-st').textContent='✅ '+new Date(driveConn.lastSync).toLocaleString();}
@@ -2804,6 +2824,10 @@ function saveDet(id){
     if(newAg){
       l.agencia=newAg;
       l.agencia_codigo=newCodigo||l.agencia_codigo||'';
+    } else {
+      // newAg vacío → preservar agencia y código existentes sin tocarlos
+      // Asegurarse de que el campo de búsqueda muestre la agencia actual
+      if(dagSearch&&!dagSearch.value&&l.agencia)dagSearch.value=l.agencia;
     }
     // Si newAg está vacío → no tocar l.agencia bajo ninguna circunstancia
   }
@@ -2921,6 +2945,8 @@ function saveLead(){
     if(comTxt)ex.notas=[...(ex.notas||[]),{txt:comTxt,by:CU.nombre,ts:new Date().toLocaleString()}];
     // Preservar agencia existente si el nuevo valor está vacío (select no poblado o no tocado)
     if(!data.agencia && ex.agencia) { data.agencia = ex.agencia; data.agencia_codigo = ex.agencia_codigo||''; }
+    // Preservar agencia_codigo si el nuevo valor no lo tiene
+    if(data.agencia && !data.agencia_codigo && ex.agencia_codigo) { data.agencia_codigo = ex.agencia_codigo; }
     leads[i]={...ex,...data,notas:ex.notas};
     savedLead=leads[i];
     // Track transition to CITA: if state changed from non-CITA to CITA, record fcita
@@ -4635,6 +4661,25 @@ async function delAllLeads(){
   setSyncStatus('ok');
   persist();exitBulk();renderAll();renderDataManager();
   toast('Todos los leads eliminados ✓');
+}
+async function depurarLeadsFebrero(){
+  // Ocultar leads de febrero del CRM LOCAL sin borrarlos de Firebase.
+  // Los leads quedan en Firebase (visibles si se reconecta), pero se eliminan del CRM activo.
+  const febLeads=leads.filter(l=>{
+    const fa=(l.fa||l.fcita||l.fu||'').substring(0,7);
+    return fa==='2026-02'||fa==='2025-02';
+  });
+  if(febLeads.length===0){toast('No hay leads de febrero en el CRM');return;}
+  const conf=prompt(`¿Depurar ${febLeads.length} leads de febrero?\nEstos leads quedarán en Firebase pero se ocultarán del CRM.\nEscribe: DEPURAR FEBRERO`);
+  if(conf!=='DEPURAR FEBRERO'){toast('Cancelado');return;}
+  // Eliminar solo localmente — NO llamar deleteLeadCloud, solo markDeleted para evitar re-sincronización
+  const idsADep=new Set(febLeads.map(l=>String(l.id)));
+  leads=leads.filter(l=>!idsADep.has(String(l.id)));
+  persist();
+  exitBulk&&exitBulk();
+  renderAll();
+  renderDataManager&&renderDataManager();
+  toast(`✅ ${febLeads.length} leads de febrero ocultados del CRM (siguen en Firebase)`);
 }
 async function fullReset(){const conf=prompt('Reset total: borrará TODO en la nube.\nEscribe RESET TOTAL:');if(conf!=='RESET TOTAL'){toast('Cancelado');return;}const lids=leads.map(l=>l.id),uids=users.filter(u=>u.id>1).map(u=>u.id);leads=[];users=[DEF_USERS[0]];impHist=[];driveConn={url:'',lastSync:null,autoSync:false};nuid=9;nlid=1;clearInterval(autoTimer);if(useCloud&&window._fb.isReady()){setSyncStatus('syncing');await Promise.all([...lids.map(id=>window._fb.deleteLeadCloud(id)),...uids.map(id=>window._fb.deleteUserCloud(id))]);setSyncStatus('ok');}Object.keys(localStorage).filter(k=>k.startsWith('tvs8_')).forEach(k=>localStorage.removeItem(k));persist();exitBulk();populateSel();renderAll();renderDataManager();toast('CRM reseteado ✓');}
 
@@ -7022,22 +7067,27 @@ async function dcExportXLSX() {
   const NV='1B2F6E';
   // Hoja 1
   const w1=wb.addWorksheet('Detalle de Citas');
-  w1.columns=[{key:'a',width:13},{key:'b',width:9},{key:'c',width:20},{key:'d',width:30},{key:'e',width:15},{key:'f',width:22},{key:'g',width:13},{key:'h',width:26},{key:'i',width:14}];
-  w1.mergeCells('A1:I1');const c1=w1.getCell('A1');c1.value='REPORTE CITAS POR CANAL';c1.font=fw('FFFFFF',true,14);c1.fill=fg(NV);c1.alignment=aC;w1.getRow(1).height=28;
-  w1.mergeCells('A2:I2');const c2=w1.getCell('A2');c2.value=`Del ${fd} al ${fh} · ${arr.length} citas`;c2.font=fw('555555',false,10);c2.alignment=aL;w1.getRow(2).height=16;
+  w1.columns=[{key:'a',width:13},{key:'b',width:9},{key:'c',width:20},{key:'d',width:30},{key:'e',width:15},{key:'f',width:22},{key:'g',width:13},{key:'h',width:26},{key:'i',width:16},{key:'j',width:14},{key:'k',width:60}];
+  w1.mergeCells('A1:K1');const c1=w1.getCell('A1');c1.value='REPORTE CITAS POR CANAL';c1.font=fw('FFFFFF',true,14);c1.fill=fg(NV);c1.alignment=aC;w1.getRow(1).height=28;
+  w1.mergeCells('A2:K2');const c2=w1.getCell('A2');c2.value=`Del ${fd} al ${fh} · ${arr.length} citas`;c2.font=fw('555555',false,10);c2.alignment=aL;w1.getRow(2).height=16;
   w1.getRow(3).height=6;
-  const hr1=w1.addRow(['FECHA','CANAL','ASESOR','CLIENTE','TELÉFONO','LÍNEA','PAGO','AGENCIA','ESTADO CITA']);
+  const hr1=w1.addRow(['FECHA','CANAL','ASESOR','CLIENTE','TELÉFONO','LÍNEA','PAGO','AGENCIA','CÓDIGO AGENCIA','ESTADO CITA','COMENTARIOS']);
   hr1.height=20;hr1.eachCell(c=>{c.font=fw('FFFFFF',true,10);c.fill=fg('2D2D2D');c.alignment=aC;c.border=bd;});
   const sorted=[...arr].sort((a,b)=>(b.fcita||b.fa||'').localeCompare(a.fcita||a.fa||''));
   sorted.forEach((l,i)=>{
     const canal=(l.canal||'').toUpperCase();
     const estado=l.est_cita||'En Proceso';
-    const row=w1.addRow([(l.fcita||l.fa||'').substring(0,10),canal||'—',l.anom||'—',l.nom||'—',String(l.tel||'—'),l.linea||'—',l.tp||'—',l.agencia||'—',estado]);
+    // Obtener código de agencia
+    let agCodigo=l.agencia_codigo||'';
+    if(!agCodigo&&l.agencia){for(const[agC,agD]of Object.entries(AGENCIA_DATA)){if(agD.nom===l.agencia){agCodigo=agC;break;}}}
+    // Concatenar todos los comentarios con fecha
+    const comentarios=(l.notas&&l.notas.length)?l.notas.map(n=>'['+( n.ts||'')+'] '+(n.by||'Asesor')+': '+(n.txt||'')).join(' | '):'';
+    const row=w1.addRow([(l.fcita||l.fa||'').substring(0,10),canal||'—',l.anom||'—',l.nom||'—',String(l.tel||'—'),l.linea||'—',l.tp||'—',l.agencia||'—',agCodigo||'—',estado,comentarios]);
     row.height=17;
     const bg=i%2===0?'FFFFFF':'F5F5F5';
-    row.eachCell((c,ci)=>{c.fill=fg(bg);c.font=fw('1a1a1a',false,10);c.alignment=ci===4?aL:aC;c.border=bd;});
+    row.eachCell((c,ci)=>{c.fill=fg(bg);c.font=fw('1a1a1a',false,10);c.alignment=(ci===4||ci===11)?aL:aC;c.border=bd;});
     const cc=row.getCell(2);cc.fill=fg(CH[canal]||'888888');cc.font=fw('FFFFFF',true,10);
-    const ec=row.getCell(9);
+    const ec=row.getCell(10);
     if(estado==='Verificada'){ec.fill=fg('DCFCE7');ec.font=fw('1B5E20',true,10);}
     else if(estado==='Perdida'){ec.fill=fg('FEE2E2');ec.font=fw('B91C1C',true,10);}
     else{ec.fill=fg('DBEAFE');ec.font=fw('1565C0',true,10);}
