@@ -69,7 +69,11 @@ window._fb = {
   async saveUserCloud(user) {
     if(!fbDb) return;
     try {
-      const safe = { ...user }; delete safe.pass; // never store passwords in cloud
+      const safe = { ...user };
+      // Store a simple reversible encoding of the pass so it syncs across devices.
+      // Not cryptographic — just prevents plain-text exposure in the Firestore console.
+      if(safe.pass){ safe._ph = btoa(unescape(encodeURIComponent(safe.pass))); }
+      delete safe.pass; // never store plain-text password
       await setDoc(doc(fbDb, 'crm_users', String(user.id)), { ...safe, _ts: serverTimestamp() });
     } catch(e) { console.warn('saveUserCloud:', e); }
   },
@@ -521,7 +525,8 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
   </div>
   <div class="ns canal-nav" style="margin-top:.4rem;display:none">
     <div class="nl" id="canal-nav-label">Mi Canal</div>
-    <button class="ni" onclick="goTab('canal-reportes',this)"><span class="nco">📊</span><span id="canal-nav-btn-label">Reportes Canal</span></button>
+    <button class="ni" id="canal-nav-btn-single" onclick="goTab('canal-reportes',this)"><span class="nco">📊</span><span id="canal-nav-btn-label">Reportes Canal</span></button>
+    <button class="ni" id="canal-nav-btn-multi" style="display:none" onclick="goTab('canal-multi',this)"><span class="nco">📊</span><span id="canal-multi-btn-label">Mis Canales</span></button>
   </div>
   <div class="ns" style="margin-top:.4rem">
     <div class="nl">Cuenta</div>
@@ -869,6 +874,49 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <div class="tw"><table>
       <thead><tr><th>Agencia</th><th>Total Leads</th><th>Citas</th><th>Proceso</th><th>Ventas</th><th>Seguimiento</th><th>% Cierre</th></tr></thead>
       <tbody id="canal-rep-rank"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- REPORTES MULTI-CANAL (Gerente Comercial HT+AC, y tabs individuales AP/AC/KING) -->
+<div id="tab-canal-multi" class="tab">
+  <div class="ph">
+    <div><div class="pt" id="canal-multi-title">Reportes Canal</div><div class="psb" id="canal-multi-sub">Análisis de tus canales</div></div>
+    <div class="ha" style="flex-wrap:wrap;gap:6px">
+      <select class="fc" id="canal-multi-mes" onchange="renderCanalMulti()" style="max-width:120px">
+        <option value="">Todos meses</option>
+        <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
+        <option value="04">Abril</option><option value="05">Mayo</option><option value="06">Junio</option>
+        <option value="07">Julio</option><option value="08">Agosto</option><option value="09">Septiembre</option>
+        <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+      </select>
+      <select class="fc" id="canal-multi-ano" onchange="renderCanalMulti()" style="max-width:100px">
+        <option value="">Todos años</option>
+        <option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option>
+      </select>
+    </div>
+  </div>
+  <!-- Tabs de canal -->
+  <div id="canal-multi-tabs" style="display:flex;gap:6px;margin-bottom:1.2rem;flex-wrap:wrap"></div>
+  <!-- Contenido dinámico -->
+  <div class="mets" id="canal-multi-mets"></div>
+  <div class="two">
+    <div class="card"><div class="ch"><span class="ct">Citas por agencia</span></div><div class="cb"><canvas id="canal-multi-chart-cita" height="220"></canvas></div></div>
+    <div class="card"><div class="ch"><span class="ct">Estado de leads</span></div><div class="cb"><canvas id="canal-multi-chart-est" height="220"></canvas></div></div>
+  </div>
+  <div class="two">
+    <div class="card"><div class="ch"><span class="ct">Ventas por agencia</span></div><div class="cb"><canvas id="canal-multi-chart-venta" height="220"></canvas></div></div>
+    <div class="card"><div class="ch"><span class="ct">Ingreso por día</span></div><div class="cb"><canvas id="canal-multi-chart-dia" height="220"></canvas></div></div>
+  </div>
+  <div class="two">
+    <div class="card"><div class="ch"><span class="ct">Moto más solicitada</span></div><div class="cb"><div class="bw" id="canal-multi-linea"></div></div></div>
+    <div class="card"><div class="ch"><span class="ct">Moto más vendida</span></div><div class="cb"><div class="bw" id="canal-multi-linea-venta"></div></div></div>
+  </div>
+  <div class="card">
+    <div class="ch"><span class="ct">Ranking de agencias</span></div>
+    <div class="tw"><table>
+      <thead><tr><th>Agencia</th><th>Total Leads</th><th>Citas</th><th>Proceso</th><th>Ventas</th><th>Seguimiento</th><th>% Cierre</th></tr></thead>
+      <tbody id="canal-multi-rank"></tbody>
     </table></div>
   </div>
 </div>
@@ -1516,7 +1564,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <div class="fr"><div class="fg"><label class="fl">Nombre completo *</label><input class="fc" id="uf-nom" autocapitalize="words"></div><div class="fg"><label class="fl">Usuario (login) *</label><input class="fc" id="uf-usr" autocorrect="off" autocapitalize="off"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Contraseña *</label><input class="fc" type="password" id="uf-pw" placeholder="Mínimo 6 caracteres"></div><div class="fg"><label class="fl">Confirmar</label><input class="fc" type="password" id="uf-pw2"></div></div>
       <div class="fr"><div class="fg"><label class="fl">Email</label><input class="fc" type="email" id="uf-em" autocapitalize="off"></div><div class="fg"><label class="fl">WhatsApp</label><input class="fc" type="tel" id="uf-tel"></div></div>
-      <div class="fr"><div class="fg"><label class="fl">Rol</label><select class="fc" id="uf-rol"><option value="asesor">Asesor</option><option value="supervisor">Supervisor</option><option value="gerencia">Gerencia</option><option value="ap_gerencia">Canal AP</option><option value="ht_gerencia">Canal HT</option><option value="ac_gerencia">Canal AC</option><option value="king_gerencia">Canal KING</option><option value="admin">Administrador</option></select></div><div class="fg"><label class="fl">Zona</label><input class="fc" id="uf-zona"></div></div>
+      <div class="fr"><div class="fg"><label class="fl">Rol</label><select class="fc" id="uf-rol"><option value="asesor">Asesor</option><option value="supervisor">Supervisor</option><option value="gerencia">Gerencia</option><option value="ap_gerencia">Canal AP</option><option value="ht_gerencia">Canal HT</option><option value="ac_gerencia">Canal AC</option><option value="king_gerencia">Canal KING</option><option value="gerente_comercial">Gerente Comercial (HT+AC)</option><option value="admin">Administrador</option></select></div><div class="fg"><label class="fl">Zona</label><input class="fc" id="uf-zona"></div></div>
       <div class="fg"><label class="fl">Nombre exacto en los leads</label><input class="fc" id="uf-ln" placeholder="Igual que columna Asesor"></div>
       <div class="fg"><label class="fl">Mensaje WhatsApp</label><textarea class="fc" id="uf-wa" placeholder="Hola {nombre}, soy {asesor} de TVS Motos..."></textarea></div>
       <div id="uf-err" class="wbox" style="display:none"></div>
@@ -1650,6 +1698,7 @@ const DEF_USERS=[
   {id:6,nombre:'Javier Macal',user:'javier.macal',pass:'tvs2025',email:'',tel:'+502 5555-0004',rol:'asesor',zona:'Guatemala',leadsname:'Javier Macal',wa:'Hola {nombre}, soy Javier de TVS Motos.',color:'#7C3AED'},
   {id:7,nombre:'Fernando Escobar',user:'fernando.escobar',pass:'tvs2025',email:'',tel:'+502 5555-0005',rol:'asesor',zona:'Totonicapán',leadsname:'Fernando Escobar',wa:'Hola {nombre}, soy Fernando de TVS Motos.',color:'#B45309'},
   {id:8,nombre:'Rocio Nij',user:'rocio.nij',pass:'tvs2025',email:'',tel:'+502 5555-0006',rol:'asesor',zona:'Puerto Barrios',leadsname:'Rocio Nij',wa:'Hola {nombre}, te saluda Rocio de TVS Motos.',color:'#9D174D'},
+  {id:10,nombre:'Gerente Comercial',user:'gerente.comercial',pass:'gerente2025',email:'',tel:'',rol:'gerente_comercial',zona:'',leadsname:'',wa:'',color:'#0D7377'},
 ];
 const DEF_LEADS=[
   {id:1,ori:'Pauta',fa:'2026-02-21',fu:'2026-02-23',est:'PROCESO',tp:'Contado',linea:'APACHE RTR 160 4V',ubi:'Guatemala',nom:'Jose Alfredo Sagastume Leva',tel:'50241515494',uid:3,notas:[{txt:'Cliente solicita crédito pero no aplica.',by:'Nancy Garcia',ts:'21/02/2026'}],reminder:null},
@@ -1676,7 +1725,7 @@ function calcPerf(uid){const tl=todayLeads(uid),tg=todayGest(uid),pL=Math.min(Ma
 function perfColor(p){return p>=81?'#16a34a':p>=60?'#ea580c':'#dc2626';}
 function perfBadge(p){const c=perfColor(p);return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:44px;padding:3px 8px;border-radius:20px;background:${c}18;color:${c};font-weight:700;font-size:12px">${p}%</span>`;}
 function perfBar(p){const c=perfColor(p);return `<div style="background:#e5e7eb;border-radius:4px;height:6px;overflow:hidden;flex:1"><div style="width:${p}%;background:${c};height:100%;border-radius:4px;transition:width .4s"></div></div>`;}
-let nuid=9, nlid=7;
+let nuid=11, nlid=7;
 let CU=null, editL=null, editU=null, assignU=null, passU=null, remL=null;
 let bulkMode=false, selIds=new Set(), remFilter='all', pendRows=[], autoTimer=null;
 let useCloud=false, syncStatus='off'; // 'off'|'ok'|'syncing'|'err'
@@ -1914,9 +1963,11 @@ function initRealtimeSync(){
     if(cloudUsers.length>0){
       // Merge: keep local passwords, update rest from cloud
       cloudUsers.forEach(cu=>{
+        // Decode password from cloud encoding if available
+        if(cu._ph && !cu.pass){ try{ cu.pass = decodeURIComponent(escape(atob(cu._ph))); }catch(e){} }
         const localU=users.find(u=>u.id===cu.id);
-        if(localU){Object.assign(localU,cu,{pass:localU.pass});}
-        else{users.push({...cu,pass:'tvs2025'});}
+        if(localU){Object.assign(localU,cu,{pass:cu.pass||localU.pass});}
+        else{users.push({...cu,pass:cu.pass||'tvs2025'});}
       });
       users=users.filter(u=>cloudUsers.find(cu=>cu.id===u.id)||u.id<=8);
       lsS('tvs8_users_bk',users);
@@ -2146,10 +2197,10 @@ function setupCRMQuejasBtn() {
 }
 
 function doLogout(){persist();CU=null;document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('lu').value='';document.getElementById('lp').value='';closeSB();}
-function isPriv(){return CU&&(CU.rol==='admin'||CU.rol==='supervisor'||CU.rol==='gerencia'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia'||CU.rol==='king_gerencia');}
+function isPriv(){return CU&&(CU.rol==='admin'||CU.rol==='supervisor'||CU.rol==='gerencia'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia'||CU.rol==='king_gerencia'||CU.rol==='gerente_comercial');}
 function isAdmin(){return CU&&CU.rol==='admin';}
-function isGerencia(){return CU&&(CU.rol==='gerencia'||CU.rol==='admin'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia'||CU.rol==='king_gerencia');}
-function getAgenciaPrefix(){if(!CU)return null;if(CU.rol==='ap_gerencia')return 'AP';if(CU.rol==='ht_gerencia')return 'HT';if(CU.rol==='ac_gerencia')return 'AC';if(CU.rol==='king_gerencia')return 'KING';return null;}
+function isGerencia(){return CU&&(CU.rol==='gerencia'||CU.rol==='admin'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia'||CU.rol==='king_gerencia'||CU.rol==='gerente_comercial');}
+function getAgenciaPrefix(){if(!CU)return null;if(CU.rol==='ap_gerencia')return 'AP';if(CU.rol==='ht_gerencia')return 'HT';if(CU.rol==='ac_gerencia')return 'AC';if(CU.rol==='king_gerencia')return 'KING';if(CU.rol==='gerente_comercial')return 'HTAC';return null;}
 function isCanal(){return !!getAgenciaPrefix();}
 function isAP(){return CU&&CU.rol==='ap_gerencia';}
 function isHT(){return CU&&CU.rol==='ht_gerencia';}
@@ -2169,7 +2220,7 @@ function setupUI(){
   }
   const av=document.getElementById('tb-av');av.textContent=ini(CU.nombre);av.style.background=CU.color+'20';av.style.color=CU.color;
   document.getElementById('tb-nm').textContent=CU.nombre.split(' ')[0];
-  const rolLabel={admin:'Administrador',gerencia:'Gerencia',supervisor:'Supervisor',asesor:'Asesor',ap_gerencia:'Canal AP',ht_gerencia:'Canal HT',ac_gerencia:'Canal AC'};
+  const rolLabel={admin:'Administrador',gerencia:'Gerencia',supervisor:'Supervisor',asesor:'Asesor',ap_gerencia:'Canal AP',ht_gerencia:'Canal HT',ac_gerencia:'Canal AC',gerente_comercial:'Gerente Comercial'};
   document.getElementById('tb-rl').textContent=rolLabel[CU.rol]||CU.rol;
   document.getElementById('nav-leads-lbl').textContent=isPriv()?'Todos los Leads':'Mis Leads';
   // PWA
@@ -2183,8 +2234,15 @@ function setupUI(){
   const pfx=getAgenciaPrefix();
   if(pfx){
     document.querySelectorAll('.canal-nav').forEach(el=>el.style.display='');
-    const cLabel={AP:'Canal AP',HT:'Canal HT',AC:'Canal AC',KING:'Canal KING'}[pfx]||'Mi Canal';
-    const cnl=document.getElementById('canal-nav-label');if(cnl)cnl.textContent=cLabel;
+    // Multi-canal (gerente_comercial): show multi tab button, hide single
+    const isMulti=pfx==='HTAC';
+    const singleBtn=document.getElementById('canal-nav-btn-single');
+    const multiBtn=document.getElementById('canal-nav-btn-multi');
+    if(singleBtn)singleBtn.style.display=isMulti?'none':'';
+    if(multiBtn)multiBtn.style.display=isMulti?'':'none';
+    const cLabel=isMulti?'HT + AC':{AP:'Canal AP',HT:'Canal HT',AC:'Canal AC',KING:'Canal KING'}[pfx]||'Mi Canal';
+    const cnl=document.getElementById('canal-nav-label');if(cnl)cnl.textContent=isMulti?'Mis Canales':cLabel;
+    if(multiBtn){const mb=document.getElementById('canal-multi-btn-label');if(mb)mb.textContent='Reportes HT + AC';}
     const cnb=document.getElementById('canal-nav-btn-label');if(cnb)cnb.textContent='Reportes '+cLabel;
     const ctitle=document.getElementById('canal-rep-title');if(ctitle)ctitle.textContent='Reportes '+cLabel;
     const csub=document.getElementById('canal-rep-sub');if(csub)csub.textContent='Agencias '+pfx+' · Solo tu canal';
@@ -2192,7 +2250,7 @@ function setupUI(){
     const tabsOcultos=['tab-kpis','tab-inf-gerencial','tab-dash-canal','tab-dash-ventas','tab-usuarios','tab-importar','tab-storage'];
     tabsOcultos.forEach(tid=>{const el=document.getElementById(tid);if(el)el.style.display='none';});
     // Ocultar botones de navegacion para tabs no permitidos para canal
-    const tabsPermitidos=['dashboard','leads','pipeline','recordatorios','rep-citas','rep-ventas','tracker-citas','citas-dia','perfil','canal-reportes'];
+    const tabsPermitidos=['dashboard','leads','pipeline','recordatorios','rep-citas','rep-ventas','tracker-citas','citas-dia','perfil','canal-reportes','canal-multi'];
     document.querySelectorAll('.ni').forEach(btn=>{
       const oc=btn.getAttribute('onclick')||'';
       const m=oc.match(/goTab\('([^']+)'/);
@@ -2207,7 +2265,7 @@ function setupUI(){
       const tabsSupPermitidos=['rep-citas','rep-ventas','tracker-citas','citas-dia'];
       if(!tabsSupPermitidos.includes(m[1])){el.style.display='none';}else{el.style.display='';}
     });
-    goTab('canal-reportes',null);return;
+    if(isMulti){goTab('canal-multi',null);}else{goTab('canal-reportes',null);}return;
   }
   if(driveConn.url){document.getElementById('gs-url').value=driveConn.url;document.getElementById('btn-sync').style.display='inline-flex';document.getElementById('btn-autosync').style.display='inline-flex';document.getElementById('btn-disco').style.display='inline-flex';if(driveConn.lastSync)document.getElementById('sync-st').textContent='✅ '+new Date(driveConn.lastSync).toLocaleString();}
   renderAll();updateStorageInfo();
@@ -2217,7 +2275,10 @@ function setupUI(){
     setTimeout(()=>{
       console.log('[agencias] Admin login — pushing',agencias.length,'agencias to cloud');
       window._fb.saveAgenciasCloud(agencias);
-    }, 500);
+      // Re-push all users so passwords sync to cloud (_ph field)
+      users.forEach(u=>window._fb.saveUserCloud(u));
+      console.log('[users] Admin login — re-synced',users.length,'users to cloud with password hash');
+    }, 800);
   }
 }
 
@@ -2255,7 +2316,11 @@ function atag(uid){if(!uid)return `<span style="font-size:10px;color:var(--hin)"
 function waBtn(l){if(!l.tel)return '';const u=users.find(x=>x.id===l.uid);const msg=encodeURIComponent(u&&u.wa?u.wa.replace('{nombre}',l.nom).replace('{asesor}',(u.nombre||'').split(' ')[0]).replace('{linea}',l.linea||''):'Hola, te contactamos de TVS Motos');return `<a href="https://wa.me/${l.tel.replace(/\D/g,'')}?text=${msg}" target="_blank" class="btn bg bsm" style="text-decoration:none;font-size:10px" title="WhatsApp">📱</a>`;}
 function myLeads(){
   const prefix=getAgenciaPrefix();
-  if(prefix){return leads.filter(l=>(l.agencia||'').toUpperCase().startsWith(prefix));}
+  if(prefix==='HTAC'){
+    // Gerente Comercial: see HT + AC leads
+    return leads.filter(l=>{const ag=(l.agencia||'').toUpperCase();return ag.startsWith('HT ')||ag==='HT'||ag.startsWith('AC ')||ag==='AC';});
+  }
+  if(prefix){return leads.filter(l=>{const ag=(l.agencia||'').toUpperCase();return ag.startsWith(prefix+' ')||ag===prefix;});}
   if(isPriv())return leads;
   return leads.filter(l=>l.uid===CU.id||(CU.leadsname&&l.nom&&l.nom.trim().toLowerCase()===CU.leadsname.trim().toLowerCase()));
 }
@@ -4688,7 +4753,7 @@ async function fullReset(){const conf=prompt('Reset total: borrará TODO en la n
 // REPORTES CANAL (AP / HT / AC)
 // ═══════════════════════════════════════
 function renderCanalReportes(){
-  const pfx=getAgenciaPrefix();if(!pfx)return;
+  const pfx=getAgenciaPrefix();if(!pfx||pfx==='HTAC')return;
   const dias=parseInt(document.getElementById('canal-rep-per')?.value||'0');
   const mes=document.getElementById('canal-rep-mes')?.value||'';
   const ano=document.getElementById('canal-rep-ano')?.value||'';
@@ -4739,6 +4804,128 @@ function renderCanalReportes(){
     return `<tr><td style="font-weight:700;color:var(--navy)">${ag}</td><td>${t}</td><td>${c}</td><td>${p}</td><td style="color:#1B5E20;font-weight:700">${v}</td><td>${s}</td><td style="font-weight:700;color:${pp>=30?'#1B5E20':'var(--red)'}">${pp}%</td></tr>`;
   }).join('');
 }
+
+// ═══════════════════════════════════════
+// REPORTES MULTI-CANAL (Gerente Comercial: HT + AC, o canales separados AP/AC/KING)
+// ═══════════════════════════════════════
+let _canalMultiActivo = 'HT'; // canal activo en el tab multi
+
+const _CM_CANALES = {
+  AP:   { label:'Canal AP',   bg:'#4CAF50', fg:'#fff', prefixes:['AP'] },
+  HT:   { label:'Canal HT',   bg:'#9C27B0', fg:'#fff', prefixes:['HT'] },
+  AC:   { label:'Canal AC',   bg:'#1976D2', fg:'#fff', prefixes:['AC'] },
+  KING: { label:'Canal KING', bg:'#E53935', fg:'#fff', prefixes:['KING'] },
+};
+
+function _getCanalMultiList(){
+  // Returns list of canal keys this user can see
+  const pfx=getAgenciaPrefix();
+  if(pfx==='HTAC') return ['HT','AC'];
+  if(pfx==='AP')   return ['AP'];
+  if(pfx==='HT')   return ['HT'];
+  if(pfx==='AC')   return ['AC'];
+  if(pfx==='KING') return ['KING'];
+  return ['AP','HT','AC','KING']; // admin
+}
+
+function renderCanalMultiTabs(){
+  const canales=_getCanalMultiList();
+  const tabsEl=document.getElementById('canal-multi-tabs');
+  if(!tabsEl)return;
+  if(canales.length<=1){tabsEl.style.display='none';return;}
+  tabsEl.style.display='flex';
+  tabsEl.innerHTML=canales.map(key=>{
+    const cfg=_CM_CANALES[key];
+    const isActive=_canalMultiActivo===key;
+    return `<button onclick="setCanalMulti('${key}')" style="padding:7px 18px;border-radius:20px;border:none;cursor:pointer;font-weight:700;font-size:13px;font-family:inherit;background:${isActive?cfg.bg:'#f0f0f0'};color:${isActive?cfg.fg:'#555'};transition:all .15s">${cfg.label}</button>`;
+  }).join('');
+}
+
+function setCanalMulti(key){
+  _canalMultiActivo=key;
+  renderCanalMultiTabs();
+  renderCanalMulti();
+}
+
+function renderCanalMulti(){
+  const canales=_getCanalMultiList();
+  if(!canales.includes(_canalMultiActivo))_canalMultiActivo=canales[0];
+  renderCanalMultiTabs();
+
+  const pfxActivo=_canalMultiActivo; // e.g. 'HT' or 'AC'
+  const mes=document.getElementById('canal-multi-mes')?.value||'';
+  const ano=document.getElementById('canal-multi-ano')?.value||'';
+  const cfg=_CM_CANALES[pfxActivo];
+
+  // Title
+  const title=document.getElementById('canal-multi-title');
+  const sub=document.getElementById('canal-multi-sub');
+  if(title)title.textContent=cfg?cfg.label:'Reportes';
+  if(sub)sub.textContent='Agencias '+pfxActivo+' · Solo tu canal';
+
+  // Filter leads for this canal
+  let arr=leads.filter(l=>l.agencia&&l.agencia.toUpperCase().startsWith(pfxActivo+' '));
+  // Also match exact prefix (e.g. agencia === 'HT')
+  arr=arr.concat(leads.filter(l=>l.agencia&&l.agencia.toUpperCase()===pfxActivo&&!arr.includes(l)));
+
+  if(ano||mes){arr=arr.filter(l=>{const fa=parseFecha(l.fa||'');if(!fa)return false;if(ano&&!fa.startsWith(ano))return false;if(mes&&fa.length>=7&&fa.substring(5,7)!==mes)return false;return true;});}
+
+  const venta=arr.filter(l=>l.est==='VENTA').length;
+  const citas=arr.filter(l=>l.est==='CITA').length;
+  const proceso=arr.filter(l=>l.est==='PROCESO').length;
+  const seguimiento=arr.filter(l=>l.est==='SEGUIMIENTO').length;
+  const pct=arr.length>0?Math.round(venta/arr.length*100):0;
+  const color=cfg?cfg.bg:'#1B2F6E';
+
+  const mets=document.getElementById('canal-multi-mets');
+  if(mets)mets.innerHTML=`
+    <div class="met"><div class="ml">Total Leads</div><div class="mv">${arr.length}</div></div>
+    <div class="met grn"><div class="ml">Ventas</div><div class="mv">${venta}</div><div class="ms" style="color:#2e7d32">${pct}%</div></div>
+    <div class="met org"><div class="ml">Citas</div><div class="mv">${citas}</div></div>
+    <div class="met"><div class="ml">En Proceso</div><div class="mv">${proceso}</div></div>
+    <div class="met"><div class="ml">Seguimiento</div><div class="mv">${seguimiento}</div></div>`;
+
+  const agMap={},agVenta={},agCita={},agProc={},agSeg={};
+  arr.forEach(l=>{
+    const ag=l.agencia||'Sin agencia';
+    agMap[ag]=(agMap[ag]||0)+1;
+    if(l.est==='VENTA')agVenta[ag]=(agVenta[ag]||0)+1;
+    if(l.est==='CITA')agCita[ag]=(agCita[ag]||0)+1;
+    if(l.est==='PROCESO')agProc[ag]=(agProc[ag]||0)+1;
+    if(l.est==='SEGUIMIENTO')agSeg[ag]=(agSeg[ag]||0)+1;
+  });
+  const agKeys=Object.keys(agMap).sort((a,b)=>agMap[b]-agMap[a]);
+  const shortAg=k=>k.replace(pfxActivo+' ','').substring(0,14);
+
+  mkChart('canal-multi-chart-cita','bar',agKeys.map(shortAg),[{label:'Citas',data:agKeys.map(k=>agCita[k]||0),backgroundColor:color,borderRadius:4}]);
+  const estLabels=ESTADOS.filter(s=>arr.some(l=>l.est===s));
+  mkChart('canal-multi-chart-est','doughnut',estLabels,[{data:estLabels.map(s=>arr.filter(l=>l.est===s).length),backgroundColor:estLabels.map(s=>EC[s]||'#999')}],{legend:true});
+  mkChart('canal-multi-chart-venta','bar',agKeys.map(shortAg),[{label:'Ventas',data:agKeys.map(k=>agVenta[k]||0),backgroundColor:'#4CAF50',borderRadius:4}]);
+  const dm={};arr.forEach(l=>{const f=parseFecha(l.fa||'');if(f)dm[f]=(dm[f]||0)+1;});
+  const dKeys=Object.keys(dm).sort().slice(-30);
+  mkChart('canal-multi-chart-dia','line',dKeys,[{label:'Leads',data:dKeys.map(k=>dm[k]),borderColor:'#1B2F6E',backgroundColor:'rgba(27,47,110,.1)',fill:true,tension:.3,pointRadius:3}]);
+
+  function bars(data,barColor){const mx=Math.max(...data.map(d=>d.v),1);return data.map(d=>`<div class="br"><span class="bl" title="${d.k}">${d.k}</span><div class="bt"><div class="bf" style="width:${Math.round(d.v/mx*100)}%;background:${barColor}"></div></div><span class="bv">${d.v}</span></div>`).join('')||'<span style="color:var(--mut);font-size:12px">Sin datos</span>';}
+  const linMap={};arr.forEach(l=>linMap[l.linea||'Otra']=(linMap[l.linea||'Otra']||0)+1);
+  const linVMap={};arr.filter(l=>l.est==='VENTA').forEach(l=>linVMap[l.linea||'Otra']=(linVMap[l.linea||'Otra']||0)+1);
+  const linEl=document.getElementById('canal-multi-linea');if(linEl)linEl.innerHTML=bars(Object.entries(linMap).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v).slice(0,10),'#1B2F6E');
+  const linVEl=document.getElementById('canal-multi-linea-venta');if(linVEl)linVEl.innerHTML=bars(Object.entries(linVMap).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v).slice(0,10),'#4CAF50');
+  const rankEl=document.getElementById('canal-multi-rank');
+  if(rankEl)rankEl.innerHTML=agKeys.length===0?'<tr><td colspan="7" style="text-align:center;color:var(--mut);padding:1.5rem">Sin datos para este canal</td></tr>':agKeys.map(ag=>{
+    const t=agMap[ag]||0,c=agCita[ag]||0,p=agProc[ag]||0,v=agVenta[ag]||0,s=agSeg[ag]||0,pp=t>0?Math.round(v/t*100):0;
+    return `<tr><td style="font-weight:700;color:var(--navy)">${ag}</td><td>${t}</td><td>${c}</td><td>${p}</td><td style="color:#1B5E20;font-weight:700">${v}</td><td>${s}</td><td style="font-weight:700;color:${pp>=30?'#1B5E20':'var(--red)'}">${pp}%</td></tr>`;
+  }).join('');
+}
+
+// Hook goTab para renderizar canal-multi al abrir
+(function(){
+  const _origCM=window.goTab;
+  if(!_origCM)return;
+  window.goTab=function(tab,btn){
+    _origCM(tab,btn);
+    if(tab==='canal-multi'){renderCanalMulti();}
+  };
+})();
 
 // Modal to pick which agencia to delete
 function openDelAgenciaModal(){
