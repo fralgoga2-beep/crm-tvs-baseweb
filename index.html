@@ -4703,7 +4703,7 @@ async function loadHistorico(){
 function toggleAutoSync(){driveConn.autoSync=!driveConn.autoSync;if(driveConn.autoSync)startAutoSync();else clearInterval(autoTimer);document.getElementById('btn-autosync').textContent=driveConn.autoSync?'⏱ Auto ON':'⏱ Auto-sync';persist();toast(driveConn.autoSync?'Auto-sync ON':'Auto-sync OFF');}
 function discoDrive(){if(!confirm('¿Desconectar?'))return;driveConn={url:'',lastSync:null,autoSync:false};clearInterval(autoTimer);['btn-sync','btn-autosync','btn-disco'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('sync-st').textContent='';persist();}
 async function exportCSV(){
-  const arr=myLeads();
+  const arr=filteredLeads();
   if(arr.length===0){toast('Sin datos para exportar');return;}
   toast('Generando Excel...');
   if(!window.ExcelJS){
