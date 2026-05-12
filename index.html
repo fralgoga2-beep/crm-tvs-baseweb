@@ -4718,8 +4718,8 @@ async function exportCSV(){
   const bd={top:{style:'thin',color:{argb:'FFCCCCCC'}},left:{style:'thin',color:{argb:'FFCCCCCC'}},bottom:{style:'thin',color:{argb:'FFCCCCCC'}},right:{style:'thin',color:{argb:'FFCCCCCC'}}};
   const NV='1B2F6E';
   const ESTADOS={'NUEVO':'2196F3','CITA':'9C27B0','VENTA':'4CAF50','PERDIDO':'F44336','SEGUIMIENTO':'FF9800','EN PROCESO':'1565C0'};
-  const fdEl=document.getElementById('fil-fd');
-  const fhEl=document.getElementById('fil-fh');
+  const fdEl=document.getElementById('q-fd');
+  const fhEl=document.getElementById('q-fh');
   const fd=fdEl?.value||'';
   const fh=fhEl?.value||'';
   const rangoLabel=fd&&fh?`Del ${fd} al ${fh}`:(fd?`Desde ${fd}`:(fh?`Hasta ${fh}`:'Todo el periodo'));
