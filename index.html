@@ -1915,13 +1915,42 @@ function initRealtimeSync(){
       // Index cloud leads by id for fast lookup
       const cloudById={};
       cloudLeads.forEach(cl=>{ cloudById[String(cl.id)]=cl; });
-      // 1) Update existing leads from cloud, EXCEPT locked ones (recently saved locally)
-      //    AND skip any lead we just deleted (prevent zombie resurrection)
+      // 1) Update existing leads from cloud, EXCEPT:
+      //    - locked leads (currently being saved locally — preserve local)
+      //    - recently-deleted leads (prevent zombie resurrection)
+      //    - STALE snapshots (cloud is older than local — ignore)
+      // Stale-snapshot guard uses _ts_local (our own millisecond timestamp). If
+      // the cloud version's _ts_local is older than ours, it's a delayed echo
+      // and we ignore it. This prevents CITA→NUEVO rollback and agencia-wipe bugs.
       cloudLeads.forEach(cl=>{
-        if(isLocked(cl.id))return; // user just saved this — preserve local version
-        if(isRecentlyDeleted(cl.id))return; // we just deleted this — don't bring it back
+        if(isLocked(cl.id))return;
+        if(isRecentlyDeleted(cl.id))return;
         const idx=leads.findIndex(l=>String(l.id)===String(cl.id));
-        if(idx>=0){leads[idx]=cl;}else{leads.push(cl);}
+        if(idx>=0){
+          const localTs = Number(leads[idx]._ts_local) || 0;
+          const cloudTs = Number(cl._ts_local) || 0;
+          // If cloud is older than local → stale echo, ignore
+          if(localTs > 0 && cloudTs > 0 && cloudTs < localTs) return;
+          // If local has _ts_local but cloud doesn't → preserve local for 30s grace
+          if(localTs > 0 && cloudTs === 0){
+            if(Date.now() - localTs < 30000) return;
+          }
+          // CRITICAL — agencia protection:
+          // If our local version has an agencia but the incoming cloud version
+          // is EMPTY for that field, preserve our local agencia. Protects against
+          // another device that saved an edit without re-populating the agencia
+          // dropdown properly.
+          if(leads[idx].agencia && !cl.agencia){
+            cl.agencia = leads[idx].agencia;
+            cl.agencia_codigo = cl.agencia_codigo || leads[idx].agencia_codigo || '';
+          }
+          // Stamp _ts_local if missing so future comparisons work
+          if(!cl._ts_local) cl._ts_local = Date.now();
+          leads[idx]=cl;
+        } else {
+          if(!cl._ts_local) cl._ts_local = Date.now();
+          leads.push(cl);
+        }
       });
       // 2) Remove leads that no longer exist in the cloud,
       //    BUT keep:
@@ -2076,6 +2105,11 @@ async function cloudSaveLead(lead,silent=false){
   // Lock immediately — even if cloud is not ready, any pending snapshot in flight
   // must not overwrite this lead. Lock is keyed by id (string).
   lockLead(lead.id);
+  // CRITICAL: stamp the lead with our local time BEFORE we send it.
+  // The cloud listener uses this to detect stale echoes — if Firebase echoes
+  // back an old snapshot, its _ts_local will be older than what we just stamped,
+  // and the listener will ignore it. Prevents agencia-overwrite and rollback bugs.
+  lead._ts_local = Date.now();
   if(useCloud&&window._fb.isReady()){
     if(!silent)setSyncStatus('syncing');
     // Retry up to 3 times on failure (network glitches, transient errors).
@@ -2266,6 +2300,19 @@ function setupUI(){
       if(!tabsSupPermitidos.includes(m[1])){el.style.display='none';}else{el.style.display='';}
     });
     if(isMulti){goTab('canal-multi',null);}else{goTab('canal-reportes',null);}return;
+  }
+  // For admin / gerencia / supervisor (no agencia prefix): also show the
+  // canal-multi button so they can filter reports by channel (AP/HT/AC/KING).
+  // _getCanalMultiList() already returns all 4 channels when no prefix is set.
+  if(isAdmin()||CU.rol==='gerencia'||CU.rol==='supervisor'){
+    document.querySelectorAll('.canal-nav').forEach(el=>el.style.display='');
+    const singleBtn=document.getElementById('canal-nav-btn-single');
+    const multiBtn=document.getElementById('canal-nav-btn-multi');
+    // Admin: show only the multi button (with all 4 canals as inline tabs inside)
+    if(singleBtn)singleBtn.style.display='none';
+    if(multiBtn)multiBtn.style.display='';
+    const cnl=document.getElementById('canal-nav-label');if(cnl)cnl.textContent='Reportes por Canal';
+    const mb=document.getElementById('canal-multi-btn-label');if(mb)mb.textContent='AP · HT · AC · KING';
   }
   if(driveConn.url){document.getElementById('gs-url').value=driveConn.url;document.getElementById('btn-sync').style.display='inline-flex';document.getElementById('btn-autosync').style.display='inline-flex';document.getElementById('btn-disco').style.display='inline-flex';if(driveConn.lastSync)document.getElementById('sync-st').textContent='✅ '+new Date(driveConn.lastSync).toLocaleString();}
   renderAll();updateStorageInfo();
