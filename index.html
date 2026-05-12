@@ -611,6 +611,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <button class="btn bo" id="btn-bulk" onclick="enterBulk()">☐ Seleccionar</button>
       <button class="btn bo" id="btn-historico" onclick="loadHistorico()" title="Cargar leads de más de 5 meses">🕓 Histórico</button>
       <button class="btn bp" id="btn-nuevo-lead" onclick="openLM(null)">+ Nuevo</button>
+      <button class="btn bsm admin-only" id="btn-rand-assign" onclick="openRandomAssign()" style="background:linear-gradient(135deg,#D4AF37,#B8941F);color:#fff;border:none;display:none">🎲 Asignar Aleatorio <span id="rand-count" style="background:rgba(255,255,255,.25);padding:1px 7px;border-radius:10px;font-size:10px;margin-left:4px"></span></button>
     </div>
   </div>
   <div class="blk" id="blk-bar">
@@ -957,6 +958,27 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <div class="sct">📋 Columnas esperadas</div>
       <div style="font-size:11px;color:var(--mut);margin-bottom:8px">Primera fila del archivo:</div>
       <div id="col-list"></div>
+    </div>
+  </div>
+  <div class="sc" style="margin-top:.9rem;border:2px solid var(--gold);background:rgba(212,175,55,.03)">
+    <div class="sct" style="color:var(--gold);display:flex;align-items:center;gap:8px"><span>🚀</span><span>Carga Rápida (Excel desde Facebook/Meta Ads)</span></div>
+    <div class="scs">Sube un Excel con las columnas: <strong>nombre_completo</strong>, <strong>número_de_teléfono</strong>, <strong>created_time</strong>, <strong>form_name</strong></div>
+    <div style="background:#fff;border-radius:8px;padding:.7rem;margin-top:.5rem;font-size:11px;color:var(--mut)">
+      <strong style="color:var(--navy)">Valores por defecto:</strong> Origen=<strong>Pauta</strong> · Tipo Pago=<strong>No Informa</strong> · Estado=<strong>NUEVO</strong> · Asesor=<strong>Sin asignar</strong>
+    </div>
+    <div class="da" id="cr-dz" onclick="document.getElementById('cr-f').click()" ondragover="event.preventDefault();this.classList.add('dg')" ondragleave="this.classList.remove('dg')" ondrop="event.preventDefault();this.classList.remove('dg');crHandleDrop(event)" style="margin-top:.7rem;border-color:var(--gold)">
+      <div style="font-size:34px;margin-bottom:6px">⚡</div>
+      <div style="font-weight:700;color:var(--gold);margin-bottom:4px">Toca o arrastra tu archivo Excel</div>
+      <div style="font-size:11px;color:var(--mut)">.xlsx · .xls</div>
+    </div>
+    <input type="file" id="cr-f" accept=".xlsx,.xls" style="display:none" onchange="crHandleFile(event)">
+    <div id="cr-prev" style="display:none;margin-top:.8rem">
+      <div id="cr-summary" style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:.8rem;margin-bottom:.7rem"></div>
+      <div id="cr-table-wrap" class="pt2" style="max-height:300px;overflow:auto"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:.7rem">
+        <button class="btn bo" onclick="crCancel()">Cancelar</button>
+        <button class="btn bp" onclick="crConfirm()">✓ Cargar como SIN ASIGNAR</button>
+      </div>
     </div>
   </div>
   <div class="sc" style="margin-top:.9rem">
@@ -1541,6 +1563,26 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
 
 <!-- DETAIL -->
 <div class="ov" id="m-det"><div class="mo mlg"><div class="mh"><span class="mt2">Detalle del Lead</span><button class="xb" onclick="closeM('m-det')">×</button></div><div class="mb2" id="det-body"></div></div></div>
+
+<!-- ───── MODAL: Asignación aleatoria de leads sin asignar ───── -->
+<div class="ov" id="m-rand">
+  <div class="mo">
+    <div class="mh">
+      <span class="mt2">🎲 Asignación Aleatoria</span>
+      <button class="xb" onclick="closeM('m-rand')">×</button>
+    </div>
+    <div class="mb2">
+      <div id="rand-info" style="background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.3);border-radius:8px;padding:.8rem;margin-bottom:.8rem;font-size:13px"></div>
+      <div style="font-weight:700;color:var(--navy);margin-bottom:.4rem;font-size:12px">Selecciona asesores a quienes repartir:</div>
+      <div id="rand-asesores" style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:.5rem;max-height:280px;overflow:auto"></div>
+      <div id="rand-preview" style="margin-top:.7rem;font-size:12px;color:var(--mut);text-align:center"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem">
+        <button class="btn bo" onclick="closeM('m-rand')">Cancelar</button>
+        <button class="btn bp" id="rand-confirm-btn" onclick="confirmRandomAssign()">✓ Repartir ahora</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- REMINDER -->
 <div class="ov" id="m-rem">
@@ -2619,6 +2661,8 @@ function renderLeads(){
   document.getElementById('nc-leads').textContent=mine.length;
   document.getElementById('leads-pt').textContent=isPriv()?'Todos los Leads':'Mis Leads';
   document.getElementById('leads-ps').textContent=`${mine.length} leads${isPriv()?' en total':' asignados'}${useCloud?' · ☁️ sync':' · 📱 local'}`;
+  // Update Asignar Aleatorio button badge based on actual unassigned count
+  if(typeof updateRandomAssignBadge==='function')updateRandomAssignBadge();
   document.getElementById('leads-tb').innerHTML=arr.map(l=>`<tr class="${selIds.has(l.id)?'sel':''}">
     <td style="padding:8px 4px 8px 10px;width:30px"><input type="checkbox" ${selIds.has(l.id)?'checked':''} onchange="tChk(${l.id},this)" style="width:14px;height:14px"></td>
     <td>${oriBadge(l.ori)}</td>
@@ -4111,6 +4155,399 @@ function delImpE(i){if(!confirm('¿Eliminar este registro?'))return;impHist.spli
 function clearImpHist(){if(!confirm('¿Borrar historial?'))return;impHist=[];persist();renderImpHist();cloudSaveMeta();}
 async function connectSheets(){const url=document.getElementById('gs-url').value.trim();if(!url){toast('Pega la URL');return;}let csvUrl=url;const m=url.match(/\/d\/([a-zA-Z0-9_-]+)/);if(m){const gm=url.match(/[?&#]gid=(\d+)/);csvUrl=`https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv${gm?'&gid='+gm[1]:''}`;}driveConn.url=csvUrl;await syncNow();}
 async function syncNow(){if(!driveConn.url){toast('Sin fuente');return;}toast('Sincronizando...');try{const r=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(driveConn.url),{signal:AbortSignal.timeout(9000)});if(r.ok){const text=await r.text();if(text&&text.length>20){const rows=parseCSV(text);const added=importRows(rows);driveConn.lastSync=new Date().toISOString();persist();cloudSaveMeta();renderAll();const st=document.getElementById('sync-st');if(st)st.textContent='✅ '+new Date().toLocaleString()+' · '+Math.max(added,0)+' nuevos';document.getElementById('btn-sync').style.display='inline-flex';document.getElementById('btn-autosync').style.display='inline-flex';document.getElementById('btn-disco').style.display='inline-flex';toast(added>0?`${added} leads ✓`:'Sin nuevos');return;}}throw new Error();}catch(e){const st=document.getElementById('sync-st');if(st)st.textContent='⚠️ Error. Publica el Sheet como CSV.';toast('Error al sincronizar');}}
+
+// ═══════════════════════════════════════════════════════════════
+// 🚀 CARGA RÁPIDA — Importa leads desde Excel de Meta Ads / Facebook
+// Mapeo: nombre_completo → nom · numero_de_telefono → tel
+//        created_time → fa · form_name → linea (con detección automática del modelo)
+// Defaults: ori=Pauta, tp=No Informa, est=NUEVO, uid=null (sin asignar)
+// ═══════════════════════════════════════════════════════════════
+let _crRows=[];        // Filas detectadas listas para importar
+let _crFilename='';    // Nombre del archivo cargado
+let _crUnmatched=[];   // Índices de filas con modelo no detectado
+
+// Detecta el modelo de moto desde el form_name de Meta Ads.
+// El form_name viene como "TVS_GT_Raider125_Abril2026_Leads_..." y necesitamos
+// extraer "Raider 125" → "RAIDER 125".
+function crDetectModelo(formName){
+  if(!formName)return null;
+  const s=String(formName).toUpperCase();
+  // Mapas de detección — orden importa (más específicos primero).
+  // Los separadores [\s_]* permiten matchear "Apache 200 FI", "Apache_200_FI", "Apache200FI", etc.
+  const PATTERNS=[
+    {re:/RAIDER[\s_]*125[\s_]*FI/, modelo:'RAIDER 125 FI'},
+    {re:/RAIDER[\s_]*FI/, modelo:'RAIDER 125 FI'},
+    {re:/RAIDER[\s_]*125/, modelo:'RAIDER 125'},
+    {re:/RAIDER/, modelo:'RAIDER 125'},
+    {re:/APACHE[\s_]*RTR?[\s_]*160[\s_]*2V[\s_]*REF/, modelo:'APACHE RTR 160 2V REF'},
+    {re:/APACHE[\s_]*160[\s_]*2V/, modelo:'APACHE RTR 160 2V REF'},
+    {re:/APACHE[\s_]*RTR?[\s_]*160[\s_]*4V[\s_]*RM/, modelo:'APACHE RTR 160 4V RM'},
+    {re:/APACHE[\s_]*160[\s_]*4V[\s_]*RM/, modelo:'APACHE RTR 160 4V RM'},
+    {re:/APACHE[\s_]*RTR?[\s_]*160[\s_]*4V/, modelo:'APACHE RTR 160 4V'},
+    {re:/APACHE[\s_]*160[\s_]*4V/, modelo:'APACHE RTR 160 4V'},
+    {re:/APACHE[\s_]*160/, modelo:'APACHE RTR 160 4V'},
+    {re:/APACHE[\s_]*RTR?[\s_]*180/, modelo:'APACHE RTR 180'},
+    {re:/APACHE[\s_]*180/, modelo:'APACHE RTR 180'},
+    {re:/APACHE[\s_]*RTR?[\s_]*200[\s_]*FI/, modelo:'APACHE RTR 200 FI'},
+    {re:/APACHE[\s_]*200[\s_]*FI/, modelo:'APACHE RTR 200 FI'},
+    {re:/APACHE[\s_]*RTR?[\s_]*200[\s_]*4V/, modelo:'APACHE RTR 200 4V'},
+    {re:/APACHE[\s_]*200[\s_]*4V/, modelo:'APACHE RTR 200 4V'},
+    {re:/APACHE[\s_]*200/, modelo:'APACHE RTR 200 4V'},
+    {re:/APACHE[\s_]*RTR?[\s_]*310[\s_]*E5/, modelo:'APACHE RTR 310 E5'},
+    {re:/APACHE[\s_]*310[\s_]*E5/, modelo:'APACHE RTR 310 E5'},
+    {re:/APACHE[\s_]*RR[\s_]*310/, modelo:'APACHE RR310'},
+    {re:/APACHE[\s_]*RR310/, modelo:'APACHE RR310'},
+    {re:/APACHE[\s_]*RTR[\s_]*310/, modelo:'APACHE RTR 310'},
+    {re:/APACHE[\s_]*310/, modelo:'APACHE RTR 310'},
+    {re:/RONIN[\s_]*225/, modelo:'RONIN 225'},
+    {re:/RONIN/, modelo:'RONIN 225'},
+    {re:/NEO[\s_]*110/, modelo:'NEO 110 NX'},
+    {re:/NEO/, modelo:'NEO 110 NX'},
+    {re:/DAZZ/, modelo:'DAZZ CW'},
+    {re:/NTORQ[\s_]*125[\s_]*RACE/, modelo:'NTORQ 125 RACE'},
+    {re:/NTORQ[\s_]*RACE/, modelo:'NTORQ 125 RACE'},
+    {re:/NTORQ[\s_]*125/, modelo:'NTORQ 125'},
+    {re:/NTORQ/, modelo:'NTORQ 125'},
+    {re:/JUPITER[\s_]*125/, modelo:'JUPITER 125 FI (NUEVO MODELO)'},
+    {re:/JUPITER/, modelo:'JUPITER 125 FI (NUEVO MODELO)'},
+    {re:/STRYKER/, modelo:'STRYKER 125'},
+    {re:/HLX[\s_]*150/, modelo:'HLX 150'},
+    {re:/HLX[\s_]*125/, modelo:'HLX 125'},
+    {re:/HLX/, modelo:'HLX 150'},
+    {re:/ZT[\s_]*125/, modelo:'ZT 125'},
+    {re:/ZT/, modelo:'ZT 125'},
+    {re:/SPORT[\s_]*100/, modelo:'SPORT 100 ELS'},
+    {re:/SPORT/, modelo:'SPORT 100 ELS'},
+    {re:/KING[\s_]*DELUXE[\s_]*PLUS/, modelo:'KING DELUXE PLUS'},
+    {re:/KING[\s_]*DELUXE/, modelo:'KING DELUXE (BLUETOOTH)'},
+    {re:/KING[\s_]*DURAMAX/, modelo:'KING DURAMAX'},
+    {re:/KING[\s_]*KARGO/, modelo:'KING KARGO'},
+    {re:/KARGO/, modelo:'KING KARGO'}
+  ];
+  for(const p of PATTERNS){if(p.re.test(s))return p.modelo;}
+  return null; // sin detección
+}
+
+// Limpia un número de teléfono guatemalteco: quita +502, espacios, guiones, paréntesis
+function crCleanTel(raw){
+  if(!raw)return '';
+  let t=String(raw).replace(/[^\d+]/g,'');
+  if(t.startsWith('+502'))t=t.substring(4);
+  else if(t.startsWith('502')&&t.length===11)t=t.substring(3);
+  return t;
+}
+
+// Normaliza una fecha de Meta a YYYY-MM-DD
+// Acepta: "2026-05-10 14:30:00", "2026-05-10T14:30:00.000Z", "05/10/2026", etc.
+function crNormalizeDate(raw){
+  if(!raw)return today();
+  const s=String(raw).trim();
+  // ISO format
+  const iso=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(iso)return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  // M/D/YYYY or D/M/YYYY
+  const us=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(us){
+    // Asumimos formato GT: D/M/YYYY
+    const d=us[1].padStart(2,'0'),m=us[2].padStart(2,'0'),y=us[3];
+    return `${y}-${m}-${d}`;
+  }
+  // Excel serial date (number)
+  const n=Number(s);
+  if(!isNaN(n)&&n>40000&&n<60000){
+    const epoch=new Date(Date.UTC(1899,11,30));
+    const d=new Date(epoch.getTime()+n*86400000);
+    return d.toISOString().substring(0,10);
+  }
+  return today(); // fallback
+}
+
+function crHandleDrop(e){const f=e.dataTransfer.files[0];if(f)crProcFile(f);}
+function crHandleFile(e){const f=e.target.files[0];if(f)crProcFile(f);}
+
+async function crProcFile(file){
+  _crFilename=file.name;
+  if(typeof XLSX==='undefined'){toast('Librería XLSX no cargada — recarga la página');return;}
+  try{
+    const data=await file.arrayBuffer();
+    const wb=XLSX.read(data,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    if(rows.length<2){toast('El archivo está vacío');return;}
+    crProcessRows(rows);
+  }catch(e){
+    console.error('crProcFile error:',e);
+    toast('Error leyendo el archivo: '+e.message);
+  }
+}
+
+// Procesa el array de filas, detecta columnas y prepara preview
+function crProcessRows(rows){
+  // Find header row & column indexes — be tolerant to capitalization, spaces, and underscores
+  const header=rows[0].map(h=>String(h||'').toLowerCase().trim());
+  const findCol=(...candidates)=>{
+    for(const c of candidates){
+      const idx=header.findIndex(h=>h===c||h.replace(/[_\s]/g,'')===c.replace(/[_\s]/g,''));
+      if(idx>=0)return idx;
+    }
+    // Partial match fallback
+    for(const c of candidates){
+      const idx=header.findIndex(h=>h.includes(c.replace(/[_\s]/g,'')));
+      if(idx>=0)return idx;
+    }
+    return -1;
+  };
+  const iNom=findCol('nombre_completo','nombre completo','full_name','nombre','name');
+  const iTel=findCol('numero_de_telefono','número_de_teléfono','telefono','phone','número de teléfono','numero de telefono');
+  const iFa=findCol('created_time','created time','fecha','created_at','fecha_creacion');
+  const iForm=findCol('form_name','form name','formulario','campaign_name');
+  if(iNom<0||iTel<0){
+    toast(`No se encontraron columnas requeridas (nombre/teléfono). Encabezados detectados: ${header.join(', ')}`);
+    return;
+  }
+  // Build processed rows. Skip empty rows and rows without name+tel.
+  const processed=[];
+  const errors={sinNombre:0, sinTel:0, telDuplicado:0};
+  const telsExistentes=new Set(leads.map(l=>crCleanTel(l.tel)));
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i];
+    if(!r||r.length===0)continue;
+    const nom=String(r[iNom]||'').trim();
+    const telRaw=String(r[iTel]||'').trim();
+    const tel=crCleanTel(telRaw);
+    const formName=iForm>=0?String(r[iForm]||'').trim():'';
+    const faRaw=iFa>=0?String(r[iFa]||'').trim():'';
+    if(!nom){errors.sinNombre++;continue;}
+    if(!tel){errors.sinTel++;continue;}
+    if(telsExistentes.has(tel)){errors.telDuplicado++;continue;}
+    const linea=crDetectModelo(formName);
+    processed.push({
+      nom, tel, fa:crNormalizeDate(faRaw),
+      linea: linea||'',  // empty if not detected — user will pick
+      formName,           // keep original for context
+      _detected: !!linea  // flag for UI
+    });
+    telsExistentes.add(tel); // prevent dup within same file
+  }
+  _crRows=processed;
+  _crUnmatched=processed.map((r,i)=>r.linea?-1:i).filter(i=>i>=0);
+  crRenderPreview(errors);
+}
+
+function crRenderPreview(errors){
+  const valid=_crRows.length;
+  const undetected=_crUnmatched.length;
+  // Modelo más común para usar como default en los que no se detectaron
+  const modeloCounts={};
+  _crRows.forEach(r=>{if(r.linea)modeloCounts[r.linea]=(modeloCounts[r.linea]||0)+1;});
+  const modeloDefault=Object.entries(modeloCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'RAIDER 125';
+  // Llenar los no detectados con el modelo default
+  _crUnmatched.forEach(i=>{_crRows[i].linea=modeloDefault;});
+  // Summary box
+  const summary=document.getElementById('cr-summary');
+  summary.innerHTML=`
+    <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:.5rem">📋 "${_crFilename}"</div>
+    <div style="display:flex;flex-wrap:wrap;gap:1rem;font-size:12px">
+      <div><strong style="color:#1B5E20">${valid}</strong> leads válidos</div>
+      ${errors.sinNombre>0?`<div><strong style="color:#B91C1C">${errors.sinNombre}</strong> sin nombre (omitidos)</div>`:''}
+      ${errors.sinTel>0?`<div><strong style="color:#B91C1C">${errors.sinTel}</strong> sin teléfono (omitidos)</div>`:''}
+      ${errors.telDuplicado>0?`<div><strong style="color:#F47920">${errors.telDuplicado}</strong> duplicados (omitidos)</div>`:''}
+      ${undetected>0?`<div><strong style="color:#F47920">${undetected}</strong> sin modelo detectado (asignados como <strong>${modeloDefault}</strong>)</div>`:''}
+    </div>
+    <div style="margin-top:.5rem;font-size:11px;color:var(--mut)">Revisa la tabla y ajusta el modelo de cada lead si es necesario. Los duplicados ya en el CRM se omiten automáticamente.</div>
+  `;
+  // Table preview
+  const lineaOptions=LINEAS.map(l=>`<option value="${l}">${l}</option>`).join('');
+  const wrap=document.getElementById('cr-table-wrap');
+  wrap.innerHTML=`<table style="font-size:11px">
+    <thead><tr>
+      <th style="width:30px">#</th>
+      <th>Nombre</th>
+      <th>Teléfono</th>
+      <th>F. Actividad</th>
+      <th>Línea (detectada)</th>
+      <th style="width:30px">Detec.</th>
+    </tr></thead>
+    <tbody>
+      ${_crRows.map((r,i)=>`<tr ${!r._detected?'style="background:rgba(244,121,32,.07)"':''}>
+        <td style="color:var(--mut)">${i+1}</td>
+        <td style="font-weight:600">${r.nom}</td>
+        <td>${r.tel}</td>
+        <td>${r.fa}</td>
+        <td><select class="fc" style="font-size:11px;padding:3px;min-width:180px" onchange="_crRows[${i}].linea=this.value">${lineaOptions.replace('value="'+r.linea+'"','value="'+r.linea+'" selected')}</select></td>
+        <td style="text-align:center">${r._detected?'<span title="Detectado automáticamente">✓</span>':'<span title="Modelo no detectado — revisa" style="color:#F47920">⚠</span>'}</td>
+      </tr>`).join('')}
+    </tbody></table>`;
+  document.getElementById('cr-prev').style.display='block';
+}
+
+function crCancel(){
+  _crRows=[];_crUnmatched=[];_crFilename='';
+  document.getElementById('cr-prev').style.display='none';
+  document.getElementById('cr-f').value='';
+}
+
+async function crConfirm(){
+  if(_crRows.length===0){toast('Sin filas para cargar');return;}
+  const n=_crRows.length;
+  if(!confirm(`¿Cargar ${n} leads como SIN ASIGNAR?\nOrigen: Pauta · Tipo Pago: No Informa · Estado: NUEVO`))return;
+  // Build leads array
+  let nextId=Date.now()*1000;
+  const newLeads=_crRows.map((r,i)=>({
+    id: nextId+i,
+    ori:'Pauta',
+    fa: r.fa,
+    fu: today(),
+    est:'NUEVO',
+    tp:'No Informa',
+    linea: r.linea||'RAIDER 125',
+    ubi:'',
+    nom: r.nom,
+    tel: r.tel,
+    uid: null,                // SIN ASIGNAR
+    anom:'',
+    notas: r.formName ? [{txt:`Origen: ${r.formName}`, by:'Carga Rápida', ts:new Date().toLocaleString()}] : [],
+    reminder: null,
+    _ts_local: Date.now()+i
+  }));
+  // Push to local + persist
+  leads.push(...newLeads);
+  persist();
+  // Sync to Firebase
+  if(useCloud&&window._fb&&window._fb.isReady()){
+    setSyncStatus('syncing');
+    try{
+      await Promise.all(newLeads.map(l=>window._fb.saveLeadCloud(l)));
+      setSyncStatus('ok');
+    }catch(e){
+      console.warn('cr cloud sync error',e);
+      setSyncStatus('err');
+    }
+  }
+  // History entry
+  impHist.unshift({fecha:new Date().toLocaleString(), arch:`🚀 ${_crFilename}`, reg:n, por:CU.nombre});
+  cloudSaveMeta();
+  renderImpHist();
+  // Reset and refresh
+  crCancel();
+  renderAll();
+  toast(`✅ ${n} leads cargados como SIN ASIGNAR`);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🎲 ASIGNACIÓN ALEATORIA — Reparte leads sin asignar entre asesores seleccionados
+// Algoritmo: shuffle aleatorio del lote, después round-robin entre los seleccionados
+// para que la repartición sea uniforme (no exacta random, sino balanceada).
+// ═══════════════════════════════════════════════════════════════
+
+// Cuenta leads sin asignar (uid:null) y actualiza el badge del botón
+function updateRandomAssignBadge(){
+  const btn=document.getElementById('btn-rand-assign');
+  const cnt=document.getElementById('rand-count');
+  if(!btn||!cnt)return;
+  const unassigned=leads.filter(l=>!l.uid && l.est!=='PERDIDO' && l.est!=='VENTA' && !l._archived).length;
+  if(unassigned>0){
+    cnt.textContent=unassigned;
+    btn.style.display='inline-flex';
+  } else {
+    btn.style.display='none';
+  }
+}
+
+function openRandomAssign(){
+  const unassigned=leads.filter(l=>!l.uid && l.est!=='PERDIDO' && l.est!=='VENTA' && !l._archived);
+  if(unassigned.length===0){
+    toast('No hay leads sin asignar');
+    return;
+  }
+  // Info banner
+  document.getElementById('rand-info').innerHTML=`
+    <div style="font-weight:700;color:var(--navy);margin-bottom:.3rem">📦 ${unassigned.length} leads sin asignar disponibles</div>
+    <div style="font-size:11px;color:var(--mut)">Se repartirán equitativamente entre los asesores que selecciones.</div>
+  `;
+  // Asesores list (only role 'asesor', exclude admin/gerencia/supervisor)
+  const asesores=users.filter(u=>u.rol==='asesor');
+  if(asesores.length===0){
+    document.getElementById('rand-asesores').innerHTML='<div style="color:var(--mut);padding:.5rem;font-size:12px">No hay asesores registrados</div>';
+    return;
+  }
+  document.getElementById('rand-asesores').innerHTML=asesores.map(u=>`
+    <label style="display:flex;align-items:center;gap:8px;padding:7px;border-radius:6px;cursor:pointer;border-bottom:1px solid #f1f5f9" onmouseover="this.style.background='rgba(212,175,55,.05)'" onmouseout="this.style.background=''">
+      <input type="checkbox" class="rand-ase-chk" value="${u.id}" data-name="${u.nombre}" checked onchange="updateRandomPreview()" style="width:16px;height:16px;cursor:pointer">
+      <div style="width:30px;height:30px;border-radius:50%;background:${u.color||'#888'}20;color:${u.color||'#888'};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px">${ini(u.nombre)}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;color:var(--navy);font-size:13px">${u.nombre}</div>
+        <div style="font-size:10px;color:var(--mut)">${u.rol}</div>
+      </div>
+    </label>
+  `).join('');
+  // Store unassigned for confirm
+  window._randUnassigned=unassigned;
+  updateRandomPreview();
+  document.getElementById('m-rand').classList.add('on');
+}
+
+function updateRandomPreview(){
+  const total=window._randUnassigned?.length||0;
+  const checked=Array.from(document.querySelectorAll('.rand-ase-chk')).filter(c=>c.checked);
+  const prev=document.getElementById('rand-preview');
+  const btn=document.getElementById('rand-confirm-btn');
+  if(checked.length===0){
+    prev.innerHTML='<span style="color:#B91C1C">⚠ Selecciona al menos un asesor</span>';
+    btn.disabled=true;
+    btn.style.opacity='0.5';
+    return;
+  }
+  btn.disabled=false;
+  btn.style.opacity='1';
+  const perAse=Math.floor(total/checked.length);
+  const remainder=total%checked.length;
+  prev.innerHTML=`
+    <div><strong>${total}</strong> leads ÷ <strong>${checked.length}</strong> asesores</div>
+    <div style="margin-top:3px">≈ <strong>${perAse}</strong> leads cada uno${remainder>0?` (${remainder} asesores recibirán uno extra)`:''}</div>
+  `;
+}
+
+async function confirmRandomAssign(){
+  const checked=Array.from(document.querySelectorAll('.rand-ase-chk')).filter(c=>c.checked);
+  if(checked.length===0){toast('Selecciona al menos un asesor');return;}
+  const unassigned=window._randUnassigned||[];
+  if(unassigned.length===0){toast('Sin leads para asignar');return;}
+  const aseIds=checked.map(c=>parseInt(c.value));
+  const aseNames=Object.fromEntries(checked.map(c=>[parseInt(c.value),c.dataset.name]));
+  if(!confirm(`¿Confirmas repartir ${unassigned.length} leads entre ${checked.length} asesores?`))return;
+  // Fisher-Yates shuffle on the leads array (random order)
+  const shuffled=[...unassigned];
+  for(let i=shuffled.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];
+  }
+  // Round-robin assign
+  const updated=[];
+  shuffled.forEach((l,i)=>{
+    const aseId=aseIds[i%aseIds.length];
+    l.uid=aseId;
+    l.anom=aseNames[aseId]||'';
+    l.fu=today();
+    l._ts_local=Date.now()+i;
+    updated.push(l);
+  });
+  persist();
+  // Sync to Firebase
+  if(useCloud&&window._fb&&window._fb.isReady()){
+    setSyncStatus('syncing');
+    try{
+      await Promise.all(updated.map(l=>window._fb.saveLeadCloud(l)));
+      setSyncStatus('ok');
+    }catch(e){
+      console.warn('rand cloud sync error',e);
+      setSyncStatus('err');
+    }
+  }
+  closeM('m-rand');
+  renderAll();
+  toast(`✅ ${updated.length} leads repartidos entre ${aseIds.length} asesores`);
+}
 // ─── AGENCIAS ───
 function renderAgencias(){
   const el=document.getElementById('agencias-list');if(!el)return;
