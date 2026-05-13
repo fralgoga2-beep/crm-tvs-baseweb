@@ -1972,10 +1972,31 @@ function initRealtimeSync(){
           const localTs = Number(leads[idx]._ts_local) || 0;
           const cloudTs = Number(cl._ts_local) || 0;
           // If cloud is older than local → stale echo, ignore
-          if(localTs > 0 && cloudTs > 0 && cloudTs < localTs) return;
+          if(localTs > 0 && cloudTs > 0 && cloudTs < localTs){
+            console.warn('STALE SNAPSHOT REJECTED for lead', cl.id, '— local is newer');
+            return;
+          }
           // If local has _ts_local but cloud doesn't → preserve local for 30s grace
           if(localTs > 0 && cloudTs === 0){
-            if(Date.now() - localTs < 30000) return;
+            if(Date.now() - localTs < 30000){
+              console.warn('OLD-APP SNAPSHOT REJECTED for lead', cl.id, '— another device on old version');
+              return;
+            }
+          }
+          // CRITICAL — STATE protection (CITA/VENTA/PERDIDO rollback prevention):
+          // If our local version has a non-NUEVO state that was set recently
+          // (within last 5 minutes), and the cloud version tries to set it back
+          // to NUEVO, REJECT the change. This catches the case where a stale
+          // snapshot arrives from another device that hasn't synced yet.
+          const localState = leads[idx].est;
+          const cloudState = cl.est;
+          const FIVE_MIN_AGO = Date.now() - 5*60*1000;
+          if(localTs > FIVE_MIN_AGO &&
+             localState && localState !== 'NUEVO' &&
+             cloudState === 'NUEVO'){
+            console.warn('STATE ROLLBACK BLOCKED for lead', cl.id,
+                         `local=${localState} cloud=NUEVO localTs=${new Date(localTs).toLocaleTimeString()}`);
+            return;
           }
           // CRITICAL — agencia protection:
           // If our local version has an agencia but the incoming cloud version
@@ -1986,11 +2007,29 @@ function initRealtimeSync(){
             cl.agencia = leads[idx].agencia;
             cl.agencia_codigo = cl.agencia_codigo || leads[idx].agencia_codigo || '';
           }
-          // Stamp _ts_local if missing so future comparisons work
-          if(!cl._ts_local) cl._ts_local = Date.now();
+          // Stamp _ts_local on cloud version. For NEW arrivals (cloud has no _ts_local),
+          // use the lead's update timestamp from Firebase (_ts from serverTimestamp) if
+          // available, falling back to "now". For leads we've already seen, keep the
+          // existing _ts_local (don't reset it).
+          if(!cl._ts_local){
+            // Try to use _ts (Firebase server timestamp) as a proxy for "when was
+            // this lead last touched in the cloud". This way, if multiple devices
+            // race, the latest cloud write wins.
+            if(cl._ts && cl._ts.seconds){
+              cl._ts_local = cl._ts.seconds * 1000;
+            } else {
+              cl._ts_local = Date.now();
+            }
+          }
           leads[idx]=cl;
         } else {
-          if(!cl._ts_local) cl._ts_local = Date.now();
+          if(!cl._ts_local){
+            if(cl._ts && cl._ts.seconds){
+              cl._ts_local = cl._ts.seconds * 1000;
+            } else {
+              cl._ts_local = Date.now();
+            }
+          }
           leads.push(cl);
         }
       });
@@ -2176,9 +2215,9 @@ async function cloudSaveLead(lead,silent=false){
       lead._needsCloudSync=true;
       try{persist();}catch(e){}
     }
-    // Keep locked for 20 more seconds after Firebase confirms
-    // to absorb any delayed snapshots still in transit
-    setTimeout(()=>unlockLead(lead.id), 20000);
+    // Keep locked for 60 seconds after Firebase confirms — gives plenty of margin
+    // for slow networks and other devices on old versions of the code.
+    setTimeout(()=>unlockLead(lead.id), 60000);
     if(!silent)setSyncStatus(lastErr?'err':'ok');
   } else {
     // Local-only mode — release lock after a short delay
