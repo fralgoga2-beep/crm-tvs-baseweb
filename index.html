@@ -4347,7 +4347,20 @@ function crProcessRows(rows){
   // Build processed rows. Skip empty rows and rows without name+tel.
   const processed=[];
   const errors={sinNombre:0, sinTel:0, telDuplicado:0};
-  const telsExistentes=new Set(leads.map(l=>crCleanTel(l.tel)));
+  // Map: tel → existing lead info (for duplicate notes)
+  const telsExistentes=new Map();
+  leads.forEach(l=>{
+    const t=crCleanTel(l.tel);
+    if(t){
+      // Only keep the most recent match per tel
+      const existing=telsExistentes.get(t);
+      if(!existing||(l.fa||'')>(existing.fa||'')){
+        telsExistentes.set(t,{id:l.id, nom:l.nom, est:l.est, anom:l.anom, fa:l.fa});
+      }
+    }
+  });
+  // Track tels within this file too, to detect duplicates WITHIN the upload
+  const telsEnArchivo=new Set();
   for(let i=1;i<rows.length;i++){
     const r=rows[i];
     if(!r||r.length===0)continue;
@@ -4358,15 +4371,27 @@ function crProcessRows(rows){
     const faRaw=iFa>=0?String(r[iFa]||'').trim():'';
     if(!nom){errors.sinNombre++;continue;}
     if(!tel){errors.sinTel++;continue;}
-    if(telsExistentes.has(tel)){errors.telDuplicado++;continue;}
+    // Check if duplicate (in CRM or within this same file)
+    const dupInCRM=telsExistentes.get(tel);
+    const dupInFile=telsEnArchivo.has(tel);
+    let dupInfo=null;
+    if(dupInCRM){
+      errors.telDuplicado++;
+      dupInfo={tipo:'CRM', ...dupInCRM};
+    } else if(dupInFile){
+      errors.telDuplicado++;
+      dupInfo={tipo:'archivo'};
+    }
     const linea=crDetectModelo(formName);
     processed.push({
       nom, tel, fa:crNormalizeDate(faRaw),
-      linea: linea||'',  // empty if not detected — user will pick
-      formName,           // keep original for context
-      _detected: !!linea  // flag for UI
+      linea: linea||'',     // empty if not detected — user will pick
+      formName,              // keep original for context
+      _detected: !!linea,    // flag for UI
+      _duplicado: !!dupInfo, // flag for UI
+      _dupInfo: dupInfo      // info to add as note
     });
-    telsExistentes.add(tel); // prevent dup within same file
+    telsEnArchivo.add(tel);
   }
   _crRows=processed;
   _crUnmatched=processed.map((r,i)=>r.linea?-1:i).filter(i=>i>=0);
@@ -4376,6 +4401,8 @@ function crProcessRows(rows){
 function crRenderPreview(errors){
   const valid=_crRows.length;
   const undetected=_crUnmatched.length;
+  const duplicados=_crRows.filter(r=>r._duplicado).length;
+  const nuevos=valid-duplicados;
   // Modelo más común para usar como default en los que no se detectaron
   const modeloCounts={};
   _crRows.forEach(r=>{if(r.linea)modeloCounts[r.linea]=(modeloCounts[r.linea]||0)+1;});
@@ -4387,13 +4414,17 @@ function crRenderPreview(errors){
   summary.innerHTML=`
     <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:.5rem">📋 "${_crFilename}"</div>
     <div style="display:flex;flex-wrap:wrap;gap:1rem;font-size:12px">
-      <div><strong style="color:#1B5E20">${valid}</strong> leads válidos</div>
+      <div><strong style="color:#1B5E20">${valid}</strong> leads totales</div>
+      <div><strong style="color:#1565C0">${nuevos}</strong> nuevos</div>
+      ${duplicados>0?`<div><strong style="color:#F47920">${duplicados}</strong> duplicados (se cargarán con nota de aviso)</div>`:''}
       ${errors.sinNombre>0?`<div><strong style="color:#B91C1C">${errors.sinNombre}</strong> sin nombre (omitidos)</div>`:''}
       ${errors.sinTel>0?`<div><strong style="color:#B91C1C">${errors.sinTel}</strong> sin teléfono (omitidos)</div>`:''}
-      ${errors.telDuplicado>0?`<div><strong style="color:#F47920">${errors.telDuplicado}</strong> duplicados (omitidos)</div>`:''}
       ${undetected>0?`<div><strong style="color:#F47920">${undetected}</strong> sin modelo detectado (asignados como <strong>${modeloDefault}</strong>)</div>`:''}
     </div>
-    <div style="margin-top:.5rem;font-size:11px;color:var(--mut)">Revisa la tabla y ajusta el modelo de cada lead si es necesario. Los duplicados ya en el CRM se omiten automáticamente.</div>
+    <div style="margin-top:.5rem;font-size:11px;color:var(--mut)">
+      Revisa la tabla y ajusta el modelo de cada lead si es necesario.
+      ${duplicados>0?'<strong style="color:#F47920">Los duplicados se cargarán con una nota especial para que el asesor sepa que hay que volver a contactarlos.</strong>':''}
+    </div>
   `;
   // Table preview
   const lineaOptions=LINEAS.map(l=>`<option value="${l}">${l}</option>`).join('');
@@ -4405,17 +4436,26 @@ function crRenderPreview(errors){
       <th>Teléfono</th>
       <th>F. Actividad</th>
       <th>Línea (detectada)</th>
-      <th style="width:30px">Detec.</th>
+      <th style="width:60px">Estado</th>
     </tr></thead>
     <tbody>
-      ${_crRows.map((r,i)=>`<tr ${!r._detected?'style="background:rgba(244,121,32,.07)"':''}>
+      ${_crRows.map((r,i)=>{
+        let rowStyle='';
+        if(r._duplicado)rowStyle='style="background:rgba(244,121,32,.12)"';
+        else if(!r._detected)rowStyle='style="background:rgba(244,121,32,.07)"';
+        return `<tr ${rowStyle}>
         <td style="color:var(--mut)">${i+1}</td>
         <td style="font-weight:600">${r.nom}</td>
         <td>${r.tel}</td>
         <td>${r.fa}</td>
         <td><select class="fc" style="font-size:11px;padding:3px;min-width:180px" onchange="_crRows[${i}].linea=this.value">${lineaOptions.replace('value="'+r.linea+'"','value="'+r.linea+'" selected')}</select></td>
-        <td style="text-align:center">${r._detected?'<span title="Detectado automáticamente">✓</span>':'<span title="Modelo no detectado — revisa" style="color:#F47920">⚠</span>'}</td>
-      </tr>`).join('')}
+        <td style="text-align:center">${
+          r._duplicado
+            ? `<span title="Duplicado — se cargará con nota especial" style="color:#F47920;font-weight:700;font-size:10px">⚠ DUP</span>`
+            : (r._detected?'<span title="Detectado">✓</span>':'<span title="Modelo no detectado" style="color:#F47920">⚠</span>')
+        }</td>
+      </tr>`;
+      }).join('')}
     </tbody></table>`;
   document.getElementById('cr-prev').style.display='block';
 }
@@ -4429,26 +4469,51 @@ function crCancel(){
 async function crConfirm(){
   if(_crRows.length===0){toast('Sin filas para cargar');return;}
   const n=_crRows.length;
-  if(!confirm(`¿Cargar ${n} leads como SIN ASIGNAR?\nOrigen: Pauta · Tipo Pago: No Informa · Estado: NUEVO`))return;
+  const duplicados=_crRows.filter(r=>r._duplicado).length;
+  const msg=duplicados>0
+    ? `¿Cargar ${n} leads como SIN ASIGNAR?\n\n• ${n-duplicados} nuevos\n• ${duplicados} duplicados (se cargarán con nota especial)\n\nOrigen: Pauta · Tipo Pago: No Informa · Estado: NUEVO`
+    : `¿Cargar ${n} leads como SIN ASIGNAR?\nOrigen: Pauta · Tipo Pago: No Informa · Estado: NUEVO`;
+  if(!confirm(msg))return;
   // Build leads array
   let nextId=Date.now()*1000;
-  const newLeads=_crRows.map((r,i)=>({
-    id: nextId+i,
-    ori:'Pauta',
-    fa: r.fa,
-    fu: today(),
-    est:'NUEVO',
-    tp:'No Informa',
-    linea: r.linea||'RAIDER 125',
-    ubi:'',
-    nom: r.nom,
-    tel: r.tel,
-    uid: null,                // SIN ASIGNAR
-    anom:'',
-    notas: r.formName ? [{txt:`Origen: ${r.formName}`, by:'Carga Rápida', ts:new Date().toLocaleString()}] : [],
-    reminder: null,
-    _ts_local: Date.now()+i
-  }));
+  const newLeads=_crRows.map((r,i)=>{
+    // Build notes — start with origen, add duplicate warning if applicable
+    const notas=[];
+    if(r.formName){
+      notas.push({txt:`Origen: ${r.formName}`, by:'Carga Rápida', ts:new Date().toLocaleString()});
+    }
+    if(r._duplicado&&r._dupInfo){
+      let dupTxt;
+      if(r._dupInfo.tipo==='CRM'){
+        dupTxt = `⚠️ DUPLICADO — ya existe en CRM (ID:${r._dupInfo.id})`;
+        if(r._dupInfo.anom) dupTxt += ` asignado a ${r._dupInfo.anom}`;
+        if(r._dupInfo.est) dupTxt += `, estado ${r._dupInfo.est}`;
+        if(r._dupInfo.fa) dupTxt += ` (${r._dupInfo.fa})`;
+        dupTxt += `. ATENDER NUEVAMENTE.`;
+      } else {
+        dupTxt = `⚠️ DUPLICADO — número repetido en el mismo archivo de carga. ATENDER NUEVAMENTE.`;
+      }
+      notas.push({txt:dupTxt, by:'Carga Rápida', ts:new Date().toLocaleString()});
+    }
+    return {
+      id: nextId+i,
+      ori:'Pauta',
+      fa: r.fa,
+      fu: today(),
+      est:'NUEVO',
+      tp:'No Informa',
+      linea: r.linea||'RAIDER 125',
+      ubi:'',
+      nom: r.nom,
+      tel: r.tel,
+      uid: null,                // SIN ASIGNAR
+      anom:'',
+      notas,
+      reminder: null,
+      _duplicado: r._duplicado||false,  // tag for visibility/filtering
+      _ts_local: Date.now()+i
+    };
+  });
   // Push to local + persist
   leads.push(...newLeads);
   persist();
@@ -4470,7 +4535,12 @@ async function crConfirm(){
   // Reset and refresh
   crCancel();
   renderAll();
-  toast(`✅ ${n} leads cargados como SIN ASIGNAR`);
+  const dupCount=newLeads.filter(l=>l._duplicado).length;
+  if(dupCount>0){
+    toast(`✅ ${n} leads cargados (${n-dupCount} nuevos · ${dupCount} duplicados marcados)`);
+  } else {
+    toast(`✅ ${n} leads cargados como SIN ASIGNAR`);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
