@@ -514,6 +514,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <button class="ni" onclick="goTab('rep-citas',this)"><span class="nco">📋</span><span>Reporte de Citas</span></button>
     <button class="ni" onclick="goTab('rep-ventas',this)"><span class="nco">💰</span><span>Reporte de Ventas</span></button>
     <button class="ni admin-only" onclick="goTab('usuarios',this)"><span class="nco">🧑‍💼</span><span>Usuarios</span><span class="nc" id="nc-users">0</span></button>
+    <button class="ni admin-only" onclick="goTab('pendientes',this)" style="background:rgba(244,121,32,.08)"><span class="nco">🔒</span><span>Pendientes</span><span class="nc" id="nc-pend" style="background:#F47920">0</span></button>
     <button class="ni admin-only" onclick="goTab('importar',this)"><span class="nco">📥</span><span>Importar / Vincular</span></button>
     <button class="ni admin-only" onclick="goTab('storage',this)"><span class="nco">🗂</span><span>Gestión de datos</span></button>
     <button class="ni admin-sup" onclick="goTab('kpis',this)"><span class="nco">🎯</span><span>KPIs Mensuales</span></button>
@@ -1006,6 +1007,25 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <div class="scs" id="fb-status-imp">—</div>
     <button class="btn bn bsm" onclick="backToSetup()">⚙️ Cambiar configuración Firebase</button>
   </div>
+</div>
+
+<!-- PENDIENTES DE APROBACIÓN (DUPLICADOS) -->
+<div id="tab-pendientes" class="tab admin-only">
+  <div class="ph">
+    <div>
+      <div class="pt">🔒 Pendientes de Aprobación</div>
+      <div class="psb">Solicitudes de leads duplicados que requieren tu autorización</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn bo bsm" onclick="renderPendientes()">🔄 Actualizar</button>
+    </div>
+  </div>
+  <div id="pend-empty" style="background:#fff;border:1px solid #e5e7eb;border-radius:var(--rl);padding:2.5rem;text-align:center;display:none">
+    <div style="font-size:48px;margin-bottom:.5rem">✅</div>
+    <div style="font-weight:700;color:var(--navy);font-size:15px;margin-bottom:.3rem">Sin solicitudes pendientes</div>
+    <div style="color:var(--mut);font-size:13px">Cuando un asesor intente crear un lead con teléfono duplicado, aparecerá aquí.</div>
+  </div>
+  <div id="pend-list" style="display:flex;flex-direction:column;gap:1rem"></div>
 </div>
 
 <!-- GESTIÓN DE DATOS -->
@@ -1579,6 +1599,27 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem">
         <button class="btn bo" onclick="closeM('m-rand')">Cancelar</button>
         <button class="btn bp" id="rand-confirm-btn" onclick="confirmRandomAssign()">✓ Repartir ahora</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DUPLICATE APPROVAL REQUEST (when asesor tries to create a duplicate) -->
+<div class="ov" id="m-dup-approval">
+  <div class="mo">
+    <div class="mh" style="background:linear-gradient(135deg,#F47920,#EA580C)">
+      <span class="mt2">⚠️ Posible Duplicado Detectado</span>
+      <button class="xb" onclick="closeM('m-dup-approval')">×</button>
+    </div>
+    <div class="mb2">
+      <div id="dup-info" style="background:rgba(244,121,32,.08);border:1px solid rgba(244,121,32,.3);border-radius:8px;padding:.9rem;margin-bottom:.8rem;font-size:13px"></div>
+      <div style="font-size:12px;color:var(--mut);margin-bottom:.6rem">
+        Para registrar este lead como duplicado, debes solicitar autorización al administrador.
+        Tu lead quedará <strong>pendiente de aprobación</strong> y no aparecerá en tu lista activa hasta que sea revisado.
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem">
+        <button class="btn bo" onclick="closeM('m-dup-approval')">Cancelar</button>
+        <button class="btn bp" onclick="requestDupApproval()" style="background:#F47920;border-color:#F47920">📤 Solicitar autorización</button>
       </div>
     </div>
   </div>
@@ -2443,14 +2484,18 @@ function findLeadIndex(id){
 function atag(uid){if(!uid)return `<span style="font-size:10px;color:var(--hin)">Sin asignar</span>`;const u=users.find(x=>x.id===uid);if(!u)return '—';return `<span class="atag">${avU(u)} ${u.nombre.split(' ')[0]}</span>`;}
 function waBtn(l){if(!l.tel)return '';const u=users.find(x=>x.id===l.uid);const msg=encodeURIComponent(u&&u.wa?u.wa.replace('{nombre}',l.nom).replace('{asesor}',(u.nombre||'').split(' ')[0]).replace('{linea}',l.linea||''):'Hola, te contactamos de TVS Motos');return `<a href="https://wa.me/${l.tel.replace(/\D/g,'')}?text=${msg}" target="_blank" class="btn bg bsm" style="text-decoration:none;font-size:10px" title="WhatsApp">📱</a>`;}
 function myLeads(){
+  // Exclude PENDIENTE_APROBACION from normal lists — these go in a separate
+  // admin-only "Pendientes de Aprobación" tab. The asesor who requested
+  // it does NOT see it in their active list until admin approves.
+  const baseFilter = l => !l._archived && l.est !== 'PENDIENTE_APROBACION';
   const prefix=getAgenciaPrefix();
   if(prefix==='HTAC'){
     // Gerente Comercial: see HT + AC leads
-    return leads.filter(l=>{const ag=(l.agencia||'').toUpperCase();return ag.startsWith('HT ')||ag==='HT'||ag.startsWith('AC ')||ag==='AC';});
+    return leads.filter(l=>{if(!baseFilter(l))return false;const ag=(l.agencia||'').toUpperCase();return ag.startsWith('HT ')||ag==='HT'||ag.startsWith('AC ')||ag==='AC';});
   }
-  if(prefix){return leads.filter(l=>{const ag=(l.agencia||'').toUpperCase();return ag.startsWith(prefix+' ')||ag===prefix;});}
-  if(isPriv())return leads;
-  return leads.filter(l=>l.uid===CU.id||(CU.leadsname&&l.nom&&l.nom.trim().toLowerCase()===CU.leadsname.trim().toLowerCase()));
+  if(prefix){return leads.filter(l=>{if(!baseFilter(l))return false;const ag=(l.agencia||'').toUpperCase();return ag.startsWith(prefix+' ')||ag===prefix;});}
+  if(isPriv())return leads.filter(baseFilter);
+  return leads.filter(l=>baseFilter(l)&&(l.uid===CU.id||(CU.leadsname&&l.nom&&l.nom.trim().toLowerCase()===CU.leadsname.trim().toLowerCase())));
 }
 function parseFecha(f){
   if(!f)return '';
@@ -3116,6 +3161,38 @@ function openLM(id){
 }
 function saveLead(){
   const nom=document.getElementById('lf-nom').value.trim();if(!nom){toast('El nombre es obligatorio');return;}
+  // ─── DUPLICATE DETECTION ────────────────────────────────────────
+  // Compare last 8 digits of phone against all existing leads.
+  // - On EDIT: if changing tel to a duplicate → block save (show error)
+  // - On NEW: if duplicate → show modal asking to request approval
+  const _telInput=document.getElementById('lf-tel').value;
+  const _dupLead=findDuplicateLead(_telInput, editL);
+  if(_dupLead){
+    if(editL){
+      // EDITING an existing lead — block the save outright (per spec)
+      const _orig=findLead(editL);
+      const _origTelLast8=getTelLast8(_orig?.tel||'');
+      const _newTelLast8=getTelLast8(_telInput);
+      // Only block if the user actually CHANGED the phone (not just opening/saving)
+      if(_origTelLast8!==_newTelLast8){
+        alert(`⚠️ NO se puede guardar el cambio\n\nEste teléfono (últimos 8 dígitos: ${_newTelLast8}) ya pertenece al lead:\n\n• ${_dupLead.nom}\n• Asesor: ${_dupLead.anom||'Sin asignar'}\n• Estado: ${_dupLead.est}\n• Fecha: ${_dupLead.fa}\n\nPor favor revisa el teléfono e intenta de nuevo.`);
+        // Restore the original phone in the input
+        document.getElementById('lf-tel').value=_orig?.tel||'';
+        return;
+      }
+    } else {
+      // NEW lead — offer to request approval
+      openDupApprovalModal(_dupLead, {
+        nom, tel:_telInput,
+        ori:document.getElementById('lf-ori').value,
+        linea:document.getElementById('lf-lin').value,
+        tp:document.getElementById('lf-tp').value,
+        comTxt:document.getElementById('lf-com').value.trim()
+      });
+      return; // openDupApprovalModal handles save if approved
+    }
+  }
+  // ─── END DUPLICATE DETECTION ────────────────────────────────────
   const afEl=document.getElementById('lf-ase'),uidVal=afEl&&isPriv()?afEl.value:String(CU.id),uid=uidVal?parseInt(uidVal):null,u=uid?users.find(x=>x.id===uid):null;
   const comTxt=document.getElementById('lf-com').value.trim();
   const rd=document.getElementById('lf-rd').value,reminder=rd?{date:rd,time:document.getElementById('lf-rt').value,note:document.getElementById('lf-rn').value}:null;
@@ -4276,6 +4353,286 @@ function crCleanTel(raw){
   return t;
 }
 
+// ─────────────────────────────────────────────────────────────────
+// CONTROL DE DUPLICADOS POR TELÉFONO
+// ─────────────────────────────────────────────────────────────────
+// Devuelve los últimos 8 dígitos del teléfono normalizados.
+// Ignora +502, 502, espacios, guiones, paréntesis. Si el teléfono
+// es más corto que 8 dígitos, devuelve los dígitos que tenga.
+function getTelLast8(raw){
+  if(!raw)return '';
+  const digitsOnly=String(raw).replace(/\D/g,'');
+  if(digitsOnly.length<=8)return digitsOnly;
+  return digitsOnly.substring(digitsOnly.length-8);
+}
+
+// Busca si ya existe un lead con el mismo teléfono (últimos 8 dígitos).
+// Excluye el lead con ID `excludeLeadId` (para edición) y leads archivados.
+// Excluye también leads PENDIENTE_APROBACION (no son leads "reales" todavía).
+// Devuelve el lead encontrado o null.
+function findDuplicateLead(tel, excludeLeadId){
+  const last8=getTelLast8(tel);
+  if(!last8||last8.length<8)return null; // require at least 8 digits to compare
+  for(const l of leads){
+    if(l._archived)continue;
+    if(l.est==='PENDIENTE_APROBACION')continue;
+    if(excludeLeadId&&String(l.id)===String(excludeLeadId))continue;
+    if(getTelLast8(l.tel)===last8)return l;
+  }
+  return null;
+}
+
+// State holder for the pending duplicate approval flow
+let _pendingDupData = null;
+
+// Show the duplicate approval modal with info about the existing lead and the new one
+function openDupApprovalModal(existingLead, newLeadData){
+  _pendingDupData = {existingLead, newLeadData};
+  const e=existingLead;
+  const ago=(()=>{
+    const d=parseFecha(e.fa||'');
+    if(!d)return '';
+    const diff=Math.floor((Date.now()-new Date(d).getTime())/(24*60*60*1000));
+    return diff>=0?`hace ${diff} día${diff!==1?'s':''}`:'';
+  })();
+  document.getElementById('dup-info').innerHTML=`
+    <div style="font-weight:700;color:#B91C1C;margin-bottom:.4rem">
+      Este teléfono ya está registrado en el CRM:
+    </div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:12px">
+      <div style="color:var(--mut)">Cliente:</div>
+      <div style="font-weight:700">${e.nom||'—'}</div>
+      <div style="color:var(--mut)">Teléfono:</div>
+      <div>${e.tel||'—'}</div>
+      <div style="color:var(--mut)">Asesor:</div>
+      <div>${e.anom||'Sin asignar'}</div>
+      <div style="color:var(--mut)">Estado:</div>
+      <div><span class="badge e-${(e.est||'').toLowerCase()}">${e.est||'—'}</span></div>
+      <div style="color:var(--mut)">Origen:</div>
+      <div>${e.ori||'—'}</div>
+      <div style="color:var(--mut)">Fecha:</div>
+      <div>${e.fa||'—'} ${ago?`<span style="color:var(--mut);font-size:11px">(${ago})</span>`:''}</div>
+    </div>
+  `;
+  document.getElementById('m-dup-approval').classList.add('open');
+}
+
+// User clicked "Solicitar autorización" — save lead as PENDIENTE_APROBACION
+async function requestDupApproval(){
+  if(!_pendingDupData){toast('Error: sin datos pendientes');return;}
+  const {existingLead, newLeadData} = _pendingDupData;
+  const lead = {
+    id: Date.now()*1000 + Math.floor(Math.random()*1000),
+    nom: newLeadData.nom,
+    tel: newLeadData.tel,
+    ori: newLeadData.ori || 'Otro',
+    linea: newLeadData.linea || 'Otra',
+    tp: newLeadData.tp || 'No Informa',
+    ubi: '',
+    fa: today(),
+    fu: today(),
+    est: 'PENDIENTE_APROBACION',
+    uid: CU.id,                              // solicited by current user
+    anom: CU.nombre,
+    notas: newLeadData.comTxt
+      ? [{txt: newLeadData.comTxt, by: CU.nombre, ts: new Date().toLocaleString()}]
+      : [],
+    reminder: null,
+    // Duplicate metadata
+    _dupOf: existingLead.id,                 // pointer to original lead
+    _dupOfNom: existingLead.nom,
+    _dupOfAnom: existingLead.anom || 'Sin asignar',
+    _dupOfEst: existingLead.est,
+    _dupOfFa: existingLead.fa,
+    _requestedBy: CU.nombre,
+    _requestedById: CU.id,
+    _requestedAt: new Date().toISOString(),
+    _approvalStatus: 'pending',              // 'pending' | 'approved' | 'rejected'
+    _ts_local: Date.now()
+  };
+  leads.push(lead);
+  persist();
+  if(useCloud&&window._fb&&window._fb.isReady()){
+    try{ await window._fb.saveLeadCloud(lead); }catch(e){console.warn('dup save error',e);}
+  }
+  _pendingDupData = null;
+  closeM('m-dup-approval');
+  closeM('m-lead');  // also close the new-lead modal
+  editL=null;
+  toast('📤 Solicitud enviada — esperando aprobación del admin');
+  renderAll();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ADMIN: VIEW PENDING APPROVALS
+// ─────────────────────────────────────────────────────────────────
+
+// Render the "Pendientes de Aprobación" admin tab
+function renderPendientes(){
+  const pendingLeads = leads.filter(l => l.est === 'PENDIENTE_APROBACION' && l._approvalStatus === 'pending');
+  // Sort newest first
+  pendingLeads.sort((a,b) => (b._requestedAt||'').localeCompare(a._requestedAt||''));
+  const list = document.getElementById('pend-list');
+  const empty = document.getElementById('pend-empty');
+  if(!list)return;
+  if(pendingLeads.length === 0){
+    list.innerHTML = '';
+    if(empty) empty.style.display = 'block';
+    return;
+  }
+  if(empty) empty.style.display = 'none';
+  list.innerHTML = pendingLeads.map((p, idx) => {
+    const orig = leads.find(l => String(l.id) === String(p._dupOf));
+    const reqDate = p._requestedAt ? new Date(p._requestedAt).toLocaleString() : '—';
+    // Build side-by-side comparison
+    const origInfo = orig ? `
+      <div style="font-weight:700;color:#1B5E20">Cliente: ${orig.nom||'—'}</div>
+      <div style="font-size:11px;color:var(--mut)">Tel: ${orig.tel||'—'}</div>
+      <div style="font-size:11px"><span style="color:var(--mut)">Asesor:</span> ${orig.anom||'Sin asignar'}</div>
+      <div style="font-size:11px"><span style="color:var(--mut)">Estado:</span> <span class="badge e-${(orig.est||'').toLowerCase()}">${orig.est||'—'}</span></div>
+      <div style="font-size:11px"><span style="color:var(--mut)">Origen:</span> ${orig.ori||'—'}</div>
+      <div style="font-size:11px"><span style="color:var(--mut)">Fecha:</span> ${orig.fa||'—'}</div>
+      <div style="font-size:11px"><span style="color:var(--mut)">Línea:</span> ${orig.linea||'—'}</div>
+    ` : '<div style="color:var(--red)">⚠️ Lead original no encontrado (ID ' + p._dupOf + ')</div>';
+    const newInfo = `
+      <div style="font-weight:700;color:#1565C0">Cliente: ${p.nom||'—'}</div>
+      <div style="font-size:11px;color:var(--mut)">Tel: ${p.tel||'—'}</div>
+      <div style="font-size:11px"><span style="color:var(--mut)">Por asignar a:</span> ${p._requestedBy||'—'}</div>
+      <div style="font-size:11px"><span style="color:var(--mut)">Estado:</span> <span class="badge e-nuevo">NUEVO</span></div>
+      <div style="font-size:11px"><span style="color:var(--mut)">Origen:</span> ${p.ori||'—'}</div>
+      <div style="font-size:11px"><span style="color:var(--mut)">Fecha:</span> ${p.fa||'—'}</div>
+      <div style="font-size:11px"><span style="color:var(--mut)">Línea:</span> ${p.linea||'—'}</div>
+    `;
+    const notesPreview = p.notas && p.notas.length > 0
+      ? `<div style="margin-top:.5rem;padding-top:.5rem;border-top:1px dashed #e5e7eb;font-size:11px"><strong>Comentario del asesor:</strong><br>${p.notas.map(n=>n.txt).join('<br>')}</div>`
+      : '';
+    return `
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:var(--rl);overflow:hidden">
+        <div style="background:rgba(244,121,32,.08);padding:.7rem 1rem;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <span style="font-weight:700;color:#F47920">⚠️ Solicitud #${idx+1}</span>
+            <span style="color:var(--mut);font-size:12px;margin-left:.5rem">${reqDate}</span>
+          </div>
+          <div style="font-size:11px;color:var(--mut)">Solicitado por: <strong>${p._requestedBy||'—'}</strong></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;padding:1rem">
+          <div style="background:rgba(27,94,32,.04);border:1px solid rgba(27,94,32,.2);border-radius:8px;padding:.8rem">
+            <div style="font-size:11px;font-weight:700;color:#1B5E20;text-transform:uppercase;letter-spacing:.3px;margin-bottom:.5rem">📌 Lead Existente</div>
+            ${origInfo}
+          </div>
+          <div style="background:rgba(21,101,192,.04);border:1px solid rgba(21,101,192,.2);border-radius:8px;padding:.8rem">
+            <div style="font-size:11px;font-weight:700;color:#1565C0;text-transform:uppercase;letter-spacing:.3px;margin-bottom:.5rem">🆕 Nuevo (Pendiente)</div>
+            ${newInfo}
+          </div>
+        </div>
+        ${notesPreview ? `<div style="padding:0 1rem 1rem">${notesPreview}</div>` : ''}
+        <div style="display:flex;gap:8px;padding:.7rem 1rem;border-top:1px solid #e5e7eb;background:#fafafa;justify-content:flex-end;flex-wrap:wrap">
+          <button class="btn bo bsm" onclick="rejectPendiente(${p.id})">✗ Rechazar</button>
+          ${orig ? `<button class="btn bo bsm" onclick="reassignPendiente(${p.id})" style="border-color:#1565C0;color:#1565C0">↻ Reasignar original a ${p._requestedBy.split(' ')[0]}</button>` : ''}
+          <button class="btn bp bsm" onclick="approvePendiente(${p.id})">✓ Aprobar y crear</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Approve a pending lead — convert it to a normal NUEVO lead (a real duplicate)
+async function approvePendiente(leadId){
+  const l = leads.find(x => String(x.id) === String(leadId));
+  if(!l){toast('Lead no encontrado');return;}
+  if(!confirm(`¿Aprobar la creación de este duplicado?\n\nEl nuevo lead "${l.nom}" será creado como NUEVO y asignado a ${l._requestedBy}.`))return;
+  l.est = 'NUEVO';
+  l._approvalStatus = 'approved';
+  l._approvedBy = CU.nombre;
+  l._approvedAt = new Date().toISOString();
+  l._ts_local = Date.now();
+  // Add note about approval
+  l.notas = l.notas || [];
+  l.notas.push({
+    txt: `✅ Aprobado por ${CU.nombre} — lead duplicado del #${l._dupOf} (${l._dupOfNom})`,
+    by: CU.nombre,
+    ts: new Date().toLocaleString()
+  });
+  persist();
+  if(useCloud&&window._fb&&window._fb.isReady()){
+    try{ await window._fb.saveLeadCloud(l); }catch(e){console.warn('approve error',e);}
+  }
+  toast(`✅ Lead aprobado — ahora aparece en la lista de ${l._requestedBy}`);
+  renderPendientes();
+  updatePendBadge();
+  renderAll();
+}
+
+// Reject a pending lead — mark it as rejected and remove from view
+async function rejectPendiente(leadId){
+  const l = leads.find(x => String(x.id) === String(leadId));
+  if(!l){toast('Lead no encontrado');return;}
+  const reason = prompt('Motivo del rechazo (opcional):', 'Cliente ya está siendo atendido');
+  if(reason === null) return; // user cancelled
+  l._approvalStatus = 'rejected';
+  l._rejectedBy = CU.nombre;
+  l._rejectedAt = new Date().toISOString();
+  l._rejectionReason = reason || '';
+  l._archived = true; // hide from views — rejected requests don't clutter
+  l._ts_local = Date.now();
+  persist();
+  if(useCloud&&window._fb&&window._fb.isReady()){
+    try{ await window._fb.saveLeadCloud(l); }catch(e){console.warn('reject error',e);}
+  }
+  toast(`✗ Solicitud rechazada`);
+  renderPendientes();
+  updatePendBadge();
+}
+
+// Reassign — instead of creating a duplicate, transfer the ORIGINAL lead to the
+// new asesor (the one who tried to create the duplicate). The pending request
+// is marked as rejected/handled.
+async function reassignPendiente(leadId){
+  const p = leads.find(x => String(x.id) === String(leadId));
+  if(!p){toast('Solicitud no encontrada');return;}
+  const orig = leads.find(x => String(x.id) === String(p._dupOf));
+  if(!orig){toast('Lead original no encontrado');return;}
+  if(!confirm(`¿Reasignar el lead ORIGINAL "${orig.nom}" de ${orig.anom||'Sin asignar'} a ${p._requestedBy}?\n\nLa solicitud de duplicado se descartará.`))return;
+  // Transfer the original
+  const prevAnom = orig.anom || 'Sin asignar';
+  orig.uid = p._requestedById;
+  orig.anom = p._requestedBy;
+  orig.fu = today();
+  orig._ts_local = Date.now();
+  orig.notas = orig.notas || [];
+  orig.notas.push({
+    txt: `↻ Reasignado de ${prevAnom} a ${p._requestedBy} por ${CU.nombre} (solicitud de duplicado #${p.id})`,
+    by: CU.nombre,
+    ts: new Date().toLocaleString()
+  });
+  // Mark pending as resolved
+  p._approvalStatus = 'reassigned';
+  p._resolvedBy = CU.nombre;
+  p._resolvedAt = new Date().toISOString();
+  p._archived = true;
+  p._ts_local = Date.now();
+  persist();
+  if(useCloud&&window._fb&&window._fb.isReady()){
+    try{
+      await window._fb.saveLeadCloud(orig);
+      await window._fb.saveLeadCloud(p);
+    }catch(e){console.warn('reassign error',e);}
+  }
+  toast(`↻ Lead reasignado a ${p._requestedBy}`);
+  renderPendientes();
+  updatePendBadge();
+  renderAll();
+}
+
+// Update the badge in the sidebar with the count of pending approvals
+function updatePendBadge(){
+  const badge = document.getElementById('nc-pend');
+  if(!badge)return;
+  const count = leads.filter(l => l.est === 'PENDIENTE_APROBACION' && l._approvalStatus === 'pending' && !l._archived).length;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? '' : 'none';
+}
+
 // Normaliza una fecha de Meta a YYYY-MM-DD
 // Acepta: "2026-05-10 14:30:00", "2026-05-10T14:30:00.000Z", "05/10/2026", etc.
 function crNormalizeDate(raw){
@@ -4470,14 +4827,15 @@ async function crConfirm(){
   if(_crRows.length===0){toast('Sin filas para cargar');return;}
   const n=_crRows.length;
   const duplicados=_crRows.filter(r=>r._duplicado).length;
+  const nuevos=n-duplicados;
   const msg=duplicados>0
-    ? `¿Cargar ${n} leads como SIN ASIGNAR?\n\n• ${n-duplicados} nuevos\n• ${duplicados} duplicados (se cargarán con nota especial)\n\nOrigen: Pauta · Tipo Pago: No Informa · Estado: NUEVO`
+    ? `¿Cargar ${n} leads?\n\n• ${nuevos} nuevos → cargados como SIN ASIGNAR\n• ${duplicados} duplicados → quedarán PENDIENTES DE APROBACIÓN (admin los revisa)\n\nOrigen: Pauta · Tipo Pago: No Informa`
     : `¿Cargar ${n} leads como SIN ASIGNAR?\nOrigen: Pauta · Tipo Pago: No Informa · Estado: NUEVO`;
   if(!confirm(msg))return;
   // Build leads array
   let nextId=Date.now()*1000;
   const newLeads=_crRows.map((r,i)=>{
-    // Build notes — start with origen, add duplicate warning if applicable
+    // Build notes — start with origen, add duplicate context if applicable
     const notas=[];
     if(r.formName){
       notas.push({txt:`Origen: ${r.formName}`, by:'Carga Rápida', ts:new Date().toLocaleString()});
@@ -4489,30 +4847,51 @@ async function crConfirm(){
         if(r._dupInfo.anom) dupTxt += ` asignado a ${r._dupInfo.anom}`;
         if(r._dupInfo.est) dupTxt += `, estado ${r._dupInfo.est}`;
         if(r._dupInfo.fa) dupTxt += ` (${r._dupInfo.fa})`;
-        dupTxt += `. ATENDER NUEVAMENTE.`;
       } else {
-        dupTxt = `⚠️ DUPLICADO — número repetido en el mismo archivo de carga. ATENDER NUEVAMENTE.`;
+        dupTxt = `⚠️ DUPLICADO — número repetido en el mismo archivo de carga.`;
       }
       notas.push({txt:dupTxt, by:'Carga Rápida', ts:new Date().toLocaleString()});
     }
-    return {
+    // Build the lead object. Duplicates → PENDIENTE_APROBACION, others → NUEVO
+    const base = {
       id: nextId+i,
       ori:'Pauta',
       fa: r.fa,
       fu: today(),
-      est:'NUEVO',
       tp:'No Informa',
       linea: r.linea||'RAIDER 125',
       ubi:'',
       nom: r.nom,
       tel: r.tel,
-      uid: null,                // SIN ASIGNAR
-      anom:'',
       notas,
       reminder: null,
-      _duplicado: r._duplicado||false,  // tag for visibility/filtering
       _ts_local: Date.now()+i
     };
+    if(r._duplicado && r._dupInfo && r._dupInfo.tipo==='CRM'){
+      // Duplicate of existing CRM lead → goes to admin for approval
+      return Object.assign(base, {
+        est: 'PENDIENTE_APROBACION',
+        uid: CU.id,                              // requester (admin doing the upload)
+        anom: CU.nombre,
+        _dupOf: r._dupInfo.id,
+        _dupOfNom: r._dupInfo.nom,
+        _dupOfAnom: r._dupInfo.anom || 'Sin asignar',
+        _dupOfEst: r._dupInfo.est,
+        _dupOfFa: r._dupInfo.fa,
+        _requestedBy: CU.nombre,
+        _requestedById: CU.id,
+        _requestedAt: new Date().toISOString(),
+        _approvalStatus: 'pending',
+        _source: 'carga_rapida'
+      });
+    }
+    // Otherwise — regular new lead, unassigned
+    return Object.assign(base, {
+      est: 'NUEVO',
+      uid: null,
+      anom: '',
+      _duplicado: r._duplicado || false
+    });
   });
   // Push to local + persist
   leads.push(...newLeads);
@@ -4537,7 +4916,7 @@ async function crConfirm(){
   renderAll();
   const dupCount=newLeads.filter(l=>l._duplicado).length;
   if(dupCount>0){
-    toast(`✅ ${n} leads cargados (${n-dupCount} nuevos · ${dupCount} duplicados marcados)`);
+    toast(`✅ ${n} leads cargados (${n-dupCount} nuevos · ${dupCount} pendientes de aprobación)`);
   } else {
     toast(`✅ ${n} leads cargados como SIN ASIGNAR`);
   }
@@ -5656,7 +6035,37 @@ function goTab(name,btn){
 }
 function openM(id){document.getElementById(id).classList.add('open');}
 function closeM(id){document.getElementById(id).classList.remove('open');}
-function renderAll(){renderLeads();renderPipeline();renderDashboard();renderRecordatorios();if(isPriv()){renderReportes();renderUsers();}if(isCanal())renderCanalReportes();}
+function renderAll(){renderLeads();renderPipeline();renderDashboard();renderRecordatorios();if(isPriv()){renderReportes();renderUsers();}if(isCanal())renderCanalReportes();updatePendBadge();if(isAdmin()){renderPendientes();}checkApprovedNotification();}
+
+// Notify the current user if their pending duplicate requests have been resolved
+// since they last logged in. Uses localStorage to track which approvals/rejections
+// have already been notified.
+function checkApprovedNotification(){
+  if(!CU)return;
+  try{
+    const seenKey = 'tvs8_seen_approvals_' + CU.id;
+    const seen = new Set(JSON.parse(localStorage.getItem(seenKey) || '[]'));
+    // Find leads where the current user was the requester and the status changed
+    const myResolved = leads.filter(l =>
+      String(l._requestedById) === String(CU.id) &&
+      l._approvalStatus &&
+      l._approvalStatus !== 'pending' &&
+      !seen.has(l.id)
+    );
+    if(myResolved.length > 0){
+      myResolved.forEach(l => seen.add(l.id));
+      localStorage.setItem(seenKey, JSON.stringify([...seen]));
+      const approved = myResolved.filter(l => l._approvalStatus === 'approved').length;
+      const rejected = myResolved.filter(l => l._approvalStatus === 'rejected').length;
+      const reassigned = myResolved.filter(l => l._approvalStatus === 'reassigned').length;
+      const parts = [];
+      if(approved>0) parts.push(`${approved} aprobado${approved!==1?'s':''}`);
+      if(reassigned>0) parts.push(`${reassigned} reasignado${reassigned!==1?'s':''}`);
+      if(rejected>0) parts.push(`${rejected} rechazado${rejected!==1?'s':''}`);
+      setTimeout(()=>toast(`📬 Solicitudes de duplicado: ${parts.join(' · ')}`), 1000);
+    }
+  }catch(e){console.warn('checkApprovedNotification error:',e);}
+}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2700);}
 function checkMobile(){const m=window.innerWidth<900;document.getElementById('menu-btn').style.display=m?'flex':'none';}
 window.addEventListener('resize',checkMobile);
