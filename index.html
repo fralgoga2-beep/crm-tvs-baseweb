@@ -514,6 +514,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <button class="ni" onclick="goTab('rep-citas',this)"><span class="nco">📋</span><span>Reporte de Citas</span></button>
     <button class="ni" onclick="goTab('rep-ventas',this)"><span class="nco">💰</span><span>Reporte de Ventas</span></button>
     <button class="ni admin-only" onclick="goTab('usuarios',this)"><span class="nco">🧑‍💼</span><span>Usuarios</span><span class="nc" id="nc-users">0</span></button>
+    <button class="ni admin-sup" onclick="goTab('actividad',this)" style="background:rgba(75,85,150,.06)"><span class="nco">⏱</span><span>Tiempo de Trabajo</span></button>
     <button class="ni admin-only" onclick="goTab('pendientes',this)" style="background:rgba(244,121,32,.08)"><span class="nco">🔒</span><span>Pendientes</span><span class="nc" id="nc-pend" style="background:#F47920">0</span></button>
     <button class="ni admin-only" onclick="goTab('importar',this)"><span class="nco">📥</span><span>Importar / Vincular</span></button>
     <button class="ni admin-only" onclick="goTab('storage',this)"><span class="nco">🗂</span><span>Gestión de datos</span></button>
@@ -1007,6 +1008,43 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <div class="scs" id="fb-status-imp">—</div>
     <button class="btn bn bsm" onclick="backToSetup()">⚙️ Cambiar configuración Firebase</button>
   </div>
+</div>
+
+<!-- TIEMPO DE TRABAJO -->
+<div id="tab-actividad" class="tab admin-sup">
+  <div class="ph">
+    <div>
+      <div class="pt">⏱ Tiempo de Trabajo</div>
+      <div class="psb">Tiempo que cada asesor ha estado activo en el CRM</div>
+    </div>
+  </div>
+  <!-- Filtros -->
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:var(--rl);padding:.9rem;margin-bottom:1rem">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+      <div class="fg" style="margin:0">
+        <label class="fl" style="font-size:11px">Desde</label>
+        <input type="date" id="act-from" class="fc" style="font-size:12px;padding:6px 10px">
+      </div>
+      <div class="fg" style="margin:0">
+        <label class="fl" style="font-size:11px">Hasta</label>
+        <input type="date" id="act-to" class="fc" style="font-size:12px;padding:6px 10px">
+      </div>
+      <button class="btn bp bsm" onclick="renderActividad()">✓ Aplicar</button>
+      <div style="display:flex;gap:4px;margin-left:auto;flex-wrap:wrap">
+        <button class="btn bo bsm" onclick="actSetRange('today')">Hoy</button>
+        <button class="btn bo bsm" onclick="actSetRange('week')">Esta semana</button>
+        <button class="btn bo bsm" onclick="actSetRange('month')">Este mes</button>
+        <button class="btn bo bsm" onclick="actSetRange('all')">Todo</button>
+        <button class="btn bo bsm" onclick="actExportExcel()">↓ Excel</button>
+      </div>
+    </div>
+  </div>
+  <!-- Resumen por asesor -->
+  <div id="act-summary" style="background:#fff;border:1px solid #e5e7eb;border-radius:var(--rl);padding:1rem;margin-bottom:1rem"></div>
+  <!-- Detalle por día (gráfica) -->
+  <div id="act-detail" style="background:#fff;border:1px solid #e5e7eb;border-radius:var(--rl);padding:1rem;margin-bottom:1rem"></div>
+  <!-- Historial de sesiones -->
+  <div id="act-sessions" style="background:#fff;border:1px solid #e5e7eb;border-radius:var(--rl);padding:1rem"></div>
 </div>
 
 <!-- PENDIENTES DE APROBACIÓN (DUPLICADOS) -->
@@ -1792,7 +1830,10 @@ const DEF_LEADS=[
   {id:6,ori:'Pauta',fa:'2026-02-03',fu:'2026-06-03',est:'PERDIDO',tp:'Crédito',linea:'APACHE RTR 160 4V',ubi:'Puerto Barrios',nom:'Jorge Sinay',tel:'50259847121',uid:8,notas:[{txt:'Buzón de voz.',by:'Rocio Nij',ts:'03/02/2026'}],reminder:{date:'2026-04-25',time:'10:00',note:'Volver a contactar'}},
 ];
 
-let users=[...DEF_USERS], leads=[...DEF_LEADS];
+let users=DEF_USERS.map(u=>({...u})), leads=[...DEF_LEADS];
+// Freeze DEF_USERS so its passwords can never be mutated (safety net for login)
+Object.freeze(DEF_USERS);
+DEF_USERS.forEach(u=>Object.freeze(u));
 const _AGENCIAS_MASTER=["HT BARBERENA","HT AMATITLÁN","HT TIQUISATE","HT PLAZA TECA","HT SAN PEDRO SAC","HT SANTA ELENA PETEN","HT HUEHUETENANGO","HT JALAPA","HT MAZATENANGO","HT MALACATAN","HT CHIQUIMULA","HT ATLANTIDA","HT ESCUINTLA","HT PUERTO SAN JOSE","HT SANTA LUCIA","HT CHIMALTENANGO","HT GOMERA","HT ESQUIPUL","HT POPTUN","HT LA LIBERTAD","HT PRADERA EXPS V.N.","HT EL CASTAÑO","HT PETAPA","HT TECULUTAN","HT JUTIAPA","HT SALAMA","HT COBAN","HT SAYAXCHE","HT LOS AMATES","HT SAN ANTONIO SUCHI","HT QUETZALTENANGO","HT COATEPEQUE","HT PUERTO BARRIOS","HT GUASTATO","HT MORALES","HT RETALHULEU","HT NVA. CONCEPCION","HT QUICHE","HT NEBAJ","HT SANTA ELENA PETEN 2","KING ZONA COBAN","AP CENTRAL YURRITA","AP 6TA AV ZONA 9","AP AMATITLAN","AP BARCENAS","AP CALLE MARTI","AP CHIMALTENANGO","AP CHIQUIMULA","AP COATEPEQUE","AP EL CASTAÑO","AP ESCUINTLA","AP ESKALA","AP JALAPA","AP LOS ALAMOS","AP METRO NORTE","AP QUETZALTENANGO","AP RETALHULEU","AP SANARATE","AP VILLA CANALES","AC JOCOTENANGO","AC SANTA LUCIA MILPAS ALTAS","AC SANTA CLARA LA LAGUNA","AC ESCUINTLA","AC SAN JOSE PINULA","AC ALOTENANGO","AC LA BRIGADA","AC ZONA 10","AC UTATLAN","AC SAN JUAN SACATEPEQUEZ","AC SAN LUCAS","AC CIUDAD VIEJA","AC BOCA DEL MONTE","AC VILLA NUEVA","AC PALIN","AC ANTIGUA","AC AMATITLAN","AC BETHANIA","AC ZONA 9","AC SAN MIGUEL PETAPA","AC LA GOMERA","AC PETAPA","AC ZONA 1","AC OBELISCO","AC BOSQUES","AC SAN RAFAEL","AC SAN JUAN SAC / SAN PEDRO SAC","AC TECPAN","AC CIUDAD SAN CRISTOBAL / ZONA 1 MIXCO","AC ZONA 7/ UTATLAN","AC AGUILAR BATRES","AC PALIN / ESCUINTLA","AC LA DEMOCRACIA","AC AVENIDA PETAPA","AC ALOTENANGO / YEPOCAPA","AC OBELISCO / AGUILAR BATRES","AC BOSQUES DE SAN NICOLAS / FLORIDA","AC SAN FRANCISCO / LO DE BRAN","AC CALLE MARTI","AC XELA / TOTONICAPAN / CANTEL","AC CIUDAD VIEJA / SANTA MARIA DE JESUS","AC CIUDAD QUETZAL","AC SAN RAYMUNDO","AC NARANJO FRONTERA","AC LA BRIGADA / MINERVA","AC CAES / SAN JOSE PINULA","AC CIUDAD SAN CRISTOBAL / LA BETHANIA","AC SAN BENITO / SAYAXCHÉ","AC ROOSEVELT / LA CASTELLANA","AC SAN JOSE PINULA / ZONA 9","AC AVENIDA BOLIVAR","AC COBAN","AC SAN JOSE POAQUIL","AC ANTIGUA GUATEMALA","AC SAN MIGUEL PETAPA / VILLA NUEVA","AC CENTRA NORTE","AC PUERTO DE SAN JOSE","AC BARBERENA","AC CHIMALTENANGO / PARRAMOS","AC ZONA 5","AC CALZADA SAN JUAN","AC CIUDAD SAN CRISTOBAL","AC LA REFORMITA","AC POPTÚN / DOLORES","AC ZONA 1 / SAN MIGUEL PETAPA","AC TELEMAN / SENAU","AC COATEPEQUE / LA BLANCA","AC COATEPEQUE","AC CHAHAL","AC TIQUISATE","AC FRAY BARTOLOME / CHISEC","AC CHIMALTENANGO","AC VILLA CANALES / BOCA DEL MONTE","AC SANTIAGO ATITLAN / SAN LUCAS TOLIMAN","AC SALAMA","AC TACTIC","AC PALENCIA","AC ESQUIPULAS","AC EL FRUTAL / SAN MIGUL PETAPA","AC FREELANCE","AC MAZATENANGO / RETALHULEU","AC IXCAN PLAYA","AC PATZUN","AC CARCHA / TACTIC","AC MAZATENANGO","AC PATZICIA","AC SAN CRISTOBAL","AC CHISEC / COJAJ / CAMPUR","AC PAJAPITA","AC RETALHULEU","AC METATERMINAL","AC JALAPA","AC SAN LUCAS SACATEPQUEZ","AC SAN PEDRO AYAMPUC","AC SAN FELIPE","AC HUEHUETENANGO","AC CHIQUIMULILLA","AC JOCOTAN","AC CAHABON / LANQUIN","AC RIO DULCE","AC COLOTENANGO","AC RABINAL","AC ZACAPA","AC SANTA CRUZ DEL QUICHE","AC CUILCO","AC RETALHULEU / COATEPEQUE","AC JOYABAJ","AC SAN MATEO IXTATAN","AC XELA","AC CASAS VIEJAS","AC PATULUL","AC COLOMBA COSTA CUCA","AC MALACATAN","AC CHAMELCO","AC SAN PEDRO PINULA","AC BARCENAS","AC AGUACATÁN","AC BARILLAS","AC TECUN UMAN","AC SIPACATE","AC CARCHA","AC MORALES","AC SAN JUAN LA LAGUNA"];
 let agencias=(function(){var saved=lsG('tvs8_agencias',null);if(!saved)return _AGENCIAS_MASTER.slice();var merged=_AGENCIAS_MASTER.slice();saved.forEach(function(a){if(merged.indexOf(a)===-1)merged.push(a);});return merged;})();
 let driveConn={url:'',lastSync:null,autoSync:false};
@@ -2116,11 +2157,35 @@ function initRealtimeSync(){
       cloudUsers.forEach(cu=>{
         // Decode password from cloud encoding if available
         if(cu._ph && !cu.pass){ try{ cu.pass = decodeURIComponent(escape(atob(cu._ph))); }catch(e){} }
+        // CRITICAL: if cloud user has no password (or it failed to decode),
+        // fall back to DEF_USERS password. This prevents Gerencia/Gerente Comercial
+        // (and any other DEF_USERS) from being locked out on new devices where
+        // cloud sync brought them without a usable password.
+        if(!cu.pass){
+          const def = DEF_USERS.find(d=>d.id===cu.id || d.user===cu.user);
+          if(def && def.pass){ cu.pass = def.pass; }
+        }
         const localU=users.find(u=>u.id===cu.id);
         if(localU){Object.assign(localU,cu,{pass:cu.pass||localU.pass});}
         else{users.push({...cu,pass:cu.pass||'tvs2025'});}
       });
-      users=users.filter(u=>cloudUsers.find(cu=>cu.id===u.id)||u.id<=8);
+      // Keep DEF_USERS as fallback for any default user not in cloud yet.
+      // Previously filter was u.id<=8 — that excluded Gerencia (id=9) and
+      // Gerente Comercial (id=10), so they would disappear on new devices.
+      // Now we keep all DEF_USERS ids (1-10) as a safety net.
+      const defIds = new Set(DEF_USERS.map(d=>d.id));
+      users=users.filter(u=>cloudUsers.find(cu=>cu.id===u.id)||defIds.has(u.id));
+      // Also: ensure all DEF_USERS exist locally (in case cloud is empty for some).
+      // This means Gerencia can always log in even if the cloud copy got wiped.
+      DEF_USERS.forEach(d=>{
+        if(!users.find(u=>u.id===d.id)){
+          users.push({...d});
+        } else {
+          // If user exists but has no usable password, restore from DEF_USERS
+          const u = users.find(x=>x.id===d.id);
+          if(!u.pass) u.pass = d.pass;
+        }
+      });
       lsS('tvs8_users_bk',users);
       if(CU)populateSel();
     } else {
@@ -2284,14 +2349,32 @@ function updateStorageInfo(){
 // ═══════════════════════════════════════
 function doLogin(){
   const u=document.getElementById('lu').value.trim(),p=document.getElementById('lp').value;
+  // First try the live users array
   let f=users.find(x=>x.user===u&&x.pass===p);
+  // Fallback 1: try DEF_USERS (built-in defaults) — handles case where cloud
+  // sync corrupted the password locally for default users like Gerencia.
   if(!f)f=DEF_USERS.find(x=>x.user===u&&x.pass===p);
+  // Fallback 2: if username matches but password doesn't in users, but DEF_USERS
+  // has it correct, use DEF_USERS version and HEAL the local copy.
+  if(!f){
+    const def = DEF_USERS.find(x=>x.user===u&&x.pass===p);
+    if(def){
+      // Replace local copy with the DEF_USERS version (heals corrupted entry)
+      const idx = users.findIndex(x=>x.user===u);
+      if(idx>=0) users[idx] = {...def};
+      else users.push({...def});
+      f = users.find(x=>x.user===u);
+      try{persist();}catch(e){}
+    }
+  }
   if(!f){document.getElementById('lerr').style.display='block';return;}
   if(!users.find(x=>x.id===f.id))users.push(f);
   document.getElementById('lerr').style.display='none';CU=f;
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
   setupUI();
+  // Track login time for the activity log
+  try{ recordLogin(); }catch(e){console.warn('recordLogin:',e);}
 }
 document.getElementById('lp').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('lu').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('lp').focus();});
@@ -2352,7 +2435,404 @@ function setupCRMQuejasBtn() {
   if (btn) btn.style.display = 'inline-flex';
 }
 
-function doLogout(){persist();CU=null;document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('lu').value='';document.getElementById('lp').value='';closeSB();}
+// ═════════════════════════════════════════════════════════════════
+// ACTIVITY TRACKING (tiempo trabajado por asesor)
+// ═════════════════════════════════════════════════════════════════
+// Stores per-user, per-day, time spent active in the CRM. "Active" means the
+// browser tab is visible AND the user has interacted (mouse/keyboard) in the
+// last 5 minutes. Idle time (no activity) is NOT counted.
+//
+// Data shape in localStorage and Firebase:
+//   actividad[userId] = { 'YYYY-MM-DD': totalSeconds, ... }
+//   sessions[userId] = [{login:ISO, logout:ISO, dur:seconds}, ...]
+
+let _act_lastBeat = 0;        // timestamp of last heartbeat
+let _act_lastActivity = Date.now(); // last user interaction
+let _act_isVisible = true;    // tab is visible
+let _act_heartbeatInterval = null;
+const _ACT_HEARTBEAT_MS = 30000;  // 30 seconds
+const _ACT_IDLE_MS = 5*60*1000;   // 5 minutes idle threshold
+
+// In-memory activity data: { [uid]: { 'YYYY-MM-DD': seconds } }
+let actividad = lsG('tvs8_actividad', {});
+// Session log: { [uid]: [{login, logout, dur, device}] }
+let sessionLog = lsG('tvs8_sessions', {});
+
+function _act_persist(){
+  lsS('tvs8_actividad', actividad);
+  lsS('tvs8_sessions', sessionLog);
+}
+
+function _act_pushHeartbeat(){
+  if(!CU) return;
+  const now = Date.now();
+  // Skip if tab hidden or user idle
+  if(!_act_isVisible){ _act_lastBeat = now; return; }
+  if(now - _act_lastActivity > _ACT_IDLE_MS){ _act_lastBeat = now; return; }
+  // Calculate elapsed seconds since last beat (capped at heartbeat interval)
+  if(_act_lastBeat === 0){ _act_lastBeat = now; return; }
+  const elapsed = Math.min(now - _act_lastBeat, _ACT_HEARTBEAT_MS + 5000) / 1000;
+  _act_lastBeat = now;
+  // Record into today's bucket
+  const day = today();
+  const uid = String(CU.id);
+  if(!actividad[uid]) actividad[uid] = {};
+  actividad[uid][day] = Math.round((actividad[uid][day] || 0) + elapsed);
+  _act_persist();
+  // Sync to Firebase every ~5 beats (~2.5 min) to reduce write cost
+  if(Math.random() < 0.2 && useCloud && window._fb && window._fb.isReady()){
+    _act_syncCloud();
+  }
+}
+
+async function _act_syncCloud(){
+  if(!useCloud || !window._fb || !window._fb.isReady()) return;
+  try{
+    await window._fb.saveMeta({ actividad, sessionLog });
+  }catch(e){ console.warn('act sync error', e); }
+}
+
+function _act_markActivity(){ _act_lastActivity = Date.now(); }
+
+function _act_start(){
+  if(_act_heartbeatInterval) return;
+  _act_lastBeat = Date.now();
+  _act_lastActivity = Date.now();
+  _act_isVisible = !document.hidden;
+  _act_heartbeatInterval = setInterval(_act_pushHeartbeat, _ACT_HEARTBEAT_MS);
+  // Listen for user activity
+  ['mousedown','keydown','scroll','touchstart','click'].forEach(ev=>{
+    document.addEventListener(ev, _act_markActivity, {passive:true});
+  });
+  // Visibility changes
+  document.addEventListener('visibilitychange', ()=>{
+    _act_isVisible = !document.hidden;
+    if(_act_isVisible) _act_lastBeat = Date.now(); // reset on focus
+  });
+  // Save on close
+  window.addEventListener('beforeunload', ()=>{
+    _act_pushHeartbeat();
+    recordLogout();
+    _act_persist();
+  });
+}
+
+function recordLogin(){
+  if(!CU) return;
+  const uid = String(CU.id);
+  if(!sessionLog[uid]) sessionLog[uid] = [];
+  sessionLog[uid].push({
+    login: new Date().toISOString(),
+    logout: null,
+    dur: 0,
+    device: navigator.userAgent.substring(0, 60)
+  });
+  // Keep only last 200 sessions per user
+  if(sessionLog[uid].length > 200) sessionLog[uid] = sessionLog[uid].slice(-200);
+  _act_persist();
+  _act_start();
+  _act_syncCloud();
+}
+
+function recordLogout(){
+  if(!CU) return;
+  const uid = String(CU.id);
+  if(!sessionLog[uid] || sessionLog[uid].length === 0) return;
+  const last = sessionLog[uid][sessionLog[uid].length - 1];
+  if(last.logout) return; // already closed
+  last.logout = new Date().toISOString();
+  last.dur = Math.round((new Date(last.logout) - new Date(last.login)) / 1000);
+  _act_persist();
+  _act_syncCloud();
+}
+
+// Pull cloud activity data (called on login / when admin opens the tab)
+async function _act_pullCloud(){
+  if(!useCloud || !window._fb || !window._fb.isReady()) return;
+  try{
+    const meta = await window._fb.getMeta();
+    if(meta){
+      // Merge: cloud wins for newer values, but never lose local data
+      if(meta.actividad){
+        Object.entries(meta.actividad).forEach(([uid, days])=>{
+          if(!actividad[uid]) actividad[uid] = {};
+          Object.entries(days).forEach(([day, sec])=>{
+            actividad[uid][day] = Math.max(actividad[uid][day] || 0, sec);
+          });
+        });
+      }
+      if(meta.sessionLog){
+        Object.entries(meta.sessionLog).forEach(([uid, sessions])=>{
+          if(!sessionLog[uid]) sessionLog[uid] = [];
+          // Merge by login timestamp
+          const existing = new Set(sessionLog[uid].map(s=>s.login));
+          sessions.forEach(s=>{ if(!existing.has(s.login)) sessionLog[uid].push(s); });
+          sessionLog[uid].sort((a,b)=>a.login.localeCompare(b.login));
+          if(sessionLog[uid].length > 200) sessionLog[uid] = sessionLog[uid].slice(-200);
+        });
+      }
+      _act_persist();
+    }
+  }catch(e){ console.warn('act pull error', e); }
+}
+
+// Format seconds to "Xh Ymin"
+function _act_fmt(sec){
+  if(!sec || sec < 0) return '0min';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if(h > 0) return `${h}h ${m}min`;
+  return `${m}min`;
+}
+
+// Get totals for a user in a date range
+function _act_getTotal(uid, dateFrom, dateTo){
+  uid = String(uid);
+  if(!actividad[uid]) return 0;
+  return Object.entries(actividad[uid])
+    .filter(([day]) => day >= dateFrom && day <= dateTo)
+    .reduce((sum, [_, sec]) => sum + sec, 0);
+}
+
+// Helpers for date range buttons
+function actSetRange(preset){
+  const t = today();
+  const d = new Date(t + 'T00:00:00');
+  let from, to;
+  if(preset === 'today'){ from = to = t; }
+  else if(preset === 'week'){
+    const dow = d.getDay() || 7; // Monday=1, Sunday=7
+    const monday = new Date(d); monday.setDate(d.getDate() - dow + 1);
+    from = monday.toISOString().substring(0,10); to = t;
+  }
+  else if(preset === 'month'){
+    from = t.substring(0,7) + '-01'; to = t;
+  }
+  else if(preset === 'all'){
+    // Find earliest day in actividad
+    let min = t;
+    Object.values(actividad).forEach(days=>{
+      Object.keys(days).forEach(day=>{ if(day < min) min = day; });
+    });
+    from = min; to = t;
+  }
+  document.getElementById('act-from').value = from;
+  document.getElementById('act-to').value = to;
+  renderActividad();
+}
+
+async function renderActividad(){
+  // Refresh from cloud first
+  await _act_pullCloud();
+  let from = document.getElementById('act-from')?.value;
+  let to = document.getElementById('act-to')?.value;
+  if(!from || !to){
+    // Default: this month
+    const t = today();
+    from = t.substring(0,7) + '-01';
+    to = t;
+    if(document.getElementById('act-from')) document.getElementById('act-from').value = from;
+    if(document.getElementById('act-to')) document.getElementById('act-to').value = to;
+  }
+  // ─── Summary: total por asesor ───
+  // Only include asesores (and admins/etc) — filter by relevant roles
+  const aseUsers = users.filter(u => u.rol === 'asesor');
+  const allUsers = users.filter(u => u.rol !== 'admin' || u.id === 1); // include admin for self-tracking
+  const rows = allUsers.map(u => ({
+    user: u,
+    total: _act_getTotal(u.id, from, to),
+    days: actividad[String(u.id)] ? Object.entries(actividad[String(u.id)]).filter(([d]) => d >= from && d <= to).length : 0,
+    sessions: (sessionLog[String(u.id)] || []).filter(s => s.login >= from + 'T00:00:00' && s.login <= to + 'T23:59:59').length
+  })).sort((a,b) => b.total - a.total);
+  const totalAll = rows.reduce((s,r) => s + r.total, 0);
+  const summary = document.getElementById('act-summary');
+  summary.innerHTML = `
+    <div style="font-weight:700;color:var(--navy);margin-bottom:.7rem;font-size:14px">📊 Resumen del ${from} al ${to}</div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;font-size:12px">
+        <thead><tr style="background:rgba(27,47,110,.05)">
+          <th style="text-align:left">Usuario</th>
+          <th style="text-align:left">Rol</th>
+          <th style="text-align:right">Tiempo total</th>
+          <th style="text-align:right">Días activos</th>
+          <th style="text-align:right">Sesiones</th>
+          <th style="text-align:right">Promedio/día</th>
+          <th style="text-align:left">% del equipo</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => {
+            const pct = totalAll > 0 ? (r.total / totalAll * 100) : 0;
+            const avgDay = r.days > 0 ? r.total / r.days : 0;
+            return `<tr style="border-top:1px solid #f3f4f6">
+              <td style="padding:7px 6px;font-weight:600">${r.user.nombre}</td>
+              <td style="padding:7px 6px;color:var(--mut)">${r.user.rol}</td>
+              <td style="padding:7px 6px;text-align:right;font-weight:600;color:#1B5E20">${_act_fmt(r.total)}</td>
+              <td style="padding:7px 6px;text-align:right">${r.days}</td>
+              <td style="padding:7px 6px;text-align:right">${r.sessions}</td>
+              <td style="padding:7px 6px;text-align:right">${_act_fmt(Math.round(avgDay))}</td>
+              <td style="padding:7px 6px">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <div style="flex:1;height:6px;background:#f3f4f6;border-radius:3px;overflow:hidden;min-width:60px">
+                    <div style="height:100%;background:linear-gradient(90deg,#1B2F6E,#3B82F6);width:${pct.toFixed(0)}%"></div>
+                  </div>
+                  <span style="font-size:11px;color:var(--mut);min-width:36px;text-align:right">${pct.toFixed(1)}%</span>
+                </div>
+              </td>
+            </tr>`;
+          }).join('')}
+          <tr style="border-top:2px solid #e5e7eb;background:rgba(27,47,110,.03)">
+            <td colspan="2" style="padding:8px 6px;font-weight:700">TOTAL EQUIPO</td>
+            <td style="padding:8px 6px;text-align:right;font-weight:700;color:#1B2F6E">${_act_fmt(totalAll)}</td>
+            <td colspan="4"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+  // ─── Detail: por día ───
+  const detail = document.getElementById('act-detail');
+  // Build a date list between from and to
+  const dates = [];
+  let cur = new Date(from + 'T00:00:00');
+  const end = new Date(to + 'T00:00:00');
+  while(cur <= end){
+    dates.push(cur.toISOString().substring(0,10));
+    cur.setDate(cur.getDate() + 1);
+  }
+  // Build matrix: per-user per-day
+  const maxBar = Math.max(1, ...allUsers.flatMap(u => dates.map(d => (actividad[String(u.id)] || {})[d] || 0)));
+  detail.innerHTML = `
+    <div style="font-weight:700;color:var(--navy);margin-bottom:.7rem;font-size:14px">📅 Detalle por día</div>
+    <div style="overflow-x:auto;max-height:400px;overflow-y:auto">
+      <table style="width:100%;font-size:11px;min-width:600px">
+        <thead style="position:sticky;top:0;background:#fff;z-index:1">
+          <tr style="background:rgba(27,47,110,.05)">
+            <th style="text-align:left;padding:6px;position:sticky;left:0;background:rgba(27,47,110,.05)">Fecha</th>
+            ${allUsers.map(u => `<th style="text-align:right;padding:6px;min-width:80px">${u.nombre.split(' ')[0]}</th>`).join('')}
+            <th style="text-align:right;padding:6px;background:rgba(27,47,110,.1)">Total día</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${dates.slice().reverse().map(day => {
+            const dayTotal = allUsers.reduce((s,u) => s + ((actividad[String(u.id)] || {})[day] || 0), 0);
+            const dt = new Date(day + 'T00:00:00');
+            const dow = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][dt.getDay()];
+            return `<tr style="border-top:1px solid #f3f4f6">
+              <td style="padding:6px;font-weight:600;position:sticky;left:0;background:#fff">${dow} ${day}</td>
+              ${allUsers.map(u => {
+                const sec = (actividad[String(u.id)] || {})[day] || 0;
+                const intensity = sec > 0 ? Math.min(1, sec / maxBar) : 0;
+                const bg = sec > 0 ? `rgba(27,94,32,${0.08 + intensity*0.35})` : 'transparent';
+                return `<td style="padding:6px;text-align:right;background:${bg}">${sec > 0 ? _act_fmt(sec) : '—'}</td>`;
+              }).join('')}
+              <td style="padding:6px;text-align:right;font-weight:600;background:rgba(27,47,110,.04)">${dayTotal > 0 ? _act_fmt(dayTotal) : '—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  // ─── Sessions log ───
+  const sess = document.getElementById('act-sessions');
+  const fromIso = from + 'T00:00:00';
+  const toIso = to + 'T23:59:59';
+  const allSessions = [];
+  Object.entries(sessionLog).forEach(([uid, sessions])=>{
+    const u = users.find(x => String(x.id) === uid);
+    if(!u) return;
+    sessions.forEach(s=>{
+      if(s.login >= fromIso && s.login <= toIso){
+        allSessions.push({ user: u, ...s });
+      }
+    });
+  });
+  allSessions.sort((a,b) => b.login.localeCompare(a.login));
+  const top = allSessions.slice(0, 100); // show latest 100
+  sess.innerHTML = `
+    <div style="font-weight:700;color:var(--navy);margin-bottom:.7rem;font-size:14px">🕒 Últimas sesiones (máx 100)</div>
+    ${top.length === 0 ? '<div style="color:var(--mut);font-size:12px">Sin sesiones en este rango.</div>' : `
+      <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
+        <table style="width:100%;font-size:11px">
+          <thead style="position:sticky;top:0;background:#fff"><tr style="background:rgba(27,47,110,.05)">
+            <th style="text-align:left;padding:6px">Usuario</th>
+            <th style="text-align:left;padding:6px">Login</th>
+            <th style="text-align:left;padding:6px">Logout</th>
+            <th style="text-align:right;padding:6px">Duración</th>
+            <th style="text-align:left;padding:6px">Dispositivo</th>
+          </tr></thead>
+          <tbody>
+            ${top.map(s => {
+              const loginT = new Date(s.login);
+              const logoutT = s.logout ? new Date(s.logout) : null;
+              const dur = s.dur || (logoutT ? Math.round((logoutT - loginT)/1000) : null);
+              const device = s.device ? (s.device.includes('Mobile') ? '📱 Móvil' : s.device.includes('Mac') ? '💻 Mac' : s.device.includes('Windows') ? '💻 Windows' : '🌐 Web') : '—';
+              return `<tr style="border-top:1px solid #f3f4f6">
+                <td style="padding:6px;font-weight:600">${s.user.nombre}</td>
+                <td style="padding:6px">${loginT.toLocaleString()}</td>
+                <td style="padding:6px">${logoutT ? logoutT.toLocaleString() : '<span style="color:#F47920">(activa)</span>'}</td>
+                <td style="padding:6px;text-align:right;font-weight:600">${dur ? _act_fmt(dur) : '—'}</td>
+                <td style="padding:6px;color:var(--mut)">${device}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `}
+  `;
+}
+
+// Export to Excel
+function actExportExcel(){
+  if(typeof XLSX === 'undefined'){ toast('XLSX no disponible'); return; }
+  const from = document.getElementById('act-from').value;
+  const to = document.getElementById('act-to').value;
+  if(!from || !to){ toast('Selecciona el rango primero'); return; }
+  const allUsers = users.filter(u => u.rol !== 'admin' || u.id === 1);
+  // Sheet 1: Resumen
+  const summaryRows = [['Usuario','Rol','Tiempo total (seg)','Tiempo total (h:m)','Días activos','Sesiones']];
+  allUsers.forEach(u => {
+    const total = _act_getTotal(u.id, from, to);
+    const days = actividad[String(u.id)] ? Object.entries(actividad[String(u.id)]).filter(([d]) => d >= from && d <= to).length : 0;
+    const sessions = (sessionLog[String(u.id)] || []).filter(s => s.login >= from + 'T00:00:00' && s.login <= to + 'T23:59:59').length;
+    summaryRows.push([u.nombre, u.rol, total, _act_fmt(total), days, sessions]);
+  });
+  // Sheet 2: Detalle por día
+  const dates = [];
+  let cur = new Date(from + 'T00:00:00');
+  const end = new Date(to + 'T00:00:00');
+  while(cur <= end){ dates.push(cur.toISOString().substring(0,10)); cur.setDate(cur.getDate() + 1); }
+  const detailRows = [['Fecha', ...allUsers.map(u => u.nombre)]];
+  dates.forEach(day => {
+    detailRows.push([day, ...allUsers.map(u => Math.round(((actividad[String(u.id)] || {})[day] || 0) / 60))]); // minutes
+  });
+  detailRows.unshift(['', '(valores en minutos)']);
+  // Sheet 3: Sesiones
+  const sessRows = [['Usuario','Login','Logout','Duración (seg)','Duración (h:m)','Dispositivo']];
+  Object.entries(sessionLog).forEach(([uid, sessions])=>{
+    const u = users.find(x => String(x.id) === uid);
+    if(!u) return;
+    sessions.filter(s => s.login >= from + 'T00:00:00' && s.login <= to + 'T23:59:59').forEach(s=>{
+      const dur = s.dur || 0;
+      sessRows.push([u.nombre, s.login, s.logout||'(activa)', dur, _act_fmt(dur), s.device || '']);
+    });
+  });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Resumen');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailRows), 'Por día');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sessRows), 'Sesiones');
+  XLSX.writeFile(wb, `Tiempo_Trabajo_${from}_al_${to}.xlsx`);
+}
+
+function doLogout(){
+  recordLogout();
+  persist();
+  CU=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('lu').value='';
+  document.getElementById('lp').value='';
+  closeSB();
+}
 function isPriv(){return CU&&(CU.rol==='admin'||CU.rol==='supervisor'||CU.rol==='gerencia'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia'||CU.rol==='king_gerencia'||CU.rol==='gerente_comercial');}
 function isAdmin(){return CU&&CU.rol==='admin';}
 function isGerencia(){return CU&&(CU.rol==='gerencia'||CU.rol==='admin'||CU.rol==='ap_gerencia'||CU.rol==='ht_gerencia'||CU.rol==='ac_gerencia'||CU.rol==='king_gerencia'||CU.rol==='gerente_comercial');}
@@ -6136,6 +6616,8 @@ function goTab(name,btn){
   else if(name==='importar'){renderImpHist();updateStorageInfo();}
   else if(name==='storage'){renderDataManager();renderAgencias();}
   else if(name==='canal-reportes')renderCanalReportes();
+  else if(name==='actividad'){if(!isPriv()){toast('Acceso restringido');return;}actSetRange('month');}
+  else if(name==='pendientes'){if(!isAdmin()){toast('Acceso restringido');return;}renderPendientes();}
   closeSB();document.getElementById('mmenu').classList.remove('open');
 }
 function openM(id){document.getElementById(id).classList.add('open');}
