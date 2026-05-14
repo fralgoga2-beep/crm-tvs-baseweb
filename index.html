@@ -514,7 +514,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <button class="ni" onclick="goTab('rep-citas',this)"><span class="nco">📋</span><span>Reporte de Citas</span></button>
     <button class="ni" onclick="goTab('rep-ventas',this)"><span class="nco">💰</span><span>Reporte de Ventas</span></button>
     <button class="ni admin-only" onclick="goTab('usuarios',this)"><span class="nco">🧑‍💼</span><span>Usuarios</span><span class="nc" id="nc-users">0</span></button>
-    <button class="ni admin-sup" onclick="goTab('actividad',this)" style="background:rgba(75,85,150,.06)"><span class="nco">⏱</span><span>Tiempo de Trabajo</span></button>
+    <button class="ni admin-only" onclick="goTab('actividad',this)" style="background:rgba(75,85,150,.06)"><span class="nco">⏱</span><span>Tiempo de Trabajo</span></button>
     <button class="ni admin-only" onclick="goTab('pendientes',this)" style="background:rgba(244,121,32,.08)"><span class="nco">🔒</span><span>Pendientes</span><span class="nc" id="nc-pend" style="background:#F47920">0</span></button>
     <button class="ni admin-only" onclick="goTab('importar',this)"><span class="nco">📥</span><span>Importar / Vincular</span></button>
     <button class="ni admin-only" onclick="goTab('storage',this)"><span class="nco">🗂</span><span>Gestión de datos</span></button>
@@ -1011,7 +1011,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
 </div>
 
 <!-- TIEMPO DE TRABAJO -->
-<div id="tab-actividad" class="tab admin-sup">
+<div id="tab-actividad" class="tab admin-only">
   <div class="ph">
     <div>
       <div class="pt">⏱ Tiempo de Trabajo</div>
@@ -5289,11 +5289,17 @@ function crProcessRows(rows){
   // Build processed rows. Skip empty rows and rows without name+tel.
   const processed=[];
   const errors={sinNombre:0, sinTel:0, telDuplicado:0};
-  // Map: tel → existing lead info (for duplicate notes)
+  // Map: tel (last 8 digits) → existing lead info (for duplicate notes)
+  // Uses getTelLast8 — same criterion as the rest of the duplicate control system.
+  // This catches every Guatemala phone format: +502X, 502X, 00502X, X-Y, X Y, etc.
   const telsExistentes=new Map();
   leads.forEach(l=>{
-    const t=crCleanTel(l.tel);
-    if(t){
+    // Skip PENDIENTE_APROBACION leads — they're not real leads yet.
+    // Also skip archived/rejected so they don't block legitimate new entries.
+    if(l._archived)return;
+    if(l.est==='PENDIENTE_APROBACION')return;
+    const t=getTelLast8(l.tel);
+    if(t && t.length>=8){
       // Only keep the most recent match per tel
       const existing=telsExistentes.get(t);
       if(!existing||(l.fa||'')>(existing.fa||'')){
@@ -5301,21 +5307,25 @@ function crProcessRows(rows){
       }
     }
   });
-  // Track tels within this file too, to detect duplicates WITHIN the upload
+  // Track tels within this file too (last 8 digits), to detect duplicates WITHIN the upload
   const telsEnArchivo=new Set();
   for(let i=1;i<rows.length;i++){
     const r=rows[i];
     if(!r||r.length===0)continue;
     const nom=String(r[iNom]||'').trim();
     const telRaw=String(r[iTel]||'').trim();
-    const tel=crCleanTel(telRaw);
+    const tel=crCleanTel(telRaw);          // for storage (Guatemala-friendly)
+    const telLast8=getTelLast8(telRaw);    // for duplicate comparison (always last 8)
     const formName=iForm>=0?String(r[iForm]||'').trim():'';
     const faRaw=iFa>=0?String(r[iFa]||'').trim():'';
     if(!nom){errors.sinNombre++;continue;}
     if(!tel){errors.sinTel++;continue;}
-    // Check if duplicate (in CRM or within this same file)
-    const dupInCRM=telsExistentes.get(tel);
-    const dupInFile=telsEnArchivo.has(tel);
+    // Check if duplicate (in CRM or within this same file) using last-8-digit match
+    let dupInCRM=null, dupInFile=false;
+    if(telLast8 && telLast8.length>=8){
+      dupInCRM=telsExistentes.get(telLast8)||null;
+      if(!dupInCRM) dupInFile=telsEnArchivo.has(telLast8);
+    }
     let dupInfo=null;
     if(dupInCRM){
       errors.telDuplicado++;
@@ -5333,7 +5343,8 @@ function crProcessRows(rows){
       _duplicado: !!dupInfo, // flag for UI
       _dupInfo: dupInfo      // info to add as note
     });
-    telsEnArchivo.add(tel);
+    // Track this phone by last-8 so subsequent rows in the same file see it as duplicate
+    if(telLast8 && telLast8.length>=8) telsEnArchivo.add(telLast8);
   }
   _crRows=processed;
   _crUnmatched=processed.map((r,i)=>r.linea?-1:i).filter(i=>i>=0);
@@ -5513,11 +5524,19 @@ async function crConfirm(){
 // para que la repartición sea uniforme (no exacta random, sino balanceada).
 // ═══════════════════════════════════════════════════════════════
 
-// Cuenta leads sin asignar (uid:null) y actualiza el badge del botón
+// Cuenta leads sin asignar (uid:null) y actualiza el badge del botón.
+// IMPORTANTE: solo admin puede usar esta función — para evitar que asesores
+// reasignen leads accidentalmente o intencionalmente.
 function updateRandomAssignBadge(){
   const btn=document.getElementById('btn-rand-assign');
   const cnt=document.getElementById('rand-count');
   if(!btn||!cnt)return;
+  // Hard guard: only admins see the button at all. The CSS class "admin-only"
+  // hides it via setupUI(), but we also enforce it here in case rendering races.
+  if(!isAdmin()){
+    btn.style.display='none';
+    return;
+  }
   const unassigned=leads.filter(l=>!l.uid && l.est!=='PERDIDO' && l.est!=='VENTA' && !l._archived).length;
   if(unassigned>0){
     cnt.textContent=unassigned;
@@ -5528,6 +5547,8 @@ function updateRandomAssignBadge(){
 }
 
 function openRandomAssign(){
+  // Hard guard: only admins can open the random assign modal
+  if(!isAdmin()){toast('Acceso restringido — solo administrador');return;}
   const unassigned=leads.filter(l=>!l.uid && l.est!=='PERDIDO' && l.est!=='VENTA' && !l._archived);
   if(unassigned.length===0){
     toast('No hay leads sin asignar');
@@ -5582,6 +5603,8 @@ function updateRandomPreview(){
 }
 
 async function confirmRandomAssign(){
+  // Hard guard: only admins can confirm random assignment
+  if(!isAdmin()){toast('Acceso restringido — solo administrador');return;}
   const checked=Array.from(document.querySelectorAll('.rand-ase-chk')).filter(c=>c.checked);
   if(checked.length===0){toast('Selecciona al menos un asesor');return;}
   const unassigned=window._randUnassigned||[];
@@ -6598,6 +6621,8 @@ function delAgenciaModal(){
 const TAB_LABELS={dashboard:'Dashboard',leads:'Leads',pipeline:'Pipeline',recordatorios:'Recordatorios',reportes:'Reportes','rep-citas':'Reporte de Citas','rep-ventas':'Reporte de Ventas','canal-reportes':'Reportes Canal',usuarios:'Usuarios',importar:'Importar / Vincular',storage:'Gestión de datos',perfil:'Mi Perfil'};
 function goTab(name,btn){
   if(['usuarios','importar','storage'].includes(name)&&!isAdmin()){toast('Acceso restringido');return;}
+  // Admin-only tabs — check BEFORE activating the tab visually
+  if((name==='actividad'||name==='pendientes')&&!isAdmin()){toast('Acceso restringido');return;}
   if(name!=='leads'&&bulkMode)exitBulk();
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.ni').forEach(b=>b.classList.remove('active'));
@@ -6616,8 +6641,8 @@ function goTab(name,btn){
   else if(name==='importar'){renderImpHist();updateStorageInfo();}
   else if(name==='storage'){renderDataManager();renderAgencias();}
   else if(name==='canal-reportes')renderCanalReportes();
-  else if(name==='actividad'){if(!isPriv()){toast('Acceso restringido');return;}actSetRange('month');}
-  else if(name==='pendientes'){if(!isAdmin()){toast('Acceso restringido');return;}renderPendientes();}
+  else if(name==='actividad')actSetRange('month');
+  else if(name==='pendientes')renderPendientes();
   closeSB();document.getElementById('mmenu').classList.remove('open');
 }
 function openM(id){document.getElementById(id).classList.add('open');}
