@@ -4598,7 +4598,7 @@ function renderPendientes(){
     const newInfo = `
       <div style="font-weight:700;color:#1565C0">Cliente: ${p.nom||'—'}</div>
       <div style="font-size:11px;color:var(--mut)">Tel: ${p.tel||'—'}</div>
-      <div style="font-size:11px"><span style="color:var(--mut)">Por asignar a:</span> ${p._requestedBy||'—'}</div>
+      <div style="font-size:11px"><span style="color:var(--mut)">Asignación:</span> <strong style="color:#F47920">Sin asignar (pool aleatorio)</strong></div>
       <div style="font-size:11px"><span style="color:var(--mut)">Estado:</span> <span class="badge e-nuevo">NUEVO</span></div>
       <div style="font-size:11px"><span style="color:var(--mut)">Origen:</span> ${p.ori||'—'}</div>
       <div style="font-size:11px"><span style="color:var(--mut)">Fecha:</span> ${p.fa||'—'}</div>
@@ -4641,8 +4641,10 @@ function renderPendientes(){
 async function approvePendiente(leadId){
   const l = leads.find(x => String(x.id) === String(leadId));
   if(!l){toast('Lead no encontrado');return;}
-  if(!confirm(`¿Aprobar la creación de este duplicado?\n\nEl nuevo lead "${l.nom}" será creado como NUEVO y asignado a ${l._requestedBy}.`))return;
+  if(!confirm(`¿Aprobar la creación de este duplicado?\n\nEl lead "${l.nom}" quedará SIN ASIGNAR y disponible para asignación aleatoria.`))return;
   l.est = 'NUEVO';
+  l.uid = null;          // siempre sin asignar al aprobar — entra al pool de asignación aleatoria
+  l.anom = '';
   l._approvalStatus = 'approved';
   l._approvedBy = CU.nombre;
   l._approvedAt = new Date().toISOString();
@@ -4650,7 +4652,7 @@ async function approvePendiente(leadId){
   // Add note about approval
   l.notas = l.notas || [];
   l.notas.push({
-    txt: `✅ Aprobado por ${CU.nombre} — lead duplicado del #${l._dupOf} (${l._dupOfNom})`,
+    txt: `✅ Aprobado por ${CU.nombre} — lead duplicado del #${l._dupOf} (${l._dupOfNom}). Sin asignar — disponible para asignación aleatoria.`,
     by: CU.nombre,
     ts: new Date().toLocaleString()
   });
@@ -4658,7 +4660,9 @@ async function approvePendiente(leadId){
   if(useCloud&&window._fb&&window._fb.isReady()){
     try{ await window._fb.saveLeadCloud(l); }catch(e){console.warn('approve error',e);}
   }
-  toast(`✅ Lead aprobado — ahora aparece en la lista de ${l._requestedBy}`);
+  // Activar botón de asignación aleatoria si existe
+  updateUnassignedBadge&&updateUnassignedBadge();
+  toast('✅ Lead aprobado — quedó SIN ASIGNAR. Usa asignación aleatoria para distribuirlo.');
   renderPendientes();
   updatePendBadge();
   renderAll();
@@ -4972,8 +4976,8 @@ async function crConfirm(){
       // Duplicate of existing CRM lead → goes to admin for approval
       return Object.assign(base, {
         est: 'PENDIENTE_APROBACION',
-        uid: CU.id,                              // requester (admin doing the upload)
-        anom: CU.nombre,
+        uid: null,                               // sin asignar — se asigna aleatoriamente al aprobar
+        anom: '',
         _dupOf: r._dupInfo.id,
         _dupOfNom: r._dupInfo.nom,
         _dupOfAnom: r._dupInfo.anom || 'Sin asignar',
