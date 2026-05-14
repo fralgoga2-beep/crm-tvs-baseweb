@@ -4257,10 +4257,111 @@ function bulkTp(){const tp=document.getElementById('blk-tp').value;if(!tp){toast
 
 // IMPORT / EXPORT
 function parseCSV(text){const rows=[];const lines=text.split(/\r?\n/);const firstLine=lines.find(l=>l.trim())||'';const sep=(firstLine.split(';').length>firstLine.split(',').length)?';':',';for(const ln of lines){if(!ln.trim())continue;const cols=[];let cur='',inQ=false;for(let i=0;i<ln.length;i++){if(ln[i]==='"'&&ln[i+1]==='"'){cur+='"';i++;}else if(ln[i]==='"'){inQ=!inQ;}else if(ln[i]===sep&&!inQ){cols.push(cur.trim());cur='';}else cur+=ln[i];}cols.push(cur.trim());rows.push(cols);}return rows;}
-function importRows(rows){if(!rows||rows.length<2)return 0;const h=rows[0].map(c=>(c||'').toLowerCase().replace(/[^a-záéíóúüñ_\s]/gi,'').trim());const fi=(...ks)=>{for(const k of ks){const i=h.findIndex(c=>c.includes(k.toLowerCase()));if(i>=0)return i;}return -1;};const iOri=fi('origen'),iFa=fi('fecha_act','fecha act','fecha_actividad'),iFu=fi('fecha_upd','fecha actual','fecha_act'),iEst=fi('estado'),iTp=fi('tipo','pago'),iLin=fi('linea','l nea','modelo'),iUbi=fi('ubic'),iNom=fi('nombre_lead','nombre lead','nombre'),iTel=fi('tel','phone'),iAse=fi('asesor'),iCom=fi('comentar','observ','nota');if(iNom<0)return -1;let added=0;const newLeads=[];for(let i=1;i<rows.length;i++){const r=rows[i];if(!r[iNom]||!r[iNom].trim())continue;const nom=r[iNom].trim(),tel=(r[iTel]||'').trim(),fa=(r[iFa]||'').trim();
-// Duplicate check: same name + phone + same activity date (allows re-import with new date)
-const isDup=leads.find(l=>l.nom.trim().toLowerCase()===nom.toLowerCase()&&l.tel===tel&&(l.fa||'')===(fa||l.fa||''));
-if(isDup)continue;const anom=(r[iAse]||'').trim(),u=anom?users.find(x=>x.leadsname?.trim().toLowerCase()===anom.toLowerCase()):null;const comTxt=(r[iCom]||'').trim();const nl={id:nlid++,ori:(r[iOri]||'Otro').trim(),fa:fa||today(),fu:(r[iFu]||today()),est:((r[iEst]||'PROCESO').trim()).toUpperCase(),tp:(r[iTp]||'Contado').trim(),linea:(r[iLin]||'Otra').trim(),ubi:(r[iUbi]||'').trim(),nom,tel,uid:u?u.id:null,anom,notas:comTxt?[{txt:comTxt,by:'Importación',ts:new Date().toLocaleString()}]:[],reminder:null};leads.push(nl);newLeads.push(nl);added++;}if(useCloud&&window._fb.isReady()&&newLeads.length>0){setSyncStatus('syncing');Promise.all(newLeads.map(l=>window._fb.saveLeadCloud(l))).then(()=>{setSyncStatus('ok');}).catch(e=>{console.warn('import cloud save error',e);setSyncStatus('err');});}return added;}
+function importRows(rows){
+  if(!rows||rows.length<2)return 0;
+  const h=rows[0].map(c=>(c||'').toLowerCase().replace(/[^a-záéíóúüñ_\s]/gi,'').trim());
+  const fi=(...ks)=>{for(const k of ks){const i=h.findIndex(c=>c.includes(k.toLowerCase()));if(i>=0)return i;}return -1;};
+  const iOri=fi('origen'),iFa=fi('fecha_act','fecha act','fecha_actividad'),iFu=fi('fecha_upd','fecha actual','fecha_act'),iEst=fi('estado'),iTp=fi('tipo','pago'),iLin=fi('linea','l nea','modelo'),iUbi=fi('ubic'),iNom=fi('nombre_lead','nombre lead','nombre'),iTel=fi('tel','phone'),iAse=fi('asesor'),iCom=fi('comentar','observ','nota');
+  if(iNom<0)return -1;
+  let added=0, pendientes=0;
+  const newLeads=[];
+  // Track phones we've already seen WITHIN this same import file
+  const telsEnArchivo=new Set();
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i];
+    if(!r[iNom]||!r[iNom].trim())continue;
+    const nom=r[iNom].trim();
+    const tel=(r[iTel]||'').trim();
+    const fa=(r[iFa]||'').trim();
+    const anom=(r[iAse]||'').trim();
+    const u=anom?users.find(x=>x.leadsname?.trim().toLowerCase()===anom.toLowerCase()):null;
+    const comTxt=(r[iCom]||'').trim();
+    // ─── DUPLICATE CHECK (by last 8 digits of phone) ───
+    // Phone-based duplicates → send to PENDIENTE_APROBACION instead of skipping.
+    // If phone is too short or empty, fall back to the legacy name+tel+fa check
+    // and just skip to avoid creating bad data.
+    const telLast8=tel?getTelLast8(tel):'';
+    let dupInCRM=null;
+    let dupInFile=false;
+    if(telLast8 && telLast8.length>=8){
+      dupInCRM=findDuplicateLead(tel);
+      if(!dupInCRM && telsEnArchivo.has(telLast8)) dupInFile=true;
+    } else {
+      // Legacy fallback: same name+phone+date → skip silently (no real ID to compare)
+      const legacy=leads.find(l=>l.nom.trim().toLowerCase()===nom.toLowerCase()&&l.tel===tel&&(l.fa||'')===(fa||l.fa||''));
+      if(legacy)continue;
+    }
+    // Build the lead object base
+    const baseNotas=comTxt?[{txt:comTxt,by:'Importación',ts:new Date().toLocaleString()}]:[];
+    if(dupInCRM){
+      // Add a note explaining the duplicate context for the admin
+      let dupTxt=`⚠️ DUPLICADO — ya existe en CRM (ID:${dupInCRM.id})`;
+      if(dupInCRM.anom) dupTxt += ` asignado a ${dupInCRM.anom}`;
+      if(dupInCRM.est) dupTxt += `, estado ${dupInCRM.est}`;
+      if(dupInCRM.fa) dupTxt += ` (${dupInCRM.fa})`;
+      baseNotas.push({txt:dupTxt, by:'Importación', ts:new Date().toLocaleString()});
+    } else if(dupInFile){
+      baseNotas.push({txt:'⚠️ DUPLICADO — número repetido en el mismo archivo de carga.', by:'Importación', ts:new Date().toLocaleString()});
+    }
+    const nl={
+      id:nlid++,
+      ori:(r[iOri]||'Otro').trim(),
+      fa:fa||today(),
+      fu:(r[iFu]||today()),
+      tp:(r[iTp]||'Contado').trim(),
+      linea:(r[iLin]||'Otra').trim(),
+      ubi:(r[iUbi]||'').trim(),
+      nom, tel,
+      notas:baseNotas,
+      reminder:null,
+      _ts_local: Date.now()+i
+    };
+    if(dupInCRM || dupInFile){
+      // Duplicate → PENDIENTE_APROBACION for admin review
+      nl.est='PENDIENTE_APROBACION';
+      nl.uid=CU.id;                       // requester is the user who imported
+      nl.anom=CU.nombre;
+      if(dupInCRM){
+        nl._dupOf=dupInCRM.id;
+        nl._dupOfNom=dupInCRM.nom;
+        nl._dupOfAnom=dupInCRM.anom||'Sin asignar';
+        nl._dupOfEst=dupInCRM.est;
+        nl._dupOfFa=dupInCRM.fa;
+      } else {
+        // Duplicate within the file itself — admin still reviews
+        nl._dupOf=null;
+        nl._dupOfNom='(duplicado dentro del archivo)';
+      }
+      nl._requestedBy=CU.nombre;
+      nl._requestedById=CU.id;
+      nl._requestedAt=new Date().toISOString();
+      nl._approvalStatus='pending';
+      nl._source='importacion';
+      pendientes++;
+    } else {
+      // Regular new lead — use Excel fields as before
+      nl.est=((r[iEst]||'PROCESO').trim()).toUpperCase();
+      nl.uid=u?u.id:null;
+      nl.anom=anom;
+      added++;
+    }
+    leads.push(nl);
+    newLeads.push(nl);
+    if(telLast8 && telLast8.length>=8) telsEnArchivo.add(telLast8);
+  }
+  // Sync to Firebase
+  if(useCloud&&window._fb.isReady()&&newLeads.length>0){
+    setSyncStatus('syncing');
+    Promise.all(newLeads.map(l=>window._fb.saveLeadCloud(l)))
+      .then(()=>setSyncStatus('ok'))
+      .catch(e=>{console.warn('import cloud save error',e);setSyncStatus('err');});
+  }
+  // If there were pending approvals, surface that info to the user via toast
+  if(pendientes>0){
+    setTimeout(()=>toast(`📋 ${pendientes} lead${pendientes!==1?'s':''} pendiente${pendientes!==1?'s':''} de aprobación (duplicados)`), 600);
+  }
+  return added + pendientes;  // total processed (admin still sees count)
+}
 function handleDrop(e){const f=e.dataTransfer.files[0];if(f)procFile(f);}
 function handleFileImport(e){const f=e.target.files[0];if(f)procFile(f);}
 function procFile(file){const n=file.name.toLowerCase();if(n.endsWith('.csv')||n.endsWith('.txt')){const r=new FileReader();r.onload=ev=>{showPrev(parseCSV(ev.target.result),file.name);};r.readAsText(file,'UTF-8');}else if(n.endsWith('.xlsx')||n.endsWith('.xls')){if(typeof XLSX==='undefined'){toast('Cargando...');return;}const r=new FileReader();r.onload=ev=>{try{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];showPrev(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),file.name);}catch(e){toast('Error: '+e.message);}};r.readAsArrayBuffer(file);}else toast('Usa CSV o Excel');}
