@@ -824,17 +824,11 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <div class="tw" style="max-height:600px;overflow:auto">
       <table>
         <thead><tr>
-          <th>Nombre de la Oportunidad</th>
-          <th>Teléfono</th>
-          <th>Modelo</th>
-          <th style="cursor:pointer" onclick="sortRepVentas('fventa')">Fecha de facturación</th>
-          <th>Importe</th>
-          <th>Agencia</th>
-          <th>Vendedor</th>
-          <th>Chasis</th>
-          <th>No. Factura</th>
-          <th>Asesor</th>
-          <th>Acciones</th>
+          <th style="cursor:pointer" onclick="sortRepVentas('fventa')">Fecha Venta</th>
+          <th>Asesor</th><th>Cliente</th><th>Telefono</th>
+          <th>Linea</th><th>Tipo Pago</th><th>Agencia</th>
+          <th>Chasis</th><th>No. Factura</th><th>F. Factura</th>
+          <th>Importe (Q)</th><th>Acciones</th>
         </tr></thead>
         <tbody id="rv-detalle-body"></tbody>
       </table>
@@ -1585,9 +1579,6 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
           <div class="fg" style="margin-bottom:0"><label class="fl">Fecha Factura</label><input class="fc" type="date" id="lf-ffactura"></div>
           <div class="fg" style="margin-bottom:0"><label class="fl">Importe (Q)</label><input class="fc" type="number" id="lf-importe" placeholder="Ej: 22499.00" min="0" step="0.01"></div>
         </div>
-        <div class="fr" style="margin-top:8px">
-          <div class="fg" style="margin-bottom:0"><label class="fl">Vendedor (agencia)</label><input class="fc" id="lf-vendedor" placeholder="Nombre del vendedor de piso que cerró la venta"></div>
-        </div>
       </div>
       <div class="fr" style="gap:.75rem;margin-bottom:12px">
         <div class="fg" style="margin-bottom:0">
@@ -2132,39 +2123,16 @@ function initRealtimeSync(){
       //      where a snapshot arrives before our save propagates back, which would
       //      otherwise wipe out leads users just created.
       //    - leads whose ID looks like a recent timestamp-based ID (Date.now()*1000+rand)
-      //    - PENDIENTE_APROBACION leads — these are critical and must NEVER be auto-deleted.
-      //      They get explicitly approved/rejected by admin; if missing in cloud, retry sync.
       const TEN_MINUTES_AGO = Date.now() - 10*60*1000;
-      const orphanedPendings = [];  // collect for retry
       leads=leads.filter(l=>{
         if(isLocked(l.id))return true;        // currently being saved — protect
         if(l._localOnly)return true;          // never made it to cloud yet — protect
-        if(l.est==='PENDIENTE_APROBACION'){   // CRITICAL: never auto-delete pending approvals
-          if(cloudById[String(l.id)]===undefined){
-            // Pending lead not in cloud — try to push it again
-            l._localOnly=true;                // mark as local-only so we don't lose it
-            orphanedPendings.push(l);
-          }
-          return true;
-        }
         // ID-based protection: our IDs are Date.now()*1000+random, so a numeric ID
         // > TEN_MINUTES_AGO*1000 means it was created in the last 10 minutes locally.
         const numId = Number(l.id);
         if(!isNaN(numId) && numId > TEN_MINUTES_AGO*1000) return true;
         return cloudById[String(l.id)]!==undefined; // keep only if exists in cloud
       });
-      // Retry sync for orphaned pendings (fire and forget)
-      if(orphanedPendings.length>0){
-        console.warn(`Re-syncing ${orphanedPendings.length} orphaned PENDIENTE_APROBACION leads to cloud`);
-        orphanedPendings.forEach(l=>{
-          if(useCloud&&window._fb&&window._fb.isReady()){
-            window._fb.saveLeadCloud(l).then(()=>{
-              delete l._localOnly;
-              console.log('Re-synced pending:',l.id,l.nom);
-            }).catch(e=>console.warn('Failed to re-sync pending:',l.id,e));
-          }
-        });
-      }
       leads.sort((a,b)=>{
         const fa=parseFecha(a.fa||''),fb=parseFecha(b.fa||'');
         if(fb>fa)return 1;if(fa>fb)return -1;
@@ -3496,9 +3464,7 @@ function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas
         <div style="font-size:10px;font-weight:700;color:#1B5E20;margin-bottom:3px">Fecha Factura</div>
         <input class="fc" type="date" id="ds-ffactura" value="${l.ffactura||''}" style="font-size:12px;margin-bottom:8px">
         <div style="font-size:10px;font-weight:700;color:#1B5E20;margin-bottom:3px">Importe (Q)</div>
-        <input class="fc" type="number" id="ds-importe" value="${l.importe||''}" placeholder="Ej: 22499.00" min="0" step="0.01" style="font-size:12px;margin-bottom:8px">
-        <div style="font-size:10px;font-weight:700;color:#1B5E20;margin-bottom:3px">Vendedor (agencia)</div>
-        <input class="fc" id="ds-vendedor" value="${l.vendedor||''}" placeholder="Nombre del vendedor de piso" style="font-size:12px">
+        <input class="fc" type="number" id="ds-importe" value="${l.importe||''}" placeholder="Ej: 22499.00" min="0" step="0.01" style="font-size:12px">
       </div>`:''}
     </div>
     <div style="border:2px solid ${rs==='overdue'?'var(--red)':rs==='today'?'#EAB308':rs?'#4CAF50':'#EAB308'};border-radius:var(--r);padding:.9rem;margin-bottom:1rem">
@@ -3551,8 +3517,7 @@ function renderNotas(l){if(!l.notas||l.notas.length===0)return `<div style="colo
 function addNota(lid){const txt=document.getElementById('new-nota')?.value?.trim();if(!txt){toast('Escribe algo');return;}const l=findLead(lid);if(!l.notas)l.notas=[];l.notas.push({txt,by:CU.nombre,ts:new Date().toLocaleString()});l.fu=today();if(l.fa&&l.fa<today())l.regest='Regestionado';document.getElementById('new-nota').value='';document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);renderAll();toast('Comentario agregado ✓');const gestUid=l.uid||CU.id;addGest(gestUid,1);}
 function delNota(lid,idx){if(!confirm('¿Eliminar?'))return;const l=findLead(lid);l.notas.splice(idx,1);document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);toast('Eliminado');}
 function saveDet(id){
-  // Solo bloquear edición al Gerente Comercial (ve HT+AC, solo lectura)
-  if(getAgenciaPrefix()==='HTAC'){toast('Solo puedes ver leads, no editarlos');return;}
+  if(getAgenciaPrefix()){toast('Solo puedes ver leads, no editarlos');return;}
   const l=findLead(id);
   const prevEst=l.est;
   l.est=document.getElementById('ds-est').value;
@@ -3597,7 +3562,6 @@ function saveDet(id){
     const _dfa=document.getElementById('ds-factura');if(_dfa)l.factura=_dfa.value.trim()||l.factura||'';
     const _dff=document.getElementById('ds-ffactura');if(_dff&&_dff.value)l.ffactura=_dff.value;
     const _dim=document.getElementById('ds-importe');if(_dim&&_dim.value)l.importe=_dim.value;
-    const _dvd=document.getElementById('ds-vendedor');if(_dvd)l.vendedor=_dvd.value.trim();
   }
   // Auto-guardar canal desde agencia si es CITA y canal está vacío
   if(l.est==='CITA'){
@@ -3670,7 +3634,6 @@ function openLM(id){
   const _lfa=document.getElementById('lf-factura');if(_lfa)_lfa.value=l.factura||'';
   const _lff=document.getElementById('lf-ffactura');if(_lff)_lff.value=l.ffactura||'';
   const _lim=document.getElementById('lf-importe');if(_lim)_lim.value=l.importe||'';
-  const _lvd=document.getElementById('lf-vendedor');if(_lvd)_lvd.value=l.vendedor||'';
   const _lss=document.getElementById('lf-agencia-search');if(_lss)_lss.value=l.agencia||'';
   toggleCanalField();}
   else{document.getElementById('ml-title').textContent='Nuevo Lead';document.getElementById('lf-btn').textContent='Guardar Lead';['lf-nom','lf-tel','lf-ubi','lf-com','lf-rd','lf-rn'].forEach(i=>document.getElementById(i).value='');document.getElementById('lf-fa').value=today();document.getElementById('lf-fu').value=today();document.getElementById('lf-rt').value='09:00';const af=document.getElementById('lf-ase');if(af)af.value=isPriv()?'':String(CU.id);const _cff=document.getElementById('lf-canal');if(_cff)_cff.value='';const _agn=document.getElementById('lf-agencia');if(_agn)_agn.value='';const _inn=document.getElementById('lf-interes');if(_inn)_inn.value='';const _ren=document.getElementById('lf-responde');if(_ren)_ren.value='';const _rgn=document.getElementById('lf-regest');if(_rgn)_rgn.value='';toggleCanalField();}
@@ -3725,8 +3688,7 @@ function saveLead(){
   const _factura=_est==='VENTA'?(document.getElementById('lf-factura')?.value.trim()||''):'';
   const _ffactura=_est==='VENTA'?(document.getElementById('lf-ffactura')?.value||''):'';
   const _importe=_est==='VENTA'?(document.getElementById('lf-importe')?.value||''):'';
-  const _vendedor=_est==='VENTA'?(document.getElementById('lf-vendedor')?.value.trim()||''):'';
-  const data={nom,tel:document.getElementById('lf-tel').value,ori:document.getElementById('lf-ori').value,tp:_tp,canal:_canal,agencia:_agencia,agencia_codigo:_agencia_codigo,interes:_interes,responde:_responde,regest:_regest,linea:document.getElementById('lf-lin').value,ubi:document.getElementById('lf-ubi').value,est:_est,fa:document.getElementById('lf-fa').value,fu:today(),uid,anom:u?u.nombre:'',reminder,chasis:_chasis,factura:_factura,ffactura:_ffactura,importe:_importe,vendedor:_vendedor};
+  const data={nom,tel:document.getElementById('lf-tel').value,ori:document.getElementById('lf-ori').value,tp:_tp,canal:_canal,agencia:_agencia,agencia_codigo:_agencia_codigo,interes:_interes,responde:_responde,regest:_regest,linea:document.getElementById('lf-lin').value,ubi:document.getElementById('lf-ubi').value,est:_est,fa:document.getElementById('lf-fa').value,fu:today(),uid,anom:u?u.nombre:'',reminder,chasis:_chasis,factura:_factura,ffactura:_ffactura,importe:_importe};
   let savedLead;
   if(editL){
     const i=findLeadIndex(editL);
@@ -4394,23 +4356,24 @@ function renderRepVentas(){
   });
   document.getElementById('rv-detalle-count').textContent=arr.length+' ventas';
   const detBody=document.getElementById('rv-detalle-body');
-  if(arr.length===0){detBody.innerHTML='<tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--mut)">Sin ventas en este periodo</td></tr>';return;}
+  if(arr.length===0){detBody.innerHTML='<tr><td colspan="12" style="text-align:center;padding:2rem;color:var(--mut)">Sin ventas en este periodo</td></tr>';return;}
   detBody.innerHTML=arr.map(l=>{
     const u=l.uid?users.find(x=>x.id===l.uid):null;
     const aseN=u?u.nombre:(l.anom||'Sin asignar');
     const fv=getFventaDate(l);
     const imp=parseFloat(l.importe)||0;
     return `<tr>
+      <td style="white-space:nowrap;font-weight:600;color:#1B5E20">${fv||'—'}</td>
+      <td><div style="display:flex;align-items:center;gap:6px">${u?avU(u):'<span style="font-size:10px">—</span>'}<span>${aseN}</span></div></td>
       <td style="font-weight:600">${l.nom||'—'}</td>
       <td><a href="https://wa.me/${(l.tel||'').replace(/\D/g,'')}" target="_blank" style="color:#25D366;font-weight:600">${l.tel||'—'}</a></td>
       <td>${l.linea||'—'}</td>
-      <td style="white-space:nowrap;font-weight:600;color:#1B5E20">${fv||'—'}</td>
-      <td style="font-weight:700;color:#1B5E20;white-space:nowrap">${imp>0?fmtQ(imp):'<span style="color:var(--mut)">—</span>'}</td>
+      <td>${tpBadge(l.tp)}</td>
       <td style="font-weight:600;color:var(--navy)">${l.agencia||'—'}</td>
-      <td style="font-weight:600">${l.vendedor||'<span style="color:var(--mut)">—</span>'}</td>
       <td style="font-family:monospace;font-size:11px;color:var(--navy)">${l.chasis||'<span style="color:var(--mut)">—</span>'}</td>
       <td style="font-family:monospace;font-size:11px">${l.factura||'<span style="color:var(--mut)">—</span>'}</td>
-      <td><div style="display:flex;align-items:center;gap:6px">${u?avU(u):'<span style="font-size:10px">—</span>'}<span>${aseN}</span></div></td>
+      <td style="white-space:nowrap">${l.ffactura||'<span style="color:var(--mut)">—</span>'}</td>
+      <td style="font-weight:700;color:#1B5E20;white-space:nowrap">${imp>0?fmtQ(imp):'<span style="color:var(--mut)">—</span>'}</td>
       <td><button class="btn bn bxs" onclick="openDet(${l.id})">👁</button></td>
     </tr>`;
   }).join('');
@@ -4424,10 +4387,10 @@ function sortRepVentas(key){
 function exportRepVentasCSV(){
   const arr=getRepVentasArr();
   arr.sort((a,b)=>getFventaDate(b).localeCompare(getFventaDate(a)));
-  const cols=['Nombre de la Oportunidad','Teléfono','Modelo','Fecha de facturación','Importe','Agencia','Vendedor','Chasis','No. Factura','Asesor'];
+  const cols=['Fecha Venta','Asesor','Cliente','Telefono','Linea','Tipo Pago','Agencia','Origen','Chasis','No. Factura','Fecha Factura','Importe'];
   const rows=[cols,...arr.map(l=>{
     const u=l.uid?users.find(x=>x.id===l.uid):null;
-    return[l.nom||'',l.tel||'',l.linea||'',l.ffactura||getFventaDate(l)||'',l.importe||'',l.agencia||'',l.vendedor||'',l.chasis||'',l.factura||'',u?u.nombre:(l.anom||'')];
+    return[getFventaDate(l),u?u.nombre:(l.anom||''),l.nom||'',l.tel||'',l.linea||'',l.tp||'',l.agencia||'',l.ori||'',l.chasis||'',l.factura||'',l.ffactura||'',l.importe||''];
   })];
   const csv=rows.map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);a.download='reporte-ventas.csv';a.click();toast('CSV exportado');
@@ -4437,101 +4400,13 @@ function exportRepVentasXLSX(){
   if(typeof XLSX==='undefined'){toast('Libreria XLSX no disponible');return;}
   const arr=getRepVentasArr();
   arr.sort((a,b)=>getFventaDate(b).localeCompare(getFventaDate(a)));
-  // Group ventas by asesor (uid)
-  const byAsesor={};
-  arr.forEach(l=>{
+  const rows=arr.map(l=>{
     const u=l.uid?users.find(x=>x.id===l.uid):null;
-    const aseN=u?u.nombre:(l.anom||'Sin asignar');
-    if(!byAsesor[aseN])byAsesor[aseN]={ases:aseN,ventas:[]};
-    byAsesor[aseN].ventas.push(l);
+    return{'Fecha Venta':getFventaDate(l),'Asesor':u?u.nombre:(l.anom||''),'Cliente':l.nom||'','Telefono':l.tel||'','Linea':l.linea||'','Tipo Pago':l.tp||'','Agencia':l.agencia||'','Origen':l.ori||'','Chasis':l.chasis||'','No. Factura':l.factura||'','Fecha Factura':l.ffactura||'','Importe':parseFloat(l.importe)||0};
   });
-  // Sort asesores alphabetically (or by ventas count desc)
-  const groups=Object.values(byAsesor).sort((a,b)=>b.ventas.length-a.ventas.length);
-
-  // Build AOA (array of arrays) — one sheet with all asesores stacked
-  const aoa=[];
-  // Header row (col labels for each group's table)
-  const HDR=['','Nombre de la Oportunidad','Teléfono','Modelo','Fecha de facturación','Importe','Agencia','Vendedor','Chasis','No. Factura','','VENTA'];
-  // Commission scale function: 1-10 → 0.75%, 11-20 → 1.00%, 21-30 → 1.25%, 31+ → 1.50%
-  function getCommissionRate(n){
-    if(n>=31)return 0.015;
-    if(n>=21)return 0.0125;
-    if(n>=11)return 0.01;
-    return 0.0075;
-  }
-
-  groups.forEach(g=>{
-    // Asesor header
-    aoa.push([g.ases]);
-    // Column headers
-    aoa.push(HDR);
-    // Ventas rows
-    let subTotal=0;
-    g.ventas.forEach(l=>{
-      const imp=parseFloat(l.importe)||0;
-      subTotal += imp;
-      aoa.push([
-        '',
-        l.nom||'',
-        l.tel||'',
-        l.linea||'',
-        l.ffactura||getFventaDate(l)||'',
-        imp,
-        l.agencia||'',
-        l.vendedor||'',
-        l.chasis||'',
-        l.factura||'',
-        '',
-        'VENTA'
-      ]);
-    });
-    // Subtotal / IVA / Total / Comision rows
-    const iva = subTotal - (subTotal/1.12);  // IVA included: 12% of base
-    const total = subTotal - iva;             // total without IVA
-    const nVentas = g.ventas.length;
-    const rate = getCommissionRate(nVentas);
-    const aplica = nVentas >= 6;
-    const comision = aplica ? total * rate : 0;
-    aoa.push(['', '', '', '', 'Sub Total:', subTotal, '', '', '', '', 'Comisión:', comision]);
-    aoa.push(['', '', '', '', '(-IVA):', iva, '', '', '', '', 'KPI:', aplica?'Aplica a Comisión':'No Aplica a Comisión']);
-    aoa.push(['', '', '', '', 'Total:', total, '', '', '', '', 'TOTAL COMISIÓN:', comision]);
-    // Blank row between asesores
-    aoa.push([]);
-    aoa.push([]);
-  });
-  // Grand total row
-  if(groups.length>0){
-    const grandSubTotal=arr.reduce((s,l)=>s+(parseFloat(l.importe)||0),0);
-    const grandIva=grandSubTotal-(grandSubTotal/1.12);
-    const grandTotal=grandSubTotal-grandIva;
-    aoa.push(['TOTAL GENERAL']);
-    aoa.push(['', '', '', '', 'Sub Total General:', grandSubTotal]);
-    aoa.push(['', '', '', '', '(-IVA) General:', grandIva]);
-    aoa.push(['', '', '', '', 'Total General:', grandTotal]);
-  }
-
-  const ws=XLSX.utils.aoa_to_sheet(aoa);
-  // Column widths
-  ws['!cols']=[{wch:3},{wch:35},{wch:14},{wch:25},{wch:18},{wch:14},{wch:25},{wch:25},{wch:22},{wch:14},{wch:18},{wch:22}];
-  // Format numeric importe/comision cells as currency
-  const range=XLSX.utils.decode_range(ws['!ref']);
-  for(let R=range.s.r;R<=range.e.r;R++){
-    for(let C of [5,11]){
-      const addr=XLSX.utils.encode_cell({r:R,c:C});
-      const cell=ws[addr];
-      if(cell && typeof cell.v==='number'){
-        cell.t='n';
-        cell.z='"Q"#,##0.00';
-      }
-    }
-  }
+  const ws=XLSX.utils.json_to_sheet(rows);
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Ventas');
-  const periodLabel = (function(){
-    const d = new Date();
-    return d.toISOString().substring(0,10);
-  })();
-  XLSX.writeFile(wb,`reporte-ventas-${periodLabel}.xlsx`);
-  toast('Excel exportado ✓');
+  XLSX.writeFile(wb,'reporte-ventas.xlsx');toast('Excel exportado');
 }
 
 function descargarDashboard(){
@@ -4909,10 +4784,7 @@ function importRows(rows){
       baseNotas.push({txt:'⚠️ DUPLICADO — número repetido en el mismo archivo de carga.', by:'Importación', ts:new Date().toLocaleString()});
     }
     const nl={
-      // Use timestamp-based ID like everywhere else (Date.now()*1000+random).
-      // Plain nlid++ produces small IDs that fail the "recent lead" protection
-      // in the cloud listener filter, causing leads to be silently deleted.
-      id: Date.now()*1000 + Math.floor(Math.random()*1000) + Math.floor(Math.random()*100),
+      id:nlid++,
       ori:(r[iOri]||'Otro').trim(),
       fa:fa||today(),
       fu:(r[iFu]||today()),
@@ -5256,6 +5128,7 @@ async function approvePendiente(leadId){
   l._approvalStatus = 'approved';
   l._approvedBy = CU.nombre;
   l._approvedAt = new Date().toISOString();
+  l._ts_local = Date.now();
   // Add note about approval
   l.notas = l.notas || [];
   l.notas.push({
@@ -5263,19 +5136,15 @@ async function approvePendiente(leadId){
     by: CU.nombre,
     ts: new Date().toLocaleString()
   });
-  // Use cloudSaveLead (handles lock + retry + _ts_local stamping)
-  // instead of bare saveLeadCloud — prevents the lead from disappearing
-  // when a cloud snapshot arrives before our save propagates.
-  try{
-    await cloudSaveLead(l);
-  }catch(e){
-    console.error('approvePendiente cloud sync error:',e);
-  }
   persist();
+  if(useCloud&&window._fb&&window._fb.isReady()){
+    try{ await window._fb.saveLeadCloud(l); }catch(e){console.warn('approve error',e);}
+  }
+  // Activar botón de asignación aleatoria si existe
+  updateUnassignedBadge&&updateUnassignedBadge();
   toast('✅ Lead aprobado — quedó SIN ASIGNAR. Usa asignación aleatoria para distribuirlo.');
   renderPendientes();
   updatePendBadge();
-  if(typeof updateRandomAssignBadge === 'function') updateRandomAssignBadge();
   renderAll();
 }
 
@@ -5290,13 +5159,11 @@ async function rejectPendiente(leadId){
   l._rejectedAt = new Date().toISOString();
   l._rejectionReason = reason || '';
   l._archived = true; // hide from views — rejected requests don't clutter
-  // Use cloudSaveLead with proper protection
-  try{
-    await cloudSaveLead(l);
-  }catch(e){
-    console.error('rejectPendiente cloud sync error:',e);
-  }
+  l._ts_local = Date.now();
   persist();
+  if(useCloud&&window._fb&&window._fb.isReady()){
+    try{ await window._fb.saveLeadCloud(l); }catch(e){console.warn('reject error',e);}
+  }
   toast(`✗ Solicitud rechazada`);
   renderPendientes();
   updatePendBadge();
@@ -5328,14 +5195,14 @@ async function reassignPendiente(leadId){
   p._resolvedBy = CU.nombre;
   p._resolvedAt = new Date().toISOString();
   p._archived = true;
-  // Use cloudSaveLead with proper protection (lock + retry + _ts_local stamping)
-  try{
-    await cloudSaveLead(orig);
-    await cloudSaveLead(p);
-  }catch(e){
-    console.error('reassignPendiente cloud sync error:',e);
-  }
+  p._ts_local = Date.now();
   persist();
+  if(useCloud&&window._fb&&window._fb.isReady()){
+    try{
+      await window._fb.saveLeadCloud(orig);
+      await window._fb.saveLeadCloud(p);
+    }catch(e){console.warn('reassign error',e);}
+  }
   toast(`↻ Lead reasignado a ${p._requestedBy}`);
   renderPendientes();
   updatePendBadge();
