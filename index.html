@@ -3496,7 +3496,9 @@ function openDet(id){if(getAgenciaPrefix()){toast('Solo puedes ver estadísticas
         <div style="font-size:10px;font-weight:700;color:#1B5E20;margin-bottom:3px">Fecha Factura</div>
         <input class="fc" type="date" id="ds-ffactura" value="${l.ffactura||''}" style="font-size:12px;margin-bottom:8px">
         <div style="font-size:10px;font-weight:700;color:#1B5E20;margin-bottom:3px">Importe (Q)</div>
-        <input class="fc" type="number" id="ds-importe" value="${l.importe||''}" placeholder="Ej: 22499.00" min="0" step="0.01" style="font-size:12px">
+        <input class="fc" type="number" id="ds-importe" value="${l.importe||''}" placeholder="Ej: 22499.00" min="0" step="0.01" style="font-size:12px;margin-bottom:8px">
+        <div style="font-size:10px;font-weight:700;color:#1B5E20;margin-bottom:3px">Vendedor (agencia)</div>
+        <input class="fc" id="ds-vendedor" value="${l.vendedor||''}" placeholder="Nombre del vendedor de piso" style="font-size:12px">
       </div>`:''}
     </div>
     <div style="border:2px solid ${rs==='overdue'?'var(--red)':rs==='today'?'#EAB308':rs?'#4CAF50':'#EAB308'};border-radius:var(--r);padding:.9rem;margin-bottom:1rem">
@@ -3549,7 +3551,8 @@ function renderNotas(l){if(!l.notas||l.notas.length===0)return `<div style="colo
 function addNota(lid){const txt=document.getElementById('new-nota')?.value?.trim();if(!txt){toast('Escribe algo');return;}const l=findLead(lid);if(!l.notas)l.notas=[];l.notas.push({txt,by:CU.nombre,ts:new Date().toLocaleString()});l.fu=today();if(l.fa&&l.fa<today())l.regest='Regestionado';document.getElementById('new-nota').value='';document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);renderAll();toast('Comentario agregado ✓');const gestUid=l.uid||CU.id;addGest(gestUid,1);}
 function delNota(lid,idx){if(!confirm('¿Eliminar?'))return;const l=findLead(lid);l.notas.splice(idx,1);document.getElementById('notas-list').innerHTML=renderNotas(l);persist();cloudSaveLead(l);toast('Eliminado');}
 function saveDet(id){
-  if(getAgenciaPrefix()){toast('Solo puedes ver leads, no editarlos');return;}
+  // Solo bloquear edición al Gerente Comercial (ve HT+AC, solo lectura)
+  if(getAgenciaPrefix()==='HTAC'){toast('Solo puedes ver leads, no editarlos');return;}
   const l=findLead(id);
   const prevEst=l.est;
   l.est=document.getElementById('ds-est').value;
@@ -3594,6 +3597,7 @@ function saveDet(id){
     const _dfa=document.getElementById('ds-factura');if(_dfa)l.factura=_dfa.value.trim()||l.factura||'';
     const _dff=document.getElementById('ds-ffactura');if(_dff&&_dff.value)l.ffactura=_dff.value;
     const _dim=document.getElementById('ds-importe');if(_dim&&_dim.value)l.importe=_dim.value;
+    const _dvd=document.getElementById('ds-vendedor');if(_dvd)l.vendedor=_dvd.value.trim();
   }
   // Auto-guardar canal desde agencia si es CITA y canal está vacío
   if(l.est==='CITA'){
