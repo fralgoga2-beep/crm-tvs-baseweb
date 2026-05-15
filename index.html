@@ -2123,16 +2123,39 @@ function initRealtimeSync(){
       //      where a snapshot arrives before our save propagates back, which would
       //      otherwise wipe out leads users just created.
       //    - leads whose ID looks like a recent timestamp-based ID (Date.now()*1000+rand)
+      //    - PENDIENTE_APROBACION leads — these are critical and must NEVER be auto-deleted.
+      //      They get explicitly approved/rejected by admin; if missing in cloud, retry sync.
       const TEN_MINUTES_AGO = Date.now() - 10*60*1000;
+      const orphanedPendings = [];  // collect for retry
       leads=leads.filter(l=>{
         if(isLocked(l.id))return true;        // currently being saved — protect
         if(l._localOnly)return true;          // never made it to cloud yet — protect
+        if(l.est==='PENDIENTE_APROBACION'){   // CRITICAL: never auto-delete pending approvals
+          if(cloudById[String(l.id)]===undefined){
+            // Pending lead not in cloud — try to push it again
+            l._localOnly=true;                // mark as local-only so we don't lose it
+            orphanedPendings.push(l);
+          }
+          return true;
+        }
         // ID-based protection: our IDs are Date.now()*1000+random, so a numeric ID
         // > TEN_MINUTES_AGO*1000 means it was created in the last 10 minutes locally.
         const numId = Number(l.id);
         if(!isNaN(numId) && numId > TEN_MINUTES_AGO*1000) return true;
         return cloudById[String(l.id)]!==undefined; // keep only if exists in cloud
       });
+      // Retry sync for orphaned pendings (fire and forget)
+      if(orphanedPendings.length>0){
+        console.warn(`Re-syncing ${orphanedPendings.length} orphaned PENDIENTE_APROBACION leads to cloud`);
+        orphanedPendings.forEach(l=>{
+          if(useCloud&&window._fb&&window._fb.isReady()){
+            window._fb.saveLeadCloud(l).then(()=>{
+              delete l._localOnly;
+              console.log('Re-synced pending:',l.id,l.nom);
+            }).catch(e=>console.warn('Failed to re-sync pending:',l.id,e));
+          }
+        });
+      }
       leads.sort((a,b)=>{
         const fa=parseFecha(a.fa||''),fb=parseFecha(b.fa||'');
         if(fb>fa)return 1;if(fa>fb)return -1;
@@ -4784,7 +4807,10 @@ function importRows(rows){
       baseNotas.push({txt:'⚠️ DUPLICADO — número repetido en el mismo archivo de carga.', by:'Importación', ts:new Date().toLocaleString()});
     }
     const nl={
-      id:nlid++,
+      // Use timestamp-based ID like everywhere else (Date.now()*1000+random).
+      // Plain nlid++ produces small IDs that fail the "recent lead" protection
+      // in the cloud listener filter, causing leads to be silently deleted.
+      id: Date.now()*1000 + Math.floor(Math.random()*1000) + Math.floor(Math.random()*100),
       ori:(r[iOri]||'Otro').trim(),
       fa:fa||today(),
       fu:(r[iFu]||today()),
@@ -5128,7 +5154,6 @@ async function approvePendiente(leadId){
   l._approvalStatus = 'approved';
   l._approvedBy = CU.nombre;
   l._approvedAt = new Date().toISOString();
-  l._ts_local = Date.now();
   // Add note about approval
   l.notas = l.notas || [];
   l.notas.push({
@@ -5136,15 +5161,19 @@ async function approvePendiente(leadId){
     by: CU.nombre,
     ts: new Date().toLocaleString()
   });
-  persist();
-  if(useCloud&&window._fb&&window._fb.isReady()){
-    try{ await window._fb.saveLeadCloud(l); }catch(e){console.warn('approve error',e);}
+  // Use cloudSaveLead (handles lock + retry + _ts_local stamping)
+  // instead of bare saveLeadCloud — prevents the lead from disappearing
+  // when a cloud snapshot arrives before our save propagates.
+  try{
+    await cloudSaveLead(l);
+  }catch(e){
+    console.error('approvePendiente cloud sync error:',e);
   }
-  // Activar botón de asignación aleatoria si existe
-  updateUnassignedBadge&&updateUnassignedBadge();
+  persist();
   toast('✅ Lead aprobado — quedó SIN ASIGNAR. Usa asignación aleatoria para distribuirlo.');
   renderPendientes();
   updatePendBadge();
+  if(typeof updateRandomAssignBadge === 'function') updateRandomAssignBadge();
   renderAll();
 }
 
@@ -5159,11 +5188,13 @@ async function rejectPendiente(leadId){
   l._rejectedAt = new Date().toISOString();
   l._rejectionReason = reason || '';
   l._archived = true; // hide from views — rejected requests don't clutter
-  l._ts_local = Date.now();
-  persist();
-  if(useCloud&&window._fb&&window._fb.isReady()){
-    try{ await window._fb.saveLeadCloud(l); }catch(e){console.warn('reject error',e);}
+  // Use cloudSaveLead with proper protection
+  try{
+    await cloudSaveLead(l);
+  }catch(e){
+    console.error('rejectPendiente cloud sync error:',e);
   }
+  persist();
   toast(`✗ Solicitud rechazada`);
   renderPendientes();
   updatePendBadge();
@@ -5195,14 +5226,14 @@ async function reassignPendiente(leadId){
   p._resolvedBy = CU.nombre;
   p._resolvedAt = new Date().toISOString();
   p._archived = true;
-  p._ts_local = Date.now();
-  persist();
-  if(useCloud&&window._fb&&window._fb.isReady()){
-    try{
-      await window._fb.saveLeadCloud(orig);
-      await window._fb.saveLeadCloud(p);
-    }catch(e){console.warn('reassign error',e);}
+  // Use cloudSaveLead with proper protection (lock + retry + _ts_local stamping)
+  try{
+    await cloudSaveLead(orig);
+    await cloudSaveLead(p);
+  }catch(e){
+    console.error('reassignPendiente cloud sync error:',e);
   }
+  persist();
   toast(`↻ Lead reasignado a ${p._requestedBy}`);
   renderPendientes();
   updatePendBadge();
