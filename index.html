@@ -1524,9 +1524,9 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;font-
     <div class="tw" style="max-height:500px;overflow:auto">
       <table>
         <thead><tr>
-          <th>CLIENTE</th><th>TELÉFONO</th><th>LÍNEA</th><th>TIPO PAGO</th>
-          <th>AGENCIA</th><th>CHASIS</th><th>NO. FACTURA</th><th>F. FACTURA</th>
-          <th>IMPORTE (Q)</th><th>ASESOR</th>
+          <th>NOMBRE OPORTUNIDAD</th><th>TEL</th><th>MODELO</th><th>FECHA FACTURACIÓN</th>
+          <th>IMPORTE (Q)</th><th>AGENCIA</th><th>VENDEDOR</th><th>CHASIS</th>
+          <th>NO. FACTURA</th><th>ASESOR</th>
         </tr></thead>
         <tbody id="dv-tbody"></tbody>
       </table>
@@ -9242,12 +9242,12 @@ function renderDashVentas(){
       <td style="font-weight:600">${l.nom||'—'}</td>
       <td>${l.tel||'—'}</td>
       <td>${l.linea||'—'}</td>
-      <td><span class="badge ${l.tp==='Contado'?'e-venta':l.tp==='Crédito'?'e-cita':'e-seg'}">${l.tp||'—'}</span></td>
-      <td style="font-size:11px;color:var(--navy);font-weight:600">${l.agencia||'—'}</td>
-      <td style="font-size:11px;color:var(--mut)">${l.chasis||'—'}</td>
-      <td style="font-size:11px">${l.factura||'—'}</td>
       <td style="font-size:11px">${l.ffactura||'—'}</td>
       <td style="font-weight:700;color:#1B5E20">${imp>0?'Q '+imp.toLocaleString('es-GT',{minimumFractionDigits:2}):'—'}</td>
+      <td style="font-size:11px;color:var(--navy);font-weight:600">${l.agencia||'—'}</td>
+      <td style="font-size:11px">${l.vendedor||'—'}</td>
+      <td style="font-size:11px;color:var(--mut)">${l.chasis||'—'}</td>
+      <td style="font-size:11px">${l.factura||'—'}</td>
       <td style="font-size:11px">${l.anom||'—'}</td>
     </tr>`;
   }).join('');
@@ -9274,26 +9274,26 @@ async function dvExportXLSX(){
 
   // Hoja 1: Detalle
   const w1=wb.addWorksheet('Detalle de Ventas');
-  w1.columns=[{width:26},{width:14},{width:20},{width:13},{width:24},{width:20},{width:14},{width:13},{width:14},{width:18}];
+  w1.columns=[{width:26},{width:14},{width:20},{width:15},{width:14},{width:24},{width:20},{width:20},{width:14},{width:18}];
   w1.mergeCells('A1:J1');const t1=w1.getCell('A1');t1.value='REPORTE DE VENTAS';t1.font=fw('FFFFFF',true,14);t1.fill=fg(NV);t1.alignment=aC;w1.getRow(1).height=28;
   w1.mergeCells('A2:J2');const t2=w1.getCell('A2');t2.value=`Del ${fd} al ${fh} · ${arr.length} ventas`;t2.font=fw('555555',false,10);t2.alignment=aL;w1.getRow(2).height=16;
   w1.getRow(3).height=6;
-  const hr=w1.addRow(['CLIENTE','TELÉFONO','LÍNEA','TIPO PAGO','AGENCIA','CHASIS','NO. FACTURA','F. FACTURA','IMPORTE (Q)','ASESOR']);
+  const hr=w1.addRow(['NOMBRE OPORTUNIDAD','TEL','MODELO','FECHA FACTURACIÓN','IMPORTE (Q)','AGENCIA','VENDEDOR','CHASIS','NO. FACTURA','ASESOR']);
   hr.height=20;hr.eachCell(c=>{c.font=fw('FFFFFF',true,10);c.fill=fg('2D2D2D');c.alignment=aC;c.border=bd;});
   const sorted=[...arr].sort((a,b)=>(b.ffactura||b.fa||'').localeCompare(a.ffactura||a.fa||''));
   sorted.forEach((l,i)=>{
     const imp=parseFloat(l.importe)||0;
-    const row=w1.addRow([l.nom||'—',String(l.tel||'—'),l.linea||'—',l.tp||'—',l.agencia||'—',l.chasis||'—',l.factura||'—',l.ffactura||'—',imp>0?imp:'—',l.anom||'—']);
+    const row=w1.addRow([l.nom||'—',String(l.tel||'—'),l.linea||'—',l.ffactura||'—',imp>0?imp:'—',l.agencia||'—',l.vendedor||'—',l.chasis||'—',l.factura||'—',l.anom||'—']);
     row.height=17;
     const bg=i%2===0?'FFFFFF':'F5F5F5';
-    row.eachCell((c,ci)=>{c.fill=fg(bg);c.font=fw('1a1a1a',false,10);c.alignment=ci===1||ci===5?aL:aC;c.border=bd;});
-    if(imp>0){const ic=row.getCell(9);ic.font=fw('1B5E20',true,10);ic.numFmt='"Q "#,##0.00';}
+    row.eachCell((c,ci)=>{c.fill=fg(bg);c.font=fw('1a1a1a',false,10);c.alignment=ci===1||ci===6||ci===7?aL:aC;c.border=bd;});
+    if(imp>0){const ic=row.getCell(5);ic.font=fw('1B5E20',true,10);ic.numFmt='"Q "#,##0.00';}
   });
   // Fila total
   const totalImp=arr.reduce((s,l)=>s+(parseFloat(l.importe)||0),0);
-  const totRow=w1.addRow(['TOTAL','','','','','','','',totalImp,'']);
+  const totRow=w1.addRow(['TOTAL','','','',totalImp,'','','','','']);
   totRow.height=20;totRow.eachCell(c=>{c.font=fw('FFFFFF',true,10);c.fill=fg(NV);c.alignment=aC;c.border=bd;});
-  const tc=totRow.getCell(9);tc.numFmt='"Q "#,##0.00';
+  const tc=totRow.getCell(5);tc.numFmt='"Q "#,##0.00';
   w1.views=[{state:'frozen',ySplit:4}];
 
   // Hoja 2: Resumen por canal
